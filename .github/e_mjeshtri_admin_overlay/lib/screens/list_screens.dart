@@ -59,22 +59,36 @@ class _CitizensScreenState extends State<CitizensScreen> {
 
   Future<void> _changeStatus(Map<String, dynamic> row, String status) async {
     final name = _citizenName(row);
-    final ok = await _confirm(
-      status == 'suspended' ? 'Pezullo qytetarin' : 'Riaktivizo qytetarin',
-      status == 'suspended'
-          ? 'Je i sigurt që dëshiron të pezullosh $name?'
-          : 'Je i sigurt që dëshiron të riaktivizosh $name?',
-    );
-    if (!ok) return;
+    String? reason;
+
+    if (status == 'suspended') {
+      reason = await _askReason(
+        context,
+        'Arsyeja e pezullimit',
+        'Shkruaj pse po pezullohet $name.',
+      );
+      if (reason == null) return;
+    } else {
+      final ok = await _confirm(
+        'Riaktivizo qytetarin',
+        'Je i sigurt që dëshiron të riaktivizosh $name?',
+      );
+      if (!ok) return;
+    }
 
     try {
-      await AdminRepository.instance
-          .setCitizenStatus(row['id'].toString(), status);
+      await AdminRepository.instance.setCitizenStatus(
+        row['id'].toString(),
+        status,
+        reason: reason,
+      );
       if (!mounted) return;
       _toast('Statusi u përditësua.');
       await _reload();
     } catch (e) {
-      if (mounted) _toast(AdminRepository.instance.friendlyError(e), error: true);
+      if (mounted) {
+        _toast(AdminRepository.instance.friendlyError(e), error: true);
+      }
     }
   }
 
@@ -273,22 +287,36 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
       'suspend': 'Pezullo mjeshtrin',
       'reactivate': 'Riaktivizo mjeshtrin',
     };
-    final destructive = action == 'reject' || action == 'suspend';
-    final ok = !destructive ||
-        await _confirm(
-          labels[action] ?? 'Veprimi',
-          'Je i sigurt që dëshiron të vazhdosh me “${_text(row['display_name'])}”?',
-        );
-    if (!ok) return;
+
+    String? reason;
+    if (action == 'reject' || action == 'suspend') {
+      reason = await _askReason(
+        context,
+        action == 'reject' ? 'Arsyeja e refuzimit' : 'Arsyeja e pezullimit',
+        'Shkruaj arsyen për “${_text(row['display_name'])}”.',
+      );
+      if (reason == null) return;
+    } else {
+      final ok = await _confirm(
+        labels[action] ?? 'Veprimi',
+        'Je i sigurt që dëshiron të vazhdosh me “${_text(row['display_name'])}”?',
+      );
+      if (!ok) return;
+    }
 
     try {
-      await AdminRepository.instance
-          .setProviderStatus(row['id'].toString(), action);
+      await AdminRepository.instance.setProviderStatus(
+        row['id'].toString(),
+        action,
+        reason: reason,
+      );
       if (!mounted) return;
       _toast('Statusi i mjeshtrit u përditësua.');
       await _reload();
     } catch (e) {
-      if (mounted) _toast(AdminRepository.instance.friendlyError(e), error: true);
+      if (mounted) {
+        _toast(AdminRepository.instance.friendlyError(e), error: true);
+      }
     }
   }
 
@@ -1284,6 +1312,69 @@ class _StateCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<String?> _askReason(
+  BuildContext context,
+  String title,
+  String subtitle,
+) async {
+  final controller = TextEditingController();
+  String? errorText;
+
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                minLines: 3,
+                maxLines: 5,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Arsyeja',
+                  alignLabelWithHint: true,
+                  errorText: errorText,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length < 4) {
+                setState(() => errorText = 'Shkruaj një arsye të qartë.');
+                return;
+              }
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Vazhdo'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  controller.dispose();
+  return result;
 }
 
 String _citizenName(Map<String, dynamic> row) {
