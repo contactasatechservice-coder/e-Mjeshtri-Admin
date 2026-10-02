@@ -544,11 +544,11 @@ String _date(dynamic raw) {
   final mm = d.month.toString().padLeft(2, '0');
   final hh = d.hour.toString().padLeft(2, '0');
   final mi = d.minute.toString().padLeft(2, '0');
-  return '$dd/$mm/$d.year • $hh:$mi';
+  return '$dd/$mm/' + d.year.toString() + ' • $hh:$mi';
 }
 
 String _shortDate(dynamic raw) {
   final d = DateTime.tryParse(raw?.toString() ?? '');
   if (d == null) return '—';
-  return '$d.day/$d.month';
+  return d.day.toString() + '/' + d.month.toString();
 }
