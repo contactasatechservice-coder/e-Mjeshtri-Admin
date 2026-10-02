@@ -5,7 +5,8 @@ on:
     branches: [ main ]
     paths:
       - ".github/workflows/build-admin-web.yml"
-      - ".github/e_mjeshtri_admin_patch/READY"
+      - ".github/e_mjeshtri_admin_patch/**"
+      - ".github/e_mjeshtri_admin_module/**"
   workflow_dispatch:
 
 permissions:
@@ -37,6 +38,11 @@ jobs:
           base64 --decode /tmp/e_mjeshtri_admin/patch.b64 > /tmp/e_mjeshtri_admin/patch.zip
           unzip -t /tmp/e_mjeshtri_admin/patch.zip
           unzip -qo /tmp/e_mjeshtri_admin/patch.zip -d /tmp/e_mjeshtri_admin/app
+
+          cat .github/e_mjeshtri_admin_module/module_part_* > /tmp/e_mjeshtri_admin/module.b64
+          base64 --decode /tmp/e_mjeshtri_admin/module.b64 > /tmp/e_mjeshtri_admin/module.zip
+          unzip -t /tmp/e_mjeshtri_admin/module.zip
+          unzip -qo /tmp/e_mjeshtri_admin/module.zip -d /tmp/e_mjeshtri_admin/app
 
           test -f /tmp/e_mjeshtri_admin/app/pubspec.yaml
           test -f /tmp/e_mjeshtri_admin/app/lib/main.dart
