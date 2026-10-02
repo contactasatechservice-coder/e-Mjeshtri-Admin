@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - ".github/workflows/build-admin-web.yml"
+      - ".github/e_mjeshtri_admin_patch/**"
   workflow_dispatch:
 
 permissions:
