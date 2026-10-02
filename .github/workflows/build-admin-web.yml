@@ -1,0 +1,76 @@
+name: Build e-Mjeshtri Admin Web
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/e_mjeshtri_admin_web/source_base64.txt"
+      - ".github/workflows/build-admin-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Prepare Flutter source
+        run: |
+          mkdir -p /tmp/e_mjeshtri_admin
+          base64 --decode .github/e_mjeshtri_admin_web/source_base64.txt > /tmp/e_mjeshtri_admin.zip
+          unzip -q /tmp/e_mjeshtri_admin.zip -d /tmp/e_mjeshtri_admin
+          cp -a /tmp/e_mjeshtri_admin/e_mjeshtri_admin_flutter_web/. .
+          test -f pubspec.yaml
+          test -f lib/main.dart
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate web project
+        run: |
+          flutter config --enable-web --no-analytics
+          flutter create . --platforms=web --project-name e_mjeshtri_admin
+          rm -rf test
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
+
+      - name: Build Flutter Web
+        run: flutter build web --release
+
+      - name: Publish static build into main
+        run: |
+          mkdir -p /tmp/site
+          cp -a build/web/. /tmp/site/
+          find . -mindepth 1 -maxdepth 1             ! -name '.git'             ! -name '.github'             ! -name 'README.md'             -exec rm -rf {} +
+          cp -a /tmp/site/. .
+          cat > vercel.json <<'JSON'
+          {
+            "cleanUrls": true,
+            "rewrites": [
+              { "source": "/(.*)", "destination": "/index.html" }
+            ]
+          }
+          JSON
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No build changes to publish"
+          else
+            git commit -m "Publish Flutter Web V2 [skip ci]"
+            git push origin main
+          fi
