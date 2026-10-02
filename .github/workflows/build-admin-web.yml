@@ -33,7 +33,7 @@ jobs:
           unzip -q /tmp/e_mjeshtri_admin/source.zip -d /tmp/e_mjeshtri_admin/source
           cp -a /tmp/e_mjeshtri_admin/source/e_mjeshtri_admin_flutter_web/. /tmp/e_mjeshtri_admin/app/
 
-          cat .github/e_mjeshtri_admin_patch/patch_part_* > /tmp/e_mjeshtri_admin/patch.b64
+          cp .github/e_mjeshtri_admin_patch/patch_base64.txt /tmp/e_mjeshtri_admin/patch.b64
           base64 --decode /tmp/e_mjeshtri_admin/patch.b64 > /tmp/e_mjeshtri_admin/patch.zip
           unzip -qo /tmp/e_mjeshtri_admin/patch.zip -d /tmp/e_mjeshtri_admin/app
 
