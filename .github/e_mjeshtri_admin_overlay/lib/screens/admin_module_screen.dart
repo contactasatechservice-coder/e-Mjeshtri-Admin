@@ -73,6 +73,28 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     return values;
   }
 
+  bool get _canWriteCurrentModule {
+    final role = _snapshot?.adminRole ?? '';
+    if (role == 'super_admin') return true;
+    if (role == 'admin') return widget.moduleKey != 'admins';
+    if (role == 'support') {
+      return {
+        'requests',
+        'offers',
+        'orders',
+        'reviews',
+        'reports',
+        'disputes',
+        'notifications',
+        'support',
+      }.contains(widget.moduleKey);
+    }
+    if (role == 'finance') {
+      return {'finance', 'subscriptions'}.contains(widget.moduleKey);
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = _visibleItems;
@@ -156,7 +178,7 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       ),
     ];
 
-    if (widget.moduleKey == 'categories') {
+    if (widget.moduleKey == 'categories' && _canWriteCurrentModule) {
       buttons.insert(
         0,
         FilledButton.icon(
@@ -165,7 +187,7 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
           label: const Text('Shto kategori'),
         ),
       );
-    } else if (widget.moduleKey == 'notifications') {
+    } else if (widget.moduleKey == 'notifications' && _canWriteCurrentModule) {
       buttons.insert(
         0,
         FilledButton.icon(
@@ -193,6 +215,8 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     final actions = <_Action>[
       const _Action('view', 'Shiko detajet', Icons.visibility_rounded),
     ];
+
+    if (!_canWriteCurrentModule) return actions;
 
     switch (widget.moduleKey) {
       case 'verifications':
@@ -382,7 +406,11 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
 
   Future<void> _handleAction(AdminModuleItem item, _Action action) async {
     if (action.key == 'view') {
-      await _showDetails(item);
+      if (widget.moduleKey == 'support') {
+        await _showSupportThread(item);
+      } else {
+        await _showDetails(item);
+      }
       return;
     }
     if (action.key == 'edit_local') {
@@ -487,6 +515,172 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     );
   }
 
+  Future<void> _showSupportThread(AdminModuleItem item) async {
+    Map<String, dynamic> data;
+    try {
+      data = await AdminModulesRepository.instance.supportThread(item.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final rawTicket = data['ticket'];
+    final ticket = rawTicket is Map
+        ? Map<String, dynamic>.from(rawTicket)
+        : <String, dynamic>{};
+    final messages = data['messages'] is List
+        ? (data['messages'] as List)
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    final reply = TextEditingController();
+    final canReply = _canWriteCurrentModule &&
+        (ticket['status'] ?? '').toString() != 'closed';
+
+    final body = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text((ticket['subject'] ?? item.title).toString()),
+        content: SizedBox(
+          width: 720,
+          height: 560,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _InfoPill(
+                    icon: Icons.person_outline_rounded,
+                    text: (ticket['user_name'] ?? 'Përdorues').toString(),
+                  ),
+                  _InfoPill(
+                    icon: Icons.flag_outlined,
+                    text: (ticket['priority'] ?? 'normal').toString(),
+                  ),
+                  _InfoPill(
+                    icon: Icons.info_outline_rounded,
+                    text: _statusLabel((ticket['status'] ?? '').toString()),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(),
+              const SizedBox(height: 8),
+              Expanded(
+                child: messages.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nuk ka mesazhe në këtë ticket.',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: messages.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 9),
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          final isAdmin =
+                              (message['sender_type'] ?? '').toString() == 'admin';
+                          return Align(
+                            alignment: isAdmin
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 520),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isAdmin
+                                    ? Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: .09)
+                                    : const Color(0xFFF4F6F9),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    (message['sender_name'] ??
+                                            (isAdmin ? 'Admin' : 'Përdorues'))
+                                        .toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text((message['body'] ?? '').toString()),
+                                  if ((message['attachment_path'] ?? '')
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'Bashkëngjitje: ' +
+                                          message['attachment_path'].toString(),
+                                      style: const TextStyle(
+                                        color: Colors.black54,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              if (canReply) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reply,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Përgjigju përdoruesit',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Mbyll'),
+          ),
+          if (canReply)
+            FilledButton.icon(
+              onPressed: () {
+                final text = reply.text.trim();
+                if (text.isEmpty) return;
+                Navigator.pop(context, text);
+              },
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Dërgo'),
+            ),
+        ],
+      ),
+    );
+
+    reply.dispose();
+    if (body == null || body.trim().isEmpty) return;
+
+    await _runRemote(
+      () => AdminModulesRepository.instance.replySupport(item.id, body),
+      success: 'Përgjigjja u dërgua.',
+    );
+  }
   Future<void> _createCategory() async {
     final result = await _categoryDialog();
     if (result == null) return;
@@ -503,6 +697,9 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       initialDescription: item.detail,
       initialIcon: (item.data['icon_key'] ?? '').toString(),
       initialSort: (item.data['sort_order'] ?? 100).toString(),
+      initialTranslations: item.data['translations'] is Map
+          ? Map<String, dynamic>.from(item.data['translations'] as Map)
+          : const <String, dynamic>{},
     );
     if (result == null) return;
     await _runRemote(
@@ -517,57 +714,112 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     String initialDescription = '',
     String initialIcon = '',
     String initialSort = '100',
+    Map<String, dynamic> initialTranslations = const <String, dynamic>{},
   }) async {
-    final name = TextEditingController(text: initialName);
-    final description = TextEditingController(text: initialDescription);
+    const languages = <(String, String)>[
+      ('sq', 'Shqip'),
+      ('en', 'English'),
+      ('fr', 'Français'),
+      ('de', 'Deutsch'),
+      ('it', 'Italiano'),
+    ];
+
+    final names = <String, TextEditingController>{};
+    final descriptions = <String, TextEditingController>{};
+
+    for (final language in languages) {
+      final raw = initialTranslations[language.$1];
+      final map = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : <String, dynamic>{};
+      names[language.$1] = TextEditingController(
+        text: language.$1 == 'sq'
+            ? (map['name'] ?? initialName).toString()
+            : (map['name'] ?? '').toString(),
+      );
+      descriptions[language.$1] = TextEditingController(
+        text: language.$1 == 'sq'
+            ? (map['description'] ?? initialDescription).toString()
+            : (map['description'] ?? '').toString(),
+      );
+    }
+
     final icon = TextEditingController(text: initialIcon);
     final sort = TextEditingController(text: initialSort);
 
-    return showDialog<Map<String, dynamic>>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(initialName.isEmpty ? 'Shto kategori' : 'Ndrysho kategori'),
         content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Emri'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: description,
-                decoration: const InputDecoration(labelText: 'Përshkrimi'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: icon,
-                decoration: const InputDecoration(labelText: 'Icon key'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: sort,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Renditja'),
-              ),
-            ],
+          width: 620,
+          height: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                for (final language in languages) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      language.$2,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  TextField(
+                    controller: names[language.$1],
+                    decoration: InputDecoration(
+                      labelText: 'Emri (' + language.$1.toUpperCase() + ')',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descriptions[language.$1],
+                    decoration: InputDecoration(
+                      labelText: 'Përshkrimi (' + language.$1.toUpperCase() + ')',
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextField(
+                  controller: icon,
+                  decoration: const InputDecoration(labelText: 'Icon key'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: sort,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Renditja'),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Anulo')),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anulo'),
+          ),
           FilledButton(
             onPressed: () {
-              if (name.text.trim().isEmpty) return;
+              final sqName = names['sq']!.text.trim();
+              if (sqName.isEmpty) return;
+
+              final translations = <String, dynamic>{};
+              for (final language in languages) {
+                translations[language.$1] = {
+                  'name': names[language.$1]!.text.trim(),
+                  'description': descriptions[language.$1]!.text.trim(),
+                };
+              }
+
               Navigator.pop(context, {
-                'name': name.text.trim(),
-                'description': description.text.trim(),
+                'name': sqName,
+                'description': descriptions['sq']!.text.trim(),
                 'icon_key': icon.text.trim(),
                 'sort_order': int.tryParse(sort.text.trim()) ?? 100,
+                'translations': translations,
               });
             },
             child: const Text('Ruaj'),
@@ -575,8 +827,17 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
         ],
       ),
     );
-  }
 
+    for (final controller in names.values) {
+      controller.dispose();
+    }
+    for (final controller in descriptions.values) {
+      controller.dispose();
+    }
+    icon.dispose();
+    sort.dispose();
+    return result;
+  }
   Future<void> _broadcastNotification() async {
     final title = TextEditingController();
     final body = TextEditingController();
@@ -886,6 +1147,34 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
   }
 }
 
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _InfoPill({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: .05),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.black54),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _PageHeader extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -1308,6 +1597,10 @@ class _StatusChip extends StatelessWidget {
       'unread',
       'evidence',
       'waiting_user',
+      'needs_attention',
+      'unverified',
+      'reschedule_pending',
+      'completion_pending',
     }.contains(normalized);
 
     final color = positive
@@ -1435,6 +1728,21 @@ String _statusLabel(String value) {
     'public' => 'Publik',
     'private' => 'Privat',
     'logged' => 'Regjistruar',
+    'needs_attention' => 'Kërkon vëmendje',
+    'unverified' => 'Pa verifikuar',
+    'searching' => 'Në kërkim',
+    'offers_received' => 'Ka oferta',
+    'booked' => 'Rezervuar',
+    'reschedule_pending' => 'Riplanifikim pending',
+    'provider_on_way' => 'Mjeshtri në rrugë',
+    'arrived' => 'Mbërritur',
+    'completion_pending' => 'Pret përfundimin',
+    'disputed' => 'Në mosmarrëveshje',
+    'authorized' => 'Autorizuar',
+    'failed' => 'Dështuar',
+    'partially_refunded' => 'Rimbursuar pjesërisht',
+    'refunded' => 'Rimbursuar',
+    'deletion_requested' => 'Kërkon fshirje',
     _ => value.isEmpty ? '—' : value,
   };
 }
@@ -1452,11 +1760,38 @@ String _formatValue(dynamic value) {
 
 String _friendlyError(Object error) {
   final text = error.toString();
-  if (text.contains('42501') || text.toLowerCase().contains('authorized')) {
+  final lower = text.toLowerCase();
+  if (text.contains('42501') ||
+      lower.contains('authorized') ||
+      lower.contains('insufficient admin')) {
     return 'Nuk ke leje për këtë veprim.';
   }
+  if (text.contains('23514')) {
+    if (lower.contains('super admin')) {
+      return 'Duhet të mbetet të paktën një Super Admin aktiv.';
+    }
+    if (lower.contains('approved document')) {
+      return 'Mjeshtri duhet të ketë të paktën një dokument të aprovuar.';
+    }
+    if (lower.contains('active category')) {
+      return 'Mjeshtri duhet të ketë të paktën një kategori aktive.';
+    }
+    if (lower.contains('city')) {
+      return 'Mjeshtrit i mungon qyteti.';
+    }
+    if (lower.contains('contact')) {
+      return 'Mjeshtrit i mungon telefoni ose email-i.';
+    }
+    return 'Të dhënat nuk plotësojnë kushtet e kërkuara.';
+  }
+  if (text.contains('23505') || lower.contains('duplicate')) {
+    return 'Ekziston tashmë një rekord me këto të dhëna.';
+  }
   if (text.contains('P0002')) {
-    return 'Rekordi nuk u gjet ose është ndryshuar.';
+    return 'Rekordi nuk u gjet, është mbyllur ose është ndryshuar.';
+  }
+  if (lower.contains('invalid') || text.contains('22023')) {
+    return 'Veprimi ose vlera e zgjedhur nuk është e vlefshme.';
   }
   return 'Ndodhi një gabim. Rifresko faqen dhe provo përsëri.';
 }
