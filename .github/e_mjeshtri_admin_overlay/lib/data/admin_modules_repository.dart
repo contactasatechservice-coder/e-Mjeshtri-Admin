@@ -52,6 +52,12 @@ class AdminModulesRepository {
       params: {'p_ticket_id': ticketId, 'p_body': body},
     );
   }
+
+  Future<String> signedProviderDocumentUrl(String storagePath) {
+    return _client.storage
+        .from('provider-documents')
+        .createSignedUrl(storagePath, 600);
+  }
 }
 
 class AdminModuleSnapshot {
