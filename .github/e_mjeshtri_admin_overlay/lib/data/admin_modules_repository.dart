@@ -17,13 +17,13 @@ class AdminModulesRepository {
     return AdminModuleSnapshot.fromJson(Map<String, dynamic>.from(raw));
   }
 
-  Future<void> action(
+  Future<Map<String, dynamic>> action(
     String module,
     String id,
     String action, [
     Map<String, dynamic> payload = const {},
   ]) async {
-    await _client.rpc(
+    final raw = await _client.rpc(
       'admin_module_action',
       params: {
         'p_module': module,
@@ -31,6 +31,25 @@ class AdminModulesRepository {
         'p_action': action,
         'p_payload': payload,
       },
+    );
+    return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> supportThread(String ticketId) async {
+    final raw = await _client.rpc(
+      'admin_support_thread',
+      params: {'p_ticket_id': ticketId},
+    );
+    if (raw is! Map) {
+      throw const FormatException('Përgjigje e pavlefshme nga Support API.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<void> replySupport(String ticketId, String body) async {
+    await _client.rpc(
+      'admin_support_reply',
+      params: {'p_ticket_id': ticketId, 'p_body': body},
     );
   }
 }
