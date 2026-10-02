@@ -71,17 +71,33 @@ class AdminRepository {
         .toList();
   }
 
-  Future<void> setCitizenStatus(String userId, String status) async {
+  Future<void> setCitizenStatus(
+    String userId,
+    String status, {
+    String? reason,
+  }) async {
     await _client.rpc(
       'admin_set_citizen_status',
-      params: {'p_user_id': userId, 'p_status': status},
+      params: {
+        'p_user_id': userId,
+        'p_status': status,
+        'p_reason': reason,
+      },
     );
   }
 
-  Future<void> setProviderStatus(String providerId, String action) async {
+  Future<void> setProviderStatus(
+    String providerId,
+    String action, {
+    String? reason,
+  }) async {
     await _client.rpc(
       'admin_set_provider_status',
-      params: {'p_provider_id': providerId, 'p_action': action},
+      params: {
+        'p_provider_id': providerId,
+        'p_action': action,
+        'p_reason': reason,
+      },
     );
   }
 
