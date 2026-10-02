@@ -33,6 +33,42 @@ const navItems = <NavItem>[
   NavItem('Settings', '/settings', Icons.settings_rounded),
 ];
 
+List<NavItem> _allowedNavItems(String? role) {
+  if (role == null || role == 'super_admin' || role == 'admin') {
+    return navItems;
+  }
+
+  const supportPaths = <String>{
+    '/dashboard',
+    '/citizens',
+    '/providers',
+    '/verifications',
+    '/requests',
+    '/offers',
+    '/orders',
+    '/reviews',
+    '/reports',
+    '/disputes',
+    '/notifications',
+    '/support',
+    '/analytics',
+  };
+  const financePaths = <String>{
+    '/dashboard',
+    '/providers',
+    '/finance',
+    '/subscriptions',
+    '/analytics',
+  };
+
+  final allowed = role == 'support'
+      ? supportPaths
+      : role == 'finance'
+          ? financePaths
+          : const <String>{'/dashboard'};
+  return navItems.where((item) => allowed.contains(item.path)).toList();
+}
+
 class AdminShell extends StatefulWidget {
   final Widget child;
   const AdminShell({super.key, required this.child});
@@ -43,22 +79,44 @@ class AdminShell extends StatefulWidget {
 
 class _AdminShellState extends State<AdminShell> {
   bool _collapsed = false;
+  Map<String, dynamic>? _admin;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdmin();
+  }
+
+  Future<void> _loadAdmin() async {
+    try {
+      final data = await AdminRepository.instance.currentAdmin();
+      if (mounted) setState(() => _admin = data);
+    } catch (_) {
+      // Routing already verifies the admin session. Keep the shell usable if
+      // the small profile lookup fails temporarily.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = width < 1180;
+    final role = _admin?['role']?.toString();
 
     return Scaffold(
       drawer: compact
-          ? const Drawer(
+          ? Drawer(
               width: 292,
               elevation: 0,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius:
                     BorderRadius.horizontal(right: Radius.circular(24)),
               ),
-              child: _Sidebar(collapsed: false, mobile: true),
+              child: _Sidebar(
+                collapsed: false,
+                mobile: true,
+                role: role,
+              ),
             )
           : null,
       body: Row(
@@ -70,6 +128,7 @@ class _AdminShellState extends State<AdminShell> {
               child: _Sidebar(
                 collapsed: _collapsed,
                 mobile: false,
+                role: role,
                 onToggle: () =>
                     setState(() => _collapsed = !_collapsed),
               ),
@@ -77,7 +136,11 @@ class _AdminShellState extends State<AdminShell> {
           Expanded(
             child: Column(
               children: [
-                _TopBar(compact: compact),
+                _TopBar(
+                  compact: compact,
+                  role: role,
+                  displayName: _admin?['display_name']?.toString(),
+                ),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(
@@ -105,12 +168,22 @@ class _AdminShellState extends State<AdminShell> {
 
 class _TopBar extends StatelessWidget {
   final bool compact;
-  const _TopBar({required this.compact});
+  final String? role;
+  final String? displayName;
+
+  const _TopBar({
+    required this.compact,
+    required this.role,
+    required this.displayName,
+  });
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final showSearch = width >= 760;
+    final allowedItems = _allowedNavItems(role);
+    final name = (displayName ?? '').trim();
+    final initials = _initials(name.isEmpty ? _roleLabel(role) : name);
 
     return Container(
       height: compact ? 68 : 74,
@@ -140,14 +213,28 @@ class _TopBar extends StatelessWidget {
               ),
             )
           else
-            const Expanded(
-              child: Text(
-                'e-Mjeshtri Admin',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 19,
-                  letterSpacing: -.2,
-                ),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'e-Mjeshtri Admin',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 19,
+                      letterSpacing: -.2,
+                    ),
+                  ),
+                  Text(
+                    _roleLabel(role),
+                    style: const TextStyle(
+                      color: Colors.black45,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           if (showSearch)
@@ -156,7 +243,7 @@ class _TopBar extends StatelessWidget {
               height: 46,
               child: TextField(
                 textInputAction: TextInputAction.search,
-                onSubmitted: (value) => _search(context, value),
+                onSubmitted: (value) => _search(context, value, allowedItems),
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search_rounded, size: 20),
                   hintText: 'Kërko modul...',
@@ -165,15 +252,12 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           if (showSearch) const SizedBox(width: 10),
-          IconButton(
-            tooltip: 'Njoftimet',
-            onPressed: () => context.go('/notifications'),
-            icon: Badge(
-              smallSize: 7,
-              backgroundColor: AppColors.orange,
-              child: const Icon(Icons.notifications_none_rounded),
+          if (allowedItems.any((item) => item.path == '/notifications'))
+            IconButton(
+              tooltip: 'Njoftimet',
+              onPressed: () => context.go('/notifications'),
+              icon: const Icon(Icons.notifications_none_rounded),
             ),
-          ),
           const SizedBox(width: 6),
           PopupMenuButton<String>(
             tooltip: 'Llogaria',
@@ -182,8 +266,28 @@ class _TopBar extends StatelessWidget {
               await AdminRepository.instance.signOut();
               if (context.mounted) context.go('/login');
             },
-            itemBuilder: (context) => const [
+            itemBuilder: (context) => [
               PopupMenuItem<String>(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Administrator' : name,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    Text(
+                      _roleLabel(role),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
                 value: 'logout',
                 child: Row(
                   children: [
@@ -194,12 +298,12 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ],
-            child: const CircleAvatar(
+            child: CircleAvatar(
               radius: 19,
-              backgroundColor: Color(0xFFEAF2FC),
+              backgroundColor: const Color(0xFFEAF2FC),
               child: Text(
-                'SA',
-                style: TextStyle(
+                initials,
+                style: const TextStyle(
                   color: AppColors.navy,
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
@@ -212,11 +316,11 @@ class _TopBar extends StatelessWidget {
     );
   }
 
-  void _search(BuildContext context, String raw) {
+  void _search(BuildContext context, String raw, List<NavItem> allowedItems) {
     final query = _normalize(raw);
     if (query.isEmpty) return;
 
-    for (final item in navItems) {
+    for (final item in allowedItems) {
       final label = _normalize(item.label);
       final path = _normalize(item.path.replaceAll('/', ''));
       if (label.contains(query) ||
@@ -246,17 +350,20 @@ class _TopBar extends StatelessWidget {
 class _Sidebar extends StatelessWidget {
   final bool collapsed;
   final bool mobile;
+  final String? role;
   final VoidCallback? onToggle;
 
   const _Sidebar({
     required this.collapsed,
     required this.mobile,
+    required this.role,
     this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
+    final items = _allowedNavItems(role);
 
     Future<void> navigate(String path) async {
       if (mobile) {
@@ -293,18 +400,20 @@ class _Sidebar extends StatelessWidget {
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 5),
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: .10),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
-                        'ADMIN',
-                        style: TextStyle(
+                      child: Text(
+                        _roleShort(role),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: .8,
+                          letterSpacing: .7,
                         ),
                       ),
                     ),
@@ -324,7 +433,7 @@ class _Sidebar extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 children: [
-                  for (final item in navItems)
+                  for (final item in items)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: _NavTile(
@@ -417,4 +526,38 @@ class _NavTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _roleLabel(String? role) {
+  return switch (role) {
+    'super_admin' => 'Super Admin',
+    'admin' => 'Admin',
+    'support' => 'Support',
+    'finance' => 'Finance',
+    _ => 'Administrator',
+  };
+}
+
+String _roleShort(String? role) {
+  return switch (role) {
+    'super_admin' => 'SUPER',
+    'support' => 'SUPPORT',
+    'finance' => 'FINANCE',
+    _ => 'ADMIN',
+  };
+}
+
+String _initials(String value) {
+  final words = value
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+  if (words.isEmpty) return 'AD';
+  if (words.length == 1) {
+    final word = words.first;
+    return word.substring(0, word.length >= 2 ? 2 : 1).toUpperCase();
+  }
+  return (words.first.substring(0, 1) + words.last.substring(0, 1))
+      .toUpperCase();
 }
