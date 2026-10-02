@@ -20,17 +20,17 @@ const navItems = <NavItem>[
   NavItem('Kërkesat', '/requests', Icons.assignment_rounded),
   NavItem('Ofertat', '/offers', Icons.local_offer_rounded),
   NavItem('Punët', '/orders', Icons.work_rounded),
-  NavItem('Reviews', '/reviews', Icons.star_rounded),
-  NavItem('Reports', '/reports', Icons.flag_rounded),
-  NavItem('Disputes', '/disputes', Icons.gavel_rounded),
+  NavItem('Vlerësimet', '/reviews', Icons.star_rounded),
+  NavItem('Raportimet', '/reports', Icons.flag_rounded),
+  NavItem('Mosmarrëveshjet', '/disputes', Icons.gavel_rounded),
   NavItem('Financat', '/finance', Icons.account_balance_wallet_rounded),
   NavItem('Abonimet', '/subscriptions', Icons.workspace_premium_rounded),
   NavItem('Njoftimet', '/notifications', Icons.notifications_active_rounded),
   NavItem('Support', '/support', Icons.support_agent_rounded),
-  NavItem('Analytics', '/analytics', Icons.query_stats_rounded),
+  NavItem('Analitika', '/analytics', Icons.query_stats_rounded),
   NavItem('Administratorët', '/admins', Icons.admin_panel_settings_rounded),
-  NavItem('Audit Logs', '/audit', Icons.history_rounded),
-  NavItem('Settings', '/settings', Icons.settings_rounded),
+  NavItem('Regjistri i Auditit', '/audit', Icons.history_rounded),
+  NavItem('Cilësimet', '/settings', Icons.settings_rounded),
 ];
 
 List<NavItem> _allowedNavItems(String? role) {
