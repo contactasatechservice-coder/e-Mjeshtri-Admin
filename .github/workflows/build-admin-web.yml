@@ -5,8 +5,7 @@ on:
     branches: [ main ]
     paths:
       - ".github/workflows/build-admin-web.yml"
-      - ".github/e_mjeshtri_admin_patch/**"
-      - ".github/e_mjeshtri_admin_module/**"
+      - ".github/e_mjeshtri_admin_patch/READY"
   workflow_dispatch:
 
 permissions:
@@ -34,19 +33,10 @@ jobs:
           unzip -q /tmp/e_mjeshtri_admin/source.zip -d /tmp/e_mjeshtri_admin/source
           cp -a /tmp/e_mjeshtri_admin/source/e_mjeshtri_admin_flutter_web/. /tmp/e_mjeshtri_admin/app/
 
-          if [ -f .github/e_mjeshtri_admin_patch/admin_patch.zip ]; then
-            cp .github/e_mjeshtri_admin_patch/admin_patch.zip /tmp/e_mjeshtri_admin/patch.zip
-          else
-            cp .github/e_mjeshtri_admin_patch/patch_base64.txt /tmp/e_mjeshtri_admin/patch.b64
-            base64 --decode /tmp/e_mjeshtri_admin/patch.b64 > /tmp/e_mjeshtri_admin/patch.zip
-          fi
+          cat .github/e_mjeshtri_admin_patch/patch_part_* > /tmp/e_mjeshtri_admin/patch.b64
+          base64 --decode /tmp/e_mjeshtri_admin/patch.b64 > /tmp/e_mjeshtri_admin/patch.zip
+          unzip -t /tmp/e_mjeshtri_admin/patch.zip
           unzip -qo /tmp/e_mjeshtri_admin/patch.zip -d /tmp/e_mjeshtri_admin/app
-
-          if compgen -G ".github/e_mjeshtri_admin_module/module_part_*" > /dev/null; then
-            cat .github/e_mjeshtri_admin_module/module_part_* > /tmp/e_mjeshtri_admin/module.b64
-            base64 --decode /tmp/e_mjeshtri_admin/module.b64 > /tmp/e_mjeshtri_admin/module.zip
-            unzip -qo /tmp/e_mjeshtri_admin/module.zip -d /tmp/e_mjeshtri_admin/app
-          fi
 
           test -f /tmp/e_mjeshtri_admin/app/pubspec.yaml
           test -f /tmp/e_mjeshtri_admin/app/lib/main.dart
