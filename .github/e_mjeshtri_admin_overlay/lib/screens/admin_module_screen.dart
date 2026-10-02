@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 
@@ -109,6 +110,10 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
           actions: _headerActions(),
         ),
         const SizedBox(height: 18),
+        if (widget.moduleKey == 'subscriptions') ...[
+          const _SubscriptionPricingCard(),
+          const SizedBox(height: 16),
+        ],
         if ((_snapshot?.summary ?? const {}).isNotEmpty)
           _SummaryGrid(values: _snapshot!.summary),
         if ((_snapshot?.summary ?? const {}).isNotEmpty)
@@ -215,6 +220,22 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     final actions = <_Action>[
       const _Action('view', 'Shiko detajet', Icons.visibility_rounded),
     ];
+
+    if (widget.moduleKey == 'verifications' && item.kind == 'document') {
+      actions.add(const _Action(
+        'open_document_local',
+        'Hap dokumentin',
+        Icons.open_in_new_rounded,
+      ));
+    }
+    if (widget.moduleKey == 'subscriptions' &&
+        item.kind == 'subscription_payment') {
+      actions.add(const _Action(
+        'open_payment_proof_local',
+        'Hap provën e pagesës',
+        Icons.receipt_long_rounded,
+      ));
+    }
 
     if (!_canWriteCurrentModule) return actions;
 
@@ -350,21 +371,59 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
         }
         break;
       case 'subscriptions':
-        if (item.status != 'active') {
-          actions.add(const _Action(
-              'activate', 'Aktivizo abonimin', Icons.play_circle_rounded));
-        }
-        if (item.status != 'past_due') {
-          actions.add(const _Action(
-              'past_due', 'Shëno past due', Icons.warning_amber_rounded));
-        }
-        if (!{'cancelled', 'expired'}.contains(item.status)) {
-          actions.addAll(const [
-            _Action('cancel', 'Anulo abonimin', Icons.cancel_rounded,
-                destructive: true),
-            _Action('expire', 'Skado abonimin', Icons.timer_off_rounded,
-                destructive: true),
-          ]);
+        if (item.kind == 'subscription_payment') {
+          if (item.status == 'pending') {
+            actions.addAll(const [
+              _Action(
+                'approve_payment',
+                'Aprovo pagesën',
+                Icons.verified_rounded,
+              ),
+              _Action(
+                'reject_payment',
+                'Refuzo pagesën',
+                Icons.cancel_rounded,
+                destructive: true,
+              ),
+            ]);
+          }
+        } else if (item.kind == 'subscription') {
+          if (item.status == 'active') {
+            actions.addAll(const [
+              _Action(
+                'past_due',
+                'Shëno pagesë të vonuar',
+                Icons.warning_amber_rounded,
+              ),
+              _Action(
+                'cancel',
+                'Anulo abonimin',
+                Icons.cancel_rounded,
+                destructive: true,
+              ),
+              _Action(
+                'expire',
+                'Skado abonimin',
+                Icons.timer_off_rounded,
+                destructive: true,
+              ),
+            ]);
+          } else if (item.status == 'past_due') {
+            actions.addAll(const [
+              _Action(
+                'cancel',
+                'Anulo abonimin',
+                Icons.cancel_rounded,
+                destructive: true,
+              ),
+              _Action(
+                'expire',
+                'Skado abonimin',
+                Icons.timer_off_rounded,
+                destructive: true,
+              ),
+            ]);
+          }
         }
         break;
       case 'support':
@@ -423,6 +482,16 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     }
     if (action.key == 'setting_local') {
       await _editSetting(item);
+      return;
+    }
+    if (action.key == 'open_document_local') {
+      await _openProviderDocument(item.detail);
+      return;
+    }
+    if (action.key == 'open_payment_proof_local') {
+      await _openProviderDocument(
+        (item.data['proof_storage_path'] ?? '').toString(),
+      );
       return;
     }
 
@@ -491,7 +560,18 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       );
       if (note == null) return;
       payload = {'note': note};
-    } else if (widget.moduleKey == 'subscriptions') {
+    } else if (widget.moduleKey == 'subscriptions' &&
+        action.key == 'reject_payment') {
+      final reason = await _askText(
+        title: 'Refuzo pagesën',
+        label: 'Arsyeja e refuzimit',
+        requiredValue: true,
+      );
+      if (reason == null) return;
+      payload = {'reason': reason};
+    } else if (widget.moduleKey == 'subscriptions' &&
+        item.kind == 'subscription' &&
+        action.key != 'view') {
       final note = await _askText(
         title: 'Ndryshim abonimi',
         label: 'Shënim / arsye',
@@ -529,6 +609,27 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(success)));
       await _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+    }
+  }
+
+  Future<void> _openProviderDocument(String storagePath) async {
+    final path = storagePath.trim();
+    if (path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dokumenti nuk ka një file të vlefshëm.')),
+      );
+      return;
+    }
+
+    try {
+      final url =
+          await AdminModulesRepository.instance.signedProviderDocumentUrl(path);
+      html.window.open(url, '_blank');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1344,6 +1445,104 @@ class _PageHeader extends StatelessWidget {
   }
 }
 
+class _SubscriptionPricingCard extends StatelessWidget {
+  const _SubscriptionPricingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final monthly = _PlanBox(
+              title: 'Abonim Mujor',
+              price: '2,000 ALL / muaj',
+              detail: 'Tick blu: +500 ALL, vetëm 1 herë në 12 muaj.',
+              icon: Icons.calendar_month_rounded,
+            );
+            final yearly = _PlanBox(
+              title: 'Abonim Vjetor',
+              price: '20,000 ALL / vit',
+              detail: 'Tick blu përfshihet falas për 12 muaj.',
+              icon: Icons.workspace_premium_rounded,
+            );
+            if (constraints.maxWidth < 760) {
+              return Column(
+                children: [
+                  monthly,
+                  const SizedBox(height: 10),
+                  yearly,
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: monthly),
+                const SizedBox(width: 10),
+                Expanded(child: yearly),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanBox extends StatelessWidget {
+  final String title;
+  final String price;
+  final String detail;
+  final IconData icon;
+
+  const _PlanBox({
+    required this.title,
+    required this.price,
+    required this.detail,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: .05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: .12),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(price,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text(detail,
+                    style: const TextStyle(
+                        color: Colors.black54, fontSize: 12.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SummaryGrid extends StatelessWidget {
   final Map<String, dynamic> values;
   const _SummaryGrid({required this.values});
@@ -1869,7 +2068,19 @@ String _humanizeKey(String key) {
     'resolution_note': 'Shënim vendimi',
     'external_reference': 'Referencë e jashtme',
     'plan_code': 'Plani',
-    'monthly_price': 'Çmimi mujor',
+    'monthly_price': 'Vlera mujore për MRR',
+    'price_amount': 'Çmimi i planit',
+    'base_amount': 'Abonimi',
+    'verification_fee': 'Verifikimi / Tick blu',
+    'total_amount': 'Totali',
+    'billing_cycle': 'Periudha',
+    'proof_storage_path': 'Prova e pagesës',
+    'bank_reference': 'Referenca bankare',
+    'wants_blue_tick': 'Kërkon tick blu',
+    'blue_tick_included': 'Tick blu i përfshirë',
+    'blue_tick_active': 'Tick blu aktiv',
+    'blue_tick_expires_at': 'Tick blu skadon',
+    'approved_subscription_id': 'Abonimi i aktivizuar',
     'is_verified': 'I verifikuar',
     'is_active': 'Aktiv',
     'sort_order': 'Renditja',
