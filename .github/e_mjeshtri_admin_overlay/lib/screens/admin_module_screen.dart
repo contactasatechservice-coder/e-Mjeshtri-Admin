@@ -340,13 +340,13 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
             !{'completed', 'cancelled'}.contains(item.status)) {
           actions.addAll(const [
             _Action(
-                'refund_complete', 'Përfundo refund', Icons.task_alt_rounded),
+                'refund_complete', 'Konfirmo refund manual', Icons.task_alt_rounded),
             _Action('refund_cancel', 'Anulo refund', Icons.cancel_rounded,
                 destructive: true),
           ]);
         } else if (item.kind == 'payment' && item.status == 'pending') {
           actions.add(
-              const _Action('payment_paid', 'Shëno të paguar', Icons.paid_rounded));
+              const _Action('payment_paid', 'Shëno manualisht të paguar', Icons.paid_rounded));
         }
         break;
       case 'subscriptions':
@@ -427,21 +427,75 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     }
 
     Map<String, dynamic> payload = const {};
+
     if ({'cancel'}.contains(action.key) &&
         {'requests', 'orders'}.contains(widget.moduleKey)) {
       final reason = await _askText(
         title: 'Arsyeja',
         label: 'Shkruaj arsyen',
-        requiredValue: false,
+        requiredValue: true,
       );
       if (reason == null) return;
       payload = {'reason': reason};
+    } else if (widget.moduleKey == 'verifications' &&
+        {'reject_document', 'reject_provider'}.contains(action.key)) {
+      final reason = await _askText(
+        title: 'Arsyeja e refuzimit',
+        label: 'Shkruaj arsyen',
+        requiredValue: true,
+      );
+      if (reason == null) return;
+      payload = {'reason': reason};
+    } else if (widget.moduleKey == 'offers' &&
+        {'reject', 'expire'}.contains(action.key)) {
+      final reason = await _askText(
+        title: action.key == 'reject' ? 'Arsyeja e refuzimit' : 'Arsyeja e skadimit',
+        label: 'Shkruaj arsyen',
+        requiredValue: true,
+      );
+      if (reason == null) return;
+      payload = {'reason': reason};
+    } else if (widget.moduleKey == 'reviews' &&
+        {'hide', 'remove'}.contains(action.key)) {
+      final reason = await _askText(
+        title: 'Arsyeja e moderimit',
+        label: 'Shkruaj arsyen',
+        requiredValue: true,
+      );
+      if (reason == null) return;
+      payload = {'reason': reason};
+    } else if (widget.moduleKey == 'reports' &&
+        {'action', 'dismiss', 'close'}.contains(action.key)) {
+      final note = await _askText(
+        title: 'Shënim i raportimit',
+        label: 'Shkruaj vendimin / arsyen',
+        requiredValue: true,
+      );
+      if (note == null) return;
+      payload = {'note': note};
     } else if (widget.moduleKey == 'disputes' &&
         {'resolve_client', 'resolve_provider', 'close'}.contains(action.key)) {
       final note = await _askText(
         title: 'Shënim vendimi',
+        label: 'Shkruaj vendimin / arsyen',
+        requiredValue: true,
+      );
+      if (note == null) return;
+      payload = {'note': note};
+    } else if (widget.moduleKey == 'finance' &&
+        action.key != 'view') {
+      final note = await _askText(
+        title: 'Konfirmim financiar',
+        label: 'Shënim / referencë e transaksionit',
+        requiredValue: true,
+      );
+      if (note == null) return;
+      payload = {'note': note};
+    } else if (widget.moduleKey == 'subscriptions') {
+      final note = await _askText(
+        title: 'Ndryshim abonimi',
         label: 'Shënim / arsye',
-        requiredValue: false,
+        requiredValue: true,
       );
       if (note == null) return;
       payload = {'note': note};
@@ -484,24 +538,64 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
   }
 
   Future<void> _showDetails(AdminModuleItem item) async {
-    final pretty = const JsonEncoder.withIndent('  ').convert(item.data);
+    final fields = <MapEntry<String, dynamic>>[
+      if (item.subtitle.trim().isNotEmpty)
+        MapEntry('Përmbledhje', item.subtitle),
+      if (item.detail.trim().isNotEmpty)
+        MapEntry('Detaje', item.detail),
+      if (item.metric != null && item.metric!.trim().isNotEmpty)
+        MapEntry('Vlera', item.metric),
+      if (item.status.trim().isNotEmpty)
+        MapEntry('Status', _statusLabel(item.status)),
+      ...item.data.entries.where((entry) {
+        final value = entry.value;
+        if (value == null) return false;
+        if (value is String && value.trim().isEmpty) return false;
+        return true;
+      }),
+    ];
+
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(item.title),
         content: SizedBox(
-          width: 650,
+          width: 700,
           child: SingleChildScrollView(
-            child: SelectableText(
-              [
-                if (item.subtitle.isNotEmpty) item.subtitle,
-                if (item.detail.isNotEmpty) item.detail,
-                if (item.metric != null && item.metric!.isNotEmpty)
-                  'Vlera: ${item.metric}',
-                if (item.status.isNotEmpty) 'Status: ${item.status}',
-                '',
-                pretty,
-              ].join('\n'),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final field in fields)
+                  Container(
+                    width: 330,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F9FC),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _humanizeKey(field.key),
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        SelectableText(
+                          _formatDetailValue(field.value),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -1756,6 +1850,59 @@ String _formatValue(dynamic value) {
     return value.toString();
   }
   return value.toString();
+}
+
+String _humanizeKey(String key) {
+  const labels = <String, String>{
+    'provider_id': 'Mjeshtri',
+    'client_id': 'Qytetari',
+    'request_id': 'Kërkesa',
+    'order_id': 'Puna',
+    'payment_id': 'Pagesa',
+    'document_type': 'Lloji i dokumentit',
+    'expires_at': 'Skadon',
+    'reviewed_at': 'Shqyrtuar më',
+    'created_at': 'Krijuar më',
+    'updated_at': 'Përditësuar më',
+    'scheduled_for': 'Planifikuar për',
+    'cancel_reason': 'Arsye anulimi',
+    'resolution_note': 'Shënim vendimi',
+    'external_reference': 'Referencë e jashtme',
+    'plan_code': 'Plani',
+    'monthly_price': 'Çmimi mujor',
+    'is_verified': 'I verifikuar',
+    'is_active': 'Aktiv',
+    'sort_order': 'Renditja',
+    'icon_key': 'Ikona',
+    'notification_type': 'Lloji i njoftimit',
+  };
+  return labels[key] ??
+      key
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((part) => part.isEmpty
+              ? part
+              : part.substring(0, 1).toUpperCase() + part.substring(1))
+          .join(' ');
+}
+
+String _formatDetailValue(dynamic value) {
+  if (value == null) return '—';
+  if (value is bool) return value ? 'Po' : 'Jo';
+  if (value is Map || value is List) {
+    return const JsonEncoder.withIndent('  ').convert(value);
+  }
+  final text = value.toString();
+  final date = DateTime.tryParse(text);
+  if (date != null && text.contains('-')) {
+    final local = date.toLocal();
+    final d = local.day.toString().padLeft(2, '0');
+    final m = local.month.toString().padLeft(2, '0');
+    final h = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$d/$m/${local.year} • $h:$min';
+  }
+  return text.trim().isEmpty ? '—' : text;
 }
 
 String _friendlyError(Object error) {
