@@ -18,13 +18,19 @@ final _router = GoRouter(
 
     if (!loggedIn) return onLogin ? null : '/login';
 
-    final isAdmin = await AdminRepository.instance.isCurrentUserAdmin();
+    final admin = await AdminRepository.instance.currentAdmin();
+    final isAdmin = admin != null && admin['is_active'] == true;
     if (!isAdmin) {
       if (!onLogin) return '/login';
       return null;
     }
 
     if (onLogin) return '/dashboard';
+
+    final role = admin['role']?.toString();
+    if (!_canAccessAdminPath(role, state.matchedLocation)) {
+      return '/dashboard';
+    }
     return null;
   },
   routes: [
@@ -41,6 +47,36 @@ final _router = GoRouter(
   ],
 );
 
+bool _canAccessAdminPath(String? role, String path) {
+  if (role == 'super_admin' || role == 'admin') return true;
+
+  const supportPaths = <String>{
+    '/dashboard',
+    '/citizens',
+    '/providers',
+    '/verifications',
+    '/requests',
+    '/offers',
+    '/orders',
+    '/reviews',
+    '/reports',
+    '/disputes',
+    '/notifications',
+    '/support',
+    '/analytics',
+  };
+  const financePaths = <String>{
+    '/dashboard',
+    '/providers',
+    '/finance',
+    '/subscriptions',
+    '/analytics',
+  };
+
+  if (role == 'support') return supportPaths.contains(path);
+  if (role == 'finance') return financePaths.contains(path);
+  return path == '/dashboard';
+}
 final _moduleRoutes = <RouteBase>[
   GoRoute(
     path: '/verifications',
@@ -91,7 +127,7 @@ final _moduleRoutes = <RouteBase>[
     path: '/reviews',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'reviews',
-      title: 'Reviews',
+      title: 'Vlerësimet',
       subtitle: 'Vlerësime reale, moderim dhe histori',
       icon: Icons.star_rounded,
     ),
@@ -100,7 +136,7 @@ final _moduleRoutes = <RouteBase>[
     path: '/reports',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'reports',
-      title: 'Reports',
+      title: 'Raportimet',
       subtitle: 'Raportime për përdorues, punë dhe përmbajtje',
       icon: Icons.flag_rounded,
     ),
@@ -109,7 +145,7 @@ final _moduleRoutes = <RouteBase>[
     path: '/disputes',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'disputes',
-      title: 'Disputes',
+      title: 'Mosmarrëveshjet',
       subtitle: 'Mosmarrëveshje, shqyrtim dhe vendime admin',
       icon: Icons.gavel_rounded,
     ),
@@ -146,7 +182,7 @@ final _moduleRoutes = <RouteBase>[
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'support',
       title: 'Support',
-      subtitle: 'Tickets, prioritete dhe statuset e suportit',
+      subtitle: 'Kërkesa suporti, prioritete, biseda dhe statuse',
       icon: Icons.support_agent_rounded,
     ),
   ),
@@ -154,8 +190,8 @@ final _moduleRoutes = <RouteBase>[
     path: '/analytics',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'analytics',
-      title: 'Analytics',
-      subtitle: 'Events, përdorues aktivë, kërkesa dhe punë',
+      title: 'Analitika',
+      subtitle: 'Aktivitet, përdorues aktivë, kërkesa dhe punë',
       icon: Icons.query_stats_rounded,
     ),
   ),
@@ -172,7 +208,7 @@ final _moduleRoutes = <RouteBase>[
     path: '/audit',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'audit',
-      title: 'Audit Logs',
+      title: 'Regjistri i Auditit',
       subtitle: 'Historik i veprimeve të administratorëve',
       icon: Icons.history_rounded,
     ),
@@ -181,7 +217,7 @@ final _moduleRoutes = <RouteBase>[
     path: '/settings',
     builder: (c, s) => const AdminModuleScreen(
       moduleKey: 'settings',
-      title: 'Settings',
+      title: 'Cilësimet',
       subtitle: 'Konfigurimi real i platformës',
       icon: Icons.settings_rounded,
     ),
