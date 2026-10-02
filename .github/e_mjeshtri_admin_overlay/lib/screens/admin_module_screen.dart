@@ -1,0 +1,1462 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+
+import '../data/admin_modules_repository.dart';
+
+class AdminModuleScreen extends StatefulWidget {
+  final String moduleKey;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  const AdminModuleScreen({
+    super.key,
+    required this.moduleKey,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  @override
+  State<AdminModuleScreen> createState() => _AdminModuleScreenState();
+}
+
+class _AdminModuleScreenState extends State<AdminModuleScreen> {
+  AdminModuleSnapshot? _snapshot;
+  bool _loading = true;
+  String? _error;
+  String _query = '';
+  String _status = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await AdminModulesRepository.instance.load(widget.moduleKey);
+      if (!mounted) return;
+      setState(() => _snapshot = data);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = _friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  List<AdminModuleItem> get _visibleItems {
+    final q = _query.trim().toLowerCase();
+    final source = _snapshot?.items ?? const <AdminModuleItem>[];
+    return source.where((item) {
+      final statusOk = _status == 'all' || item.status == _status;
+      final haystack =
+          '${item.title} ${item.subtitle} ${item.detail} ${item.kind} ${item.metric ?? ''}'
+              .toLowerCase();
+      return statusOk && (q.isEmpty || haystack.contains(q));
+    }).toList();
+  }
+
+  List<String> get _statuses {
+    final values = <String>{
+      for (final item in _snapshot?.items ?? const <AdminModuleItem>[])
+        if (item.status.trim().isNotEmpty) item.status,
+    }.toList()
+      ..sort();
+    return values;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _visibleItems;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _PageHeader(
+          icon: widget.icon,
+          title: widget.title,
+          subtitle: widget.subtitle,
+          actions: _headerActions(),
+        ),
+        const SizedBox(height: 18),
+        if ((_snapshot?.summary ?? const {}).isNotEmpty)
+          _SummaryGrid(values: _snapshot!.summary),
+        if ((_snapshot?.summary ?? const {}).isNotEmpty)
+          const SizedBox(height: 16),
+        _Filters(
+          query: _query,
+          status: _status,
+          statuses: _statuses,
+          onQueryChanged: (value) => setState(() => _query = value),
+          onStatusChanged: (value) => setState(() => _status = value),
+        ),
+        const SizedBox(height: 14),
+        if (_loading)
+          const _StateCard(
+            icon: Icons.sync_rounded,
+            title: 'Po ngarkohen të dhënat...',
+            spinning: true,
+          )
+        else if (_error != null)
+          _StateCard(
+            icon: Icons.error_outline_rounded,
+            title: _error!,
+            actionLabel: 'Provo përsëri',
+            onAction: _reload,
+          )
+        else if (items.isEmpty)
+          _StateCard(
+            icon: widget.icon,
+            title: 'Nuk ka ende të dhëna në këtë modul.',
+            subtitle:
+                'Faqja është funksionale dhe do t’i shfaqë automatikisht sapo të krijohen të dhëna.',
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 850) {
+                return Column(
+                  children: [
+                    for (final item in items) ...[
+                      _MobileItemCard(
+                        item: item,
+                        actions: _actionsFor(item),
+                        onAction: (action) => _handleAction(item, action),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                );
+              }
+              return _DesktopTable(
+                items: items,
+                actionsFor: _actionsFor,
+                onAction: _handleAction,
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _headerActions() {
+    final buttons = <Widget>[
+      OutlinedButton.icon(
+        onPressed: _loading ? null : _reload,
+        icon: const Icon(Icons.refresh_rounded),
+        label: const Text('Rifresko'),
+      ),
+    ];
+
+    if (widget.moduleKey == 'categories') {
+      buttons.insert(
+        0,
+        FilledButton.icon(
+          onPressed: _createCategory,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Shto kategori'),
+        ),
+      );
+    } else if (widget.moduleKey == 'notifications') {
+      buttons.insert(
+        0,
+        FilledButton.icon(
+          onPressed: _broadcastNotification,
+          icon: const Icon(Icons.send_rounded),
+          label: const Text('Dërgo njoftim'),
+        ),
+      );
+    } else if (widget.moduleKey == 'admins' &&
+        _snapshot?.adminRole == 'super_admin') {
+      buttons.insert(
+        0,
+        FilledButton.icon(
+          onPressed: _addAdmin,
+          icon: const Icon(Icons.person_add_alt_1_rounded),
+          label: const Text('Shto admin'),
+        ),
+      );
+    }
+
+    return buttons;
+  }
+
+  List<_Action> _actionsFor(AdminModuleItem item) {
+    final actions = <_Action>[
+      const _Action('view', 'Shiko detajet', Icons.visibility_rounded),
+    ];
+
+    switch (widget.moduleKey) {
+      case 'verifications':
+        if (item.kind == 'document' && item.status == 'pending') {
+          actions.addAll(const [
+            _Action('approve_document', 'Aprovo dokumentin',
+                Icons.check_circle_rounded),
+            _Action(
+                'reject_document', 'Refuzo dokumentin', Icons.cancel_rounded,
+                destructive: true),
+          ]);
+        } else if (item.kind == 'provider' && item.status == 'pending') {
+          actions.addAll(const [
+            _Action(
+                'approve_provider', 'Aprovo mjeshtrin', Icons.verified_rounded),
+            _Action('reject_provider', 'Refuzo mjeshtrin', Icons.block_rounded,
+                destructive: true),
+          ]);
+        }
+        break;
+      case 'categories':
+        actions.addAll([
+          const _Action('edit_local', 'Ndrysho', Icons.edit_rounded),
+          _Action(
+            'toggle',
+            item.status == 'active' ? 'Çaktivizo' : 'Aktivizo',
+            item.status == 'active'
+                ? Icons.pause_circle_rounded
+                : Icons.play_circle_rounded,
+          ),
+        ]);
+        break;
+      case 'requests':
+        if (!{'closed', 'cancelled', 'expired'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action('close', 'Mbyll kërkesën', Icons.task_alt_rounded),
+            _Action('cancel', 'Anulo kërkesën', Icons.cancel_rounded,
+                destructive: true),
+            _Action('expire', 'Shëno të skaduar', Icons.timer_off_rounded,
+                destructive: true),
+          ]);
+        }
+        break;
+      case 'offers':
+        if (item.status == 'submitted') {
+          actions.addAll(const [
+            _Action('reject', 'Refuzo ofertën', Icons.cancel_rounded,
+                destructive: true),
+            _Action('expire', 'Skado ofertën', Icons.timer_off_rounded,
+                destructive: true),
+          ]);
+        }
+        break;
+      case 'orders':
+        if (!{'completed', 'cancelled'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action('complete', 'Shëno të përfunduar', Icons.task_alt_rounded),
+            _Action('cancel', 'Anulo punën', Icons.cancel_rounded,
+                destructive: true),
+          ]);
+        }
+        break;
+      case 'reviews':
+        if (item.status != 'published') {
+          actions.add(
+              const _Action('publish', 'Publiko', Icons.visibility_rounded));
+        }
+        if (item.status != 'hidden') {
+          actions.add(
+              const _Action('hide', 'Fshih', Icons.visibility_off_rounded));
+        }
+        if (item.status != 'removed') {
+          actions.add(const _Action(
+              'remove', 'Hiq review', Icons.delete_outline_rounded,
+              destructive: true));
+        }
+        break;
+      case 'reports':
+        if (item.status == 'open') {
+          actions.add(const _Action(
+              'review', 'Nis shqyrtimin', Icons.manage_search_rounded));
+        }
+        if (!{'actioned', 'dismissed', 'closed'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action('action', 'Shëno veprim të marrë', Icons.gavel_rounded),
+            _Action('dismiss', 'Hidh poshtë',
+                Icons.do_not_disturb_alt_rounded,
+                destructive: true),
+            _Action('close', 'Mbyll', Icons.task_alt_rounded),
+          ]);
+        }
+        break;
+      case 'disputes':
+        if (item.status == 'open' || item.status == 'evidence') {
+          actions.add(const _Action(
+              'review', 'Kalo në shqyrtim', Icons.manage_search_rounded));
+        }
+        if (!{'resolved_client', 'resolved_provider', 'closed'}
+            .contains(item.status)) {
+          actions.addAll(const [
+            _Action(
+                'resolve_client', 'Vendim për klientin', Icons.person_rounded),
+            _Action('resolve_provider', 'Vendim për mjeshtrin',
+                Icons.handyman_rounded),
+            _Action('close', 'Mbyll pa vendim', Icons.task_alt_rounded),
+          ]);
+        }
+        break;
+      case 'finance':
+        if (item.kind == 'commission' &&
+            item.status != 'paid' &&
+            item.status != 'waived') {
+          actions.addAll(const [
+            _Action('commission_paid', 'Shëno komisionin të paguar',
+                Icons.paid_rounded),
+            _Action('commission_waive', 'Hiq komisionin',
+                Icons.money_off_csred_rounded,
+                destructive: true),
+          ]);
+        } else if (item.kind == 'refund' &&
+            !{'completed', 'cancelled'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action(
+                'refund_complete', 'Përfundo refund', Icons.task_alt_rounded),
+            _Action('refund_cancel', 'Anulo refund', Icons.cancel_rounded,
+                destructive: true),
+          ]);
+        } else if (item.kind == 'payment' && item.status == 'pending') {
+          actions.add(
+              const _Action('payment_paid', 'Shëno të paguar', Icons.paid_rounded));
+        }
+        break;
+      case 'subscriptions':
+        if (item.status != 'active') {
+          actions.add(const _Action(
+              'activate', 'Aktivizo abonimin', Icons.play_circle_rounded));
+        }
+        if (item.status != 'past_due') {
+          actions.add(const _Action(
+              'past_due', 'Shëno past due', Icons.warning_amber_rounded));
+        }
+        if (!{'cancelled', 'expired'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action('cancel', 'Anulo abonimin', Icons.cancel_rounded,
+                destructive: true),
+            _Action('expire', 'Skado abonimin', Icons.timer_off_rounded,
+                destructive: true),
+          ]);
+        }
+        break;
+      case 'support':
+        if (item.status == 'open') {
+          actions.add(
+              const _Action('start', 'Merr në punë', Icons.play_arrow_rounded));
+        }
+        if (!{'resolved', 'closed'}.contains(item.status)) {
+          actions.addAll(const [
+            _Action('wait', 'Në pritje të përdoruesit',
+                Icons.hourglass_bottom_rounded),
+            _Action('resolve', 'Shëno të zgjidhur', Icons.task_alt_rounded),
+            _Action('close', 'Mbyll ticket', Icons.cancel_rounded),
+          ]);
+        }
+        break;
+      case 'admins':
+        if (_snapshot?.adminRole == 'super_admin') {
+          actions.add(const _Action(
+              'role_local', 'Ndrysho rol', Icons.manage_accounts_rounded));
+          actions.add(_Action(
+            item.status == 'active' ? 'deactivate' : 'activate',
+            item.status == 'active' ? 'Çaktivizo adminin' : 'Aktivizo adminin',
+            item.status == 'active'
+                ? Icons.person_off_rounded
+                : Icons.person_rounded,
+            destructive: item.status == 'active',
+          ));
+        }
+        break;
+      case 'settings':
+        actions.add(
+            const _Action('setting_local', 'Ndrysho vlerën', Icons.edit_rounded));
+        break;
+    }
+
+    return actions;
+  }
+
+  Future<void> _handleAction(AdminModuleItem item, _Action action) async {
+    if (action.key == 'view') {
+      await _showDetails(item);
+      return;
+    }
+    if (action.key == 'edit_local') {
+      await _editCategory(item);
+      return;
+    }
+    if (action.key == 'role_local') {
+      await _editAdminRole(item);
+      return;
+    }
+    if (action.key == 'setting_local') {
+      await _editSetting(item);
+      return;
+    }
+
+    Map<String, dynamic> payload = const {};
+    if ({'cancel'}.contains(action.key) &&
+        {'requests', 'orders'}.contains(widget.moduleKey)) {
+      final reason = await _askText(
+        title: 'Arsyeja',
+        label: 'Shkruaj arsyen',
+        requiredValue: false,
+      );
+      if (reason == null) return;
+      payload = {'reason': reason};
+    } else if (widget.moduleKey == 'disputes' &&
+        {'resolve_client', 'resolve_provider', 'close'}.contains(action.key)) {
+      final note = await _askText(
+        title: 'Shënim vendimi',
+        label: 'Shënim / arsye',
+        requiredValue: false,
+      );
+      if (note == null) return;
+      payload = {'note': note};
+    }
+
+    final confirmed = !action.destructive ||
+        await _confirm(
+          title: action.label,
+          message: 'Je i sigurt që dëshiron të vazhdosh?',
+        );
+    if (!confirmed) return;
+
+    await _runRemote(
+      () => AdminModulesRepository.instance.action(
+        widget.moduleKey,
+        item.id,
+        action.key,
+        payload,
+      ),
+      success: 'Veprimi u krye me sukses.',
+    );
+  }
+
+  Future<void> _runRemote(
+    Future<void> Function() request, {
+    required String success,
+  }) async {
+    try {
+      await request();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(success)));
+      await _reload();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+    }
+  }
+
+  Future<void> _showDetails(AdminModuleItem item) async {
+    final pretty = const JsonEncoder.withIndent('  ').convert(item.data);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item.title),
+        content: SizedBox(
+          width: 650,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              [
+                if (item.subtitle.isNotEmpty) item.subtitle,
+                if (item.detail.isNotEmpty) item.detail,
+                if (item.metric != null && item.metric!.isNotEmpty)
+                  'Vlera: ${item.metric}',
+                if (item.status.isNotEmpty) 'Status: ${item.status}',
+                '',
+                pretty,
+              ].join('\n'),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Mbyll'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createCategory() async {
+    final result = await _categoryDialog();
+    if (result == null) return;
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .action('categories', '', 'create', result),
+      success: 'Kategoria u shtua.',
+    );
+  }
+
+  Future<void> _editCategory(AdminModuleItem item) async {
+    final result = await _categoryDialog(
+      initialName: item.title,
+      initialDescription: item.detail,
+      initialIcon: (item.data['icon_key'] ?? '').toString(),
+      initialSort: (item.data['sort_order'] ?? 100).toString(),
+    );
+    if (result == null) return;
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .action('categories', item.id, 'rename', result),
+      success: 'Kategoria u përditësua.',
+    );
+  }
+
+  Future<Map<String, dynamic>?> _categoryDialog({
+    String initialName = '',
+    String initialDescription = '',
+    String initialIcon = '',
+    String initialSort = '100',
+  }) async {
+    final name = TextEditingController(text: initialName);
+    final description = TextEditingController(text: initialDescription);
+    final icon = TextEditingController(text: initialIcon);
+    final sort = TextEditingController(text: initialSort);
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(initialName.isEmpty ? 'Shto kategori' : 'Ndrysho kategori'),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Emri'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: description,
+                decoration: const InputDecoration(labelText: 'Përshkrimi'),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: icon,
+                decoration: const InputDecoration(labelText: 'Icon key'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: sort,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Renditja'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Anulo')),
+          FilledButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty) return;
+              Navigator.pop(context, {
+                'name': name.text.trim(),
+                'description': description.text.trim(),
+                'icon_key': icon.text.trim(),
+                'sort_order': int.tryParse(sort.text.trim()) ?? 100,
+              });
+            },
+            child: const Text('Ruaj'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _broadcastNotification() async {
+    final title = TextEditingController();
+    final body = TextEditingController();
+    String target = 'all';
+
+    final payload = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Dërgo njoftim'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: target,
+                  decoration: const InputDecoration(labelText: 'Marrësit'),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Të gjithë')),
+                    DropdownMenuItem(
+                        value: 'citizens', child: Text('Vetëm qytetarët')),
+                    DropdownMenuItem(
+                        value: 'providers', child: Text('Vetëm mjeshtrat')),
+                  ],
+                  onChanged: (value) =>
+                      setLocalState(() => target = value ?? 'all'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Titulli'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: body,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Mesazhi'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Anulo')),
+            FilledButton(
+              onPressed: () {
+                if (title.text.trim().isEmpty || body.text.trim().isEmpty) {
+                  return;
+                }
+                Navigator.pop(context, {
+                  'target': target,
+                  'title': title.text.trim(),
+                  'body': body.text.trim(),
+                });
+              },
+              child: const Text('Dërgo'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (payload == null) return;
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .action('notifications', '', 'broadcast', payload),
+      success: 'Njoftimi u krijua për marrësit e zgjedhur.',
+    );
+  }
+
+  Future<void> _addAdmin() async {
+    final email = TextEditingController();
+    final name = TextEditingController();
+    String role = 'admin';
+
+    final payload = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Shto administrator'),
+          content: SizedBox(
+            width: 500,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: email,
+                  decoration: const InputDecoration(
+                      labelText: 'Email i përdoruesit ekzistues'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: name,
+                  decoration:
+                      const InputDecoration(labelText: 'Emri i shfaqur'),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: role,
+                  decoration: const InputDecoration(labelText: 'Roli'),
+                  items: const [
+                    DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    DropdownMenuItem(value: 'support', child: Text('Support')),
+                    DropdownMenuItem(value: 'finance', child: Text('Finance')),
+                    DropdownMenuItem(
+                        value: 'super_admin', child: Text('Super Admin')),
+                  ],
+                  onChanged: (value) =>
+                      setLocalState(() => role = value ?? 'admin'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Anulo')),
+            FilledButton(
+              onPressed: () {
+                if (!email.text.contains('@')) return;
+                Navigator.pop(context, {
+                  'email': email.text.trim(),
+                  'display_name': name.text.trim(),
+                  'role': role,
+                });
+              },
+              child: const Text('Shto'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (payload == null) return;
+    await _runRemote(
+      () =>
+          AdminModulesRepository.instance.action('admins', '', 'add', payload),
+      success: 'Administratori u shtua.',
+    );
+  }
+
+  Future<void> _editAdminRole(AdminModuleItem item) async {
+    String role = (item.data['role'] ?? 'admin').toString();
+    final next = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Ndrysho rolin'),
+          content: DropdownButtonFormField<String>(
+            initialValue: role,
+            items: const [
+              DropdownMenuItem(value: 'admin', child: Text('Admin')),
+              DropdownMenuItem(value: 'support', child: Text('Support')),
+              DropdownMenuItem(value: 'finance', child: Text('Finance')),
+              DropdownMenuItem(
+                  value: 'super_admin', child: Text('Super Admin')),
+            ],
+            onChanged: (value) =>
+                setLocalState(() => role = value ?? 'admin'),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Anulo')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, role),
+                child: const Text('Ruaj')),
+          ],
+        ),
+      ),
+    );
+    if (next == null) return;
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .action('admins', item.id, 'set_role', {'role': next}),
+      success: 'Roli u përditësua.',
+    );
+  }
+
+  Future<void> _editSetting(AdminModuleItem item) async {
+    final controller =
+        TextEditingController(text: _settingText(item.data['value']));
+    bool isPublic = item.data['is_public'] == true;
+
+    final payload = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: Text('Ndrysho ${item.title}'),
+          content: SizedBox(
+            width: 560,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  maxLines: 6,
+                  decoration: const InputDecoration(
+                    labelText: 'Vlera JSON ose tekst',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: isPublic,
+                  title: const Text('Konfigurim publik'),
+                  onChanged: (value) =>
+                      setLocalState(() => isPublic = value),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Anulo')),
+            FilledButton(
+              onPressed: () {
+                dynamic value;
+                final text = controller.text.trim();
+                try {
+                  value = jsonDecode(text);
+                } catch (_) {
+                  value = text;
+                }
+                Navigator.pop(context, {
+                  'value': value,
+                  'is_public': isPublic,
+                });
+              },
+              child: const Text('Ruaj'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (payload == null) return;
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .action('settings', item.id, 'update', payload),
+      success: 'Konfigurimi u përditësua.',
+    );
+  }
+
+  String _settingText(dynamic value) {
+    if (value is Map || value is List) {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    }
+    return value?.toString() ?? '';
+  }
+
+  Future<String?> _askText({
+    required String title,
+    required String label,
+    required bool requiredValue,
+  }) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Anulo')),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (requiredValue && value.isEmpty) return;
+              Navigator.pop(context, value);
+            },
+            child: const Text('Vazhdo'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Jo')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Po, vazhdo')),
+            ],
+          ),
+        ) ??
+        false;
+  }
+}
+
+class _PageHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<Widget> actions;
+
+  const _PageHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final heading = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: .09),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -.4)),
+                  const SizedBox(height: 3),
+                  Text(subtitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: Colors.black54)),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heading,
+              const SizedBox(height: 14),
+              Wrap(spacing: 8, runSpacing: 8, children: actions),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: heading),
+            const SizedBox(width: 18),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SummaryGrid extends StatelessWidget {
+  final Map<String, dynamic> values;
+  const _SummaryGrid({required this.values});
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = values.entries.toList();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 580
+            ? 2
+            : constraints.maxWidth < 950
+                ? 3
+                : 4;
+        final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final entry in entries)
+              SizedBox(
+                width: width,
+                child: Card(
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.key,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12)),
+                        const SizedBox(height: 7),
+                        Text(
+                          _formatValue(entry.value),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 22),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Filters extends StatelessWidget {
+  final String query;
+  final String status;
+  final List<String> statuses;
+  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<String> onStatusChanged;
+
+  const _Filters({
+    required this.query,
+    required this.status,
+    required this.statuses,
+    required this.onQueryChanged,
+    required this.onStatusChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final search = TextField(
+              onChanged: onQueryChanged,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded),
+                hintText: 'Kërko...',
+                isDense: true,
+              ),
+            );
+            final filter = DropdownButtonFormField<String>(
+              initialValue: status,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Statusi',
+                isDense: true,
+              ),
+              items: [
+                const DropdownMenuItem(value: 'all', child: Text('Të gjitha')),
+                for (final value in statuses)
+                  DropdownMenuItem(
+                    value: value,
+                    child: Text(_statusLabel(value)),
+                  ),
+              ],
+              onChanged: (value) => onStatusChanged(value ?? 'all'),
+            );
+
+            if (constraints.maxWidth < 650) {
+              return Column(
+                children: [search, const SizedBox(height: 10), filter],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(flex: 3, child: search),
+                const SizedBox(width: 10),
+                Expanded(child: filter),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopTable extends StatelessWidget {
+  final List<AdminModuleItem> items;
+  final List<_Action> Function(AdminModuleItem) actionsFor;
+  final Future<void> Function(AdminModuleItem, _Action) onAction;
+
+  const _DesktopTable({
+    required this.items,
+    required this.actionsFor,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            color: const Color(0xFFF8FAFC),
+            child: const Row(
+              children: [
+                Expanded(flex: 4, child: Text('Emri', style: _headStyle)),
+                Expanded(flex: 3, child: Text('Info', style: _headStyle)),
+                Expanded(flex: 2, child: Text('Status', style: _headStyle)),
+                Expanded(flex: 2, child: Text('Vlera', style: _headStyle)),
+                SizedBox(width: 48),
+              ],
+            ),
+          ),
+          for (final item in items)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: const BoxDecoration(
+                border:
+                    Border(top: BorderSide(color: Color(0xFFF0F2F6))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w800)),
+                        if (item.detail.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(item.detail,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.black54, fontSize: 12)),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(item.subtitle.isEmpty ? '—' : item.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12.5)),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _StatusChip(value: item.status)),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(item.metric ?? '—',
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                  SizedBox(
+                    width: 48,
+                    child: _ActionMenu(
+                      actions: actionsFor(item),
+                      onSelected: (action) => onAction(item, action),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileItemCard extends StatelessWidget {
+  final AdminModuleItem item;
+  final List<_Action> actions;
+  final Future<void> Function(_Action) onAction;
+
+  const _MobileItemCard({
+    required this.item,
+    required this.actions,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.title,
+                      style: const TextStyle(fontWeight: FontWeight.w900)),
+                  if (item.subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(item.subtitle,
+                        style: const TextStyle(
+                            color: Colors.black54, fontSize: 12.5)),
+                  ],
+                  if (item.detail.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Text(item.detail,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12.5)),
+                  ],
+                  const SizedBox(height: 9),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 7,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _StatusChip(value: item.status),
+                      if (item.metric != null)
+                        Text(item.metric!,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w900)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _ActionMenu(actions: actions, onSelected: onAction),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionMenu extends StatelessWidget {
+  final List<_Action> actions;
+  final ValueChanged<_Action> onSelected;
+
+  const _ActionMenu({required this.actions, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_Action>(
+      tooltip: 'Veprime',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        for (final action in actions)
+          PopupMenuItem(
+            value: action,
+            child: Row(
+              children: [
+                Icon(action.icon,
+                    size: 18,
+                    color: action.destructive ? Colors.red : null),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(action.label,
+                      style: TextStyle(
+                          color: action.destructive ? Colors.red : null)),
+                ),
+              ],
+            ),
+          ),
+      ],
+      icon: const Icon(Icons.more_vert_rounded),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String value;
+  const _StatusChip({required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = value.toLowerCase();
+    final positive = {
+      'active',
+      'approved',
+      'paid',
+      'completed',
+      'published',
+      'resolved',
+      'resolved_client',
+      'resolved_provider',
+      'actioned',
+      'read',
+    }.contains(normalized);
+    final warning = {
+      'pending',
+      'reviewing',
+      'in_progress',
+      'past_due',
+      'trialing',
+      'open',
+      'unread',
+      'evidence',
+      'waiting_user',
+    }.contains(normalized);
+
+    final color = positive
+        ? Colors.green
+        : warning
+            ? Colors.orange
+            : Colors.blueGrey;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        _statusLabel(value),
+        style: TextStyle(
+            color: color, fontWeight: FontWeight.w800, fontSize: 11),
+      ),
+    );
+  }
+}
+
+class _StateCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final bool spinning;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _StateCard({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.spinning = false,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 50),
+        child: Center(
+          child: Column(
+            children: [
+              if (spinning)
+                const SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(strokeWidth: 2.5))
+              else
+                Icon(icon, size: 38, color: Colors.black38),
+              const SizedBox(height: 12),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 5),
+                Text(subtitle!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.black54)),
+              ],
+              if (onAction != null && actionLabel != null) ...[
+                const SizedBox(height: 16),
+                OutlinedButton(
+                    onPressed: onAction, child: Text(actionLabel!)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Action {
+  final String key;
+  final String label;
+  final IconData icon;
+  final bool destructive;
+
+  const _Action(this.key, this.label, this.icon, {this.destructive = false});
+}
+
+const _headStyle =
+    TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Colors.black54);
+
+String _statusLabel(String value) {
+  return switch (value) {
+    'active' => 'Aktiv',
+    'inactive' => 'Jo aktiv',
+    'pending' => 'Në pritje',
+    'approved' => 'Aprovuar',
+    'rejected' => 'Refuzuar',
+    'suspended' => 'Pezulluar',
+    'published' => 'Publikuar',
+    'hidden' => 'Fshehur',
+    'removed' => 'Hequr',
+    'open' => 'Hapur',
+    'reviewing' => 'Në shqyrtim',
+    'actioned' => 'Vepruar',
+    'dismissed' => 'Hedhur poshtë',
+    'closed' => 'Mbyllur',
+    'submitted' => 'Dërguar',
+    'accepted' => 'Pranuar',
+    'withdrawn' => 'Tërhequr',
+    'expired' => 'Skaduar',
+    'completed' => 'Përfunduar',
+    'cancelled' => 'Anuluar',
+    'paid' => 'Paguar',
+    'waived' => 'Hequr',
+    'processing' => 'Në proces',
+    'past_due' => 'Past due',
+    'trialing' => 'Trial',
+    'resolved' => 'Zgjidhur',
+    'waiting_user' => 'Pritet përdoruesi',
+    'resolved_client' => 'Për klientin',
+    'resolved_provider' => 'Për mjeshtrin',
+    'unread' => 'Pa lexuar',
+    'read' => 'Lexuar',
+    'public' => 'Publik',
+    'private' => 'Privat',
+    'logged' => 'Regjistruar',
+    _ => value.isEmpty ? '—' : value,
+  };
+}
+
+String _formatValue(dynamic value) {
+  if (value == null) return '0';
+  if (value is num) {
+    if (value is double && value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toString();
+  }
+  return value.toString();
+}
+
+String _friendlyError(Object error) {
+  final text = error.toString();
+  if (text.contains('42501') || text.toLowerCase().contains('authorized')) {
+    return 'Nuk ke leje për këtë veprim.';
+  }
+  if (text.contains('P0002')) {
+    return 'Rekordi nuk u gjet ose është ndryshuar.';
+  }
+  return 'Ndodhi një gabim. Rifresko faqen dhe provo përsëri.';
+}
