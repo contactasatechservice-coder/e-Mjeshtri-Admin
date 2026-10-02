@@ -33,10 +33,9 @@ jobs:
           unzip -q /tmp/e_mjeshtri_admin/source.zip -d /tmp/e_mjeshtri_admin/source
           cp -a /tmp/e_mjeshtri_admin/source/e_mjeshtri_admin_flutter_web/. /tmp/e_mjeshtri_admin/app/
 
-          if [ -f .github/e_mjeshtri_admin_patch/patch_base64.txt ]; then
-            base64 --decode .github/e_mjeshtri_admin_patch/patch_base64.txt > /tmp/e_mjeshtri_admin/patch.zip
-            unzip -qo /tmp/e_mjeshtri_admin/patch.zip -d /tmp/e_mjeshtri_admin/app
-          fi
+          cat .github/e_mjeshtri_admin_patch/patch_part_* > /tmp/e_mjeshtri_admin/patch.b64
+          base64 --decode /tmp/e_mjeshtri_admin/patch.b64 > /tmp/e_mjeshtri_admin/patch.zip
+          unzip -qo /tmp/e_mjeshtri_admin/patch.zip -d /tmp/e_mjeshtri_admin/app
 
           test -f /tmp/e_mjeshtri_admin/app/pubspec.yaml
           test -f /tmp/e_mjeshtri_admin/app/lib/main.dart
@@ -71,6 +70,7 @@ jobs:
 
       - name: Publish static build into main
         run: |
+          rm -rf /tmp/site
           mkdir -p /tmp/site
           cp -a /tmp/e_mjeshtri_admin/app/build/web/. /tmp/site/
           find . -mindepth 1 -maxdepth 1 \
