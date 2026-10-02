@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main ]
     paths:
-      - ".github/e_mjeshtri_admin_patch/**"
       - ".github/workflows/build-admin-web.yml"
   workflow_dispatch:
 
