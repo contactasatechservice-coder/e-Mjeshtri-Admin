@@ -8,6 +8,7 @@ import 'screens/admin_module_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/list_screens.dart';
 import 'screens/login_screen.dart';
+import 'screens/settings_screen.dart';
 import 'widgets/admin_shell.dart';
 
 final _router = GoRouter(
@@ -215,12 +216,7 @@ final _moduleRoutes = <RouteBase>[
   ),
   GoRoute(
     path: '/settings',
-    builder: (c, s) => const AdminModuleScreen(
-      moduleKey: 'settings',
-      title: 'Cilësimet',
-      subtitle: 'Konfigurimi real i platformës',
-      icon: Icons.settings_rounded,
-    ),
+    builder: (c, s) => const SettingsScreen(),
   ),
 ];
 
