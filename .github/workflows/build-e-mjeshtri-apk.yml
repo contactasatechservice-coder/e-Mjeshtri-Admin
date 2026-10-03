@@ -111,15 +111,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.2.1.apk
-          sha256sum e-Mjeshtri-Unified-v1.2.1.apk > e-Mjeshtri-Unified-v1.2.1.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.3.0.apk
+          sha256sum e-Mjeshtri-Unified-v1.3.0.apk > e-Mjeshtri-Unified-v1.3.0.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.2.1-Android
+          name: e-Mjeshtri-Unified-v1.3.0-Android
           path: |
-            e-Mjeshtri-Unified-v1.2.1.apk
-            e-Mjeshtri-Unified-v1.2.1.apk.sha256
+            e-Mjeshtri-Unified-v1.3.0.apk
+            e-Mjeshtri-Unified-v1.3.0.apk.sha256
           if-no-files-found: error
           retention-days: 30
