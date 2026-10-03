@@ -111,15 +111,21 @@ jobs:
           check_grep "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
           check_grep "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
           check_grep "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "2000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "20000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          check_grep "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          check_grep "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
 
           echo "=== Role selection excerpt ==="
           sed -n '1,220p' .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart 2>/dev/null || true
           echo "=== Provider route excerpt ==="
           grep -n "/provider" .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
+          echo "=== App routes ==="
+          sed -n '1,220p' .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
+          echo "=== Splash ==="
+          sed -n '1,260p' .build/e_mjeshtri/lib/features/auth/splash_screen.dart 2>/dev/null || true
+          echo "=== Onboarding ==="
+          sed -n '1,320p' .build/e_mjeshtri/lib/features/onboarding/onboarding_screen.dart 2>/dev/null || true
           echo "=== Subscription markers ==="
-          grep -n -E "2000|20000|2,000|20,000|provider_subscription_quote|blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart 2>/dev/null || true
+          grep -n -E "provider_subscription_quote|blue_tick|subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart 2>/dev/null || true
 
           exit "$fail"
 
