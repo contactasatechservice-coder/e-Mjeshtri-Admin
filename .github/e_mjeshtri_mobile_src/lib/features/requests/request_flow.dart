@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -447,11 +448,21 @@ class OffersScreen extends ConsumerStatefulWidget {
 
 class _OffersScreenState extends ConsumerState<OffersScreen> {
   late Future<List<Map<String, dynamic>>> future;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     future = ref.read(marketplaceRepositoryProvider).offers(widget.requestId);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (mounted) reload();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   void reload() {
