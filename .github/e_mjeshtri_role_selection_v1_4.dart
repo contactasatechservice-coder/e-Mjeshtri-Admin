@@ -122,7 +122,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Zgjidh rolin tënd. Mund ta ndryshosh më vonë nga profili.',
+              'Zgjidh si do ta përdorësh e-Mjeshtri për të vazhduar.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.muted,
