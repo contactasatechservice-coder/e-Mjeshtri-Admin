@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/e_mjeshtri_mobile_src/**'
+      - '.github/e_mjeshtri_mobile_src.b64'
       - '.github/workflows/build-emjeshtri-apk.yml'
 
 permissions:
@@ -33,19 +33,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create Android project
+      - name: Reconstruct Unified mobile source
         shell: bash
         run: |
           set -euo pipefail
           rm -rf .build/e_mjeshtri
           mkdir -p .build/e_mjeshtri
+          base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified.tar.gz
+          tar -xzf /tmp/e_mjeshtri_unified.tar.gz -C .build/e_mjeshtri
           cd .build/e_mjeshtri
           flutter create --platforms=android --org io.emjeshtri --project-name e_mjeshtri .
           rm -rf test
-          cp -a ../../.github/e_mjeshtri_mobile_src/. .
-          mkdir -p assets/branding
-          base64 -d logo_base64.txt > assets/branding/e_mjeshtri_logo.png
-          rm -f logo_base64.txt
 
           python3 - <<'PY'
           from pathlib import Path
@@ -81,13 +79,30 @@ jobs:
 
           flutter pub get
 
+      - name: Verify Unified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          test -f .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
+          test -f .build/e_mjeshtri/lib/features/provider_portal/shell.dart
+          test -f .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
+          grep -q "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          grep -q "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          grep -q "2000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "20000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+
       - name: Analyze
         working-directory: .build/e_mjeshtri
         run: flutter analyze lib --no-fatal-warnings --no-fatal-infos
 
       - name: Generate launcher icon
         working-directory: .build/e_mjeshtri
-        run: dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
+        run: |
+          if [ -f flutter_launcher_icons_android.yaml ]; then
+            dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
+          fi
 
       - name: Build release APK
         working-directory: .build/e_mjeshtri
@@ -96,15 +111,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-release.apk
-          sha256sum e-Mjeshtri-release.apk > e-Mjeshtri-release.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.2.0.apk
+          sha256sum e-Mjeshtri-Unified-v1.2.0.apk > e-Mjeshtri-Unified-v1.2.0.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Android-release
+          name: e-Mjeshtri-Unified-v1.2.0-Android
           path: |
-            e-Mjeshtri-release.apk
-            e-Mjeshtri-release.apk.sha256
+            e-Mjeshtri-Unified-v1.2.0.apk
+            e-Mjeshtri-Unified-v1.2.0.apk.sha256
           if-no-files-found: error
           retention-days: 30
