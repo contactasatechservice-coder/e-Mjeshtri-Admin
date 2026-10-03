@@ -102,5 +102,6 @@ jobs:
             echo "No build changes to publish"
           else
             git commit -m "Publish fully functional e-Mjeshtri Admin [skip ci]"
+            git pull --rebase origin main
             git push origin main
           fi
