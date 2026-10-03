@@ -36,16 +36,12 @@ jobs:
           mkdir -p mobile_app
           base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_src.tar.gz
           tar -xzf /tmp/e_mjeshtri_src.tar.gz -C mobile_app
+          sed -i 's/permission_handler: \^13\.0\.2/permission_handler: 12.0.3/' mobile_app/pubspec.yaml
+          rm -f mobile_app/pubspec.lock
           mkdir -p mobile_app/assets/branding
           cp assets/assets/branding/e_mjeshtri_logo.png mobile_app/assets/branding/e_mjeshtri_logo.png
           cd mobile_app
           flutter create --platforms=android --org al.emjeshtri --project-name e_mjeshtri .
-
-      - name: Install Android SDK 37
-        shell: bash
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37" "build-tools;37.0.0"
 
       - name: Configure Android
         shell: bash
@@ -73,13 +69,8 @@ jobs:
           if gp.exists():
               g=gp.read_text()
               g=g.replace('minSdk = flutter.minSdkVersion','minSdk = 23')
-              g=g.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 37')
+              g=g.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 36')
               gp.write_text(g)
-          gradle=Path('mobile_app/android/gradle.properties')
-          text=gradle.read_text() if gradle.exists() else ''
-          if 'android.suppressUnsupportedCompileSdk=37' not in text:
-              text += '\nandroid.suppressUnsupportedCompileSdk=37\n'
-          gradle.write_text(text)
           PY
 
       - name: Dependencies
