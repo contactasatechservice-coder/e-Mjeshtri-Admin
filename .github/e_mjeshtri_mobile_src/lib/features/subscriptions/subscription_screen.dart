@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -140,22 +138,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 
   Future<void> _pickProof() async {
-    final result = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
-      withData: true,
     );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.bytes == null || file.bytes!.isEmpty) {
+    if (file == null) return;
+
+    final length = file.lengthSync() ?? await file.length();
+    if (length == null || length <= 0) {
       _toast('Nuk u lexua dot skedari. Provo përsëri.', error: true);
       return;
     }
+
     const maxBytes = 8 * 1024 * 1024;
-    if (file.bytes!.length > maxBytes) {
+    if (length > maxBytes) {
       _toast('Prova e pagesës duhet të jetë më e vogël se 8 MB.', error: true);
       return;
     }
+
     setState(() => _proof = file);
   }
 
@@ -169,7 +169,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _toast('Ke një pagesë në pritje të aprovimit.', error: true);
       return;
     }
-    if (proof?.bytes == null) {
+    if (proof == null) {
       _toast('Ngarko provën e pagesës.', error: true);
       return;
     }
@@ -188,7 +188,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       final safeName = _safeFileName(proof!.name);
       final path = '$providerId/subscriptions/'
           '${DateTime.now().millisecondsSinceEpoch}_$safeName';
-      final bytes = proof.bytes as Uint8List;
+      final bytes = await proof.readAsBytes();
       await _client.storage.from('provider-documents').uploadBinary(
             path,
             bytes,
