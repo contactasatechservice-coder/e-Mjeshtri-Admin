@@ -25,15 +25,17 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
     'it': 'IT',
   };
 
+  void _continue() {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      context.go('/login?role=$_role');
+      return;
+    }
+    context.go(_role == 'provider' ? '/provider' : '/home');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) context.go('/auth');
-      });
-    }
-
     final locale = ref.watch(localeProvider).languageCode;
     final isProvider = _role == 'provider';
 
@@ -41,7 +43,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(28, 14, 28, 26),
+          padding: const EdgeInsets.fromLTRB(28, 14, 28, 28),
           children: [
             Align(
               alignment: Alignment.centerRight,
@@ -99,15 +101,15 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 56),
+            const SizedBox(height: 50),
             Center(
               child: Image.asset(
                 'assets/branding/e_mjeshtri_logo.png',
-                height: 112,
+                width: 245,
                 fit: BoxFit.contain,
               ),
             ),
-            const SizedBox(height: 62),
+            const SizedBox(height: 48),
             const Text(
               'Si do ta përdorësh e-Mjeshtri?',
               textAlign: TextAlign.center,
@@ -181,13 +183,7 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
             SizedBox(
               height: 62,
               child: FilledButton(
-                onPressed: () {
-                  if (_role == 'provider') {
-                    context.go('/provider');
-                  } else {
-                    context.go('/home');
-                  }
-                },
+                onPressed: _continue,
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF71AAF4),
                   foregroundColor: const Color(0xFF173B68),
@@ -259,7 +255,6 @@ class _RoleTab extends StatelessWidget {
           ),
         ),
       );
-}
 
 class _RoleInfoCard extends StatelessWidget {
   const _RoleInfoCard({
