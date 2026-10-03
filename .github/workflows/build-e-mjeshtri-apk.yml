@@ -125,7 +125,7 @@ jobs:
           grep -q "Si do ta përdorësh e-Mjeshtri?" "$APP/lib/features/auth/role_selection_screen.dart"
           grep -q "Zgjidh rolin tënd" "$APP/lib/features/auth/role_selection_screen.dart"
           grep -q "context.go('/role')" "$APP/lib/features/auth/splash_screen.dart"
-          grep -q "role=='provider'?'/provider':'/home'" "$APP/lib/features/auth/login_screen.dart"
+          grep -q "role=='provider'?'/provider':'/permissions/location'" "$APP/lib/features/auth/login_screen.dart"
           grep -q "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -q "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -q "+500 Lek" "$APP/lib/features/subscriptions/subscription_screen.dart"
