@@ -28,6 +28,7 @@ jobs:
 
       - name: Install Android SDK 37
         run: |
+          echo "Building e-Mjeshtri release with compileSdk 37"
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-37" "build-tools;37.0.0"
 
