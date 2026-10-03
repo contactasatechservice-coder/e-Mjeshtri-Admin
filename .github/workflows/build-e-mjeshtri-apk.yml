@@ -65,7 +65,7 @@ jobs:
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="io.emjeshtri.app" android:host="login-callback"/>
             </intent-filter>
-'''
+          '''
           if 'android:scheme="io.emjeshtri.app"' not in s:
               s=s.replace(marker,intent+marker,1)
           p.write_text(s)
