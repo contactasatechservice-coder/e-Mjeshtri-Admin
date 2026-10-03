@@ -240,7 +240,7 @@ class MarketplaceRepository {
     double minRating = 0,
   }) async {
     var q = client.from('providers').select('id,display_name,is_verified,blue_tick_expires_at,rating_avg,rating_count,city,bio,logo_path,latitude,longitude').eq('status', 'active');
-    if (verifiedOnly) q = q.gt('blue_tick_expires_at', DateTime.now().toUtc().toIso8601String());
+    if (verifiedOnly) q = q.eq('is_verified', true);
     if (minRating > 0) q = q.gte('rating_avg', minRating);
     final rows = await q.order('rating_avg', ascending: false).limit(100);
     final all = List<Map<String, dynamic>>.from(rows);
