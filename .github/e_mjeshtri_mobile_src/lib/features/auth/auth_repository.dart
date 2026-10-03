@@ -21,6 +21,7 @@ class AuthRepository {
     required String phone,
     required String password,
     required String languageCode,
+    required String role,
   }) async {
     await _client.auth.signUp(
       email: email.trim(),
@@ -30,6 +31,7 @@ class AuthRepository {
         'last_name': lastName.trim(),
         'phone': phone.trim(),
         'preferred_language': languageCode,
+        'app_role': role == 'provider' ? 'provider' : 'citizen',
       },
     );
   }
