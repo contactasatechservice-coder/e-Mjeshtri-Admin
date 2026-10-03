@@ -227,7 +227,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
       children: [
         _Header(onRefresh: _saving ? null : _load),
         const SizedBox(height: 20),
