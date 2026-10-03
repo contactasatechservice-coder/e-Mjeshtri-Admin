@@ -26,6 +26,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Android SDK 37
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+
       - name: Create Android project
         run: |
           rm -rf .build/e_mjeshtri
@@ -38,6 +43,19 @@ jobs:
           base64 -d logo_base64.txt > assets/branding/e_mjeshtri_logo.png
           rm -f logo_base64.txt
           sed -i 's/android:label="e_mjeshtri"/android:label="e-Mjeshtri"/' android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle.kts')
+          s = p.read_text()
+          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 37')
+          s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
+          p.write_text(s)
+          gp = Path('android/gradle.properties')
+          text = gp.read_text() if gp.exists() else ''
+          if 'android.suppressUnsupportedCompileSdk=37' not in text:
+              text += '\nandroid.suppressUnsupportedCompileSdk=37\n'
+          gp.write_text(text)
+          PY
           flutter pub get
 
       - name: Analyze
