@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/e_mjeshtri_mobile_src.b64'
+      - '.github/e_mjeshtri_role_selection_v1_4.dart'
       - '.github/workflows/build-e-mjeshtri-apk.yml'
 
 permissions:
@@ -44,6 +45,7 @@ jobs:
           cd .build/e_mjeshtri
           flutter create --platforms=android --org io.emjeshtri --project-name e_mjeshtri .
           rm -rf test
+          cp ../../.github/e_mjeshtri_role_selection_v1_4.dart lib/features/auth/role_selection_screen.dart
 
           python3 - <<'PY'
           from pathlib import Path
@@ -74,6 +76,22 @@ jobs:
           g=g.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 36')
           g=g.replace('minSdk = flutter.minSdkVersion','minSdk = 23')
           gradle.write_text(g)
+
+          pubspec=Path('pubspec.yaml')
+          p=pubspec.read_text()
+          p=p.replace('version: 1.3.0+20','version: 1.4.0+21')
+          pubspec.write_text(p)
+
+          config=Path('lib/core/config/app_config.dart')
+          a=config.read_text().replace("currentVersion = '1.3.0'", "currentVersion = '1.4.0'")
+          config.write_text(a)
+
+          strings=Path('lib/core/localization/app_strings.dart')
+          if strings.exists():
+              t=strings.read_text()
+              t=t.replace('Version 1.3.0', 'Version 1.4.0')
+              t=t.replace('Versione 1.3.0', 'Versione 1.4.0')
+              strings.write_text(t)
           PY
 
           flutter pub get
@@ -91,15 +109,17 @@ jobs:
           grep -q "GoRoute(path:'/provider'" "$APP/lib/app.dart"
           grep -q "Qytetar" "$APP/lib/features/auth/role_selection_screen.dart"
           grep -q "Mjeshtër" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -q "Si do ta përdorësh e-Mjeshtri?" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -q "Zgjidh rolin tënd" "$APP/lib/features/auth/role_selection_screen.dart"
           grep -q "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -q "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -q "+500 Lek" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -q "blue_tick_expires_at" "$APP/lib/core/utils/blue_tick.dart"
-          grep -q "version: 1.3.0+20" "$APP/pubspec.yaml"
-          grep -q "currentVersion = '1.3.0'" "$APP/lib/core/config/app_config.dart"
+          grep -q "version: 1.4.0+21" "$APP/pubspec.yaml"
+          grep -q "currentVersion = '1.4.0'" "$APP/lib/core/config/app_config.dart"
           grep -q "themeMode:ThemeMode.light" "$APP/lib/app.dart"
           echo "751041fd7999974ceeb8a51d42aa56813918abece39bdcfcc7e54be5f0ee6f59  $APP/assets/branding/e_mjeshtri_logo.png" | sha256sum -c -
-          echo "UNIFIED SOURCE VERIFIED: citizen + provider + subscriptions + blue tick + final logo + light theme"
+          echo "UNIFIED SOURCE VERIFIED: approved role UI + citizen + provider + subscriptions + blue tick + final logo + light theme"
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
@@ -116,15 +136,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.3.0.apk
-          sha256sum e-Mjeshtri-Unified-v1.3.0.apk > e-Mjeshtri-Unified-v1.3.0.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.0.apk
+          sha256sum e-Mjeshtri-Unified-v1.4.0.apk > e-Mjeshtri-Unified-v1.4.0.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.3.0-Android
+          name: e-Mjeshtri-Unified-v1.4.0-Android
           path: |
-            e-Mjeshtri-Unified-v1.3.0.apk
-            e-Mjeshtri-Unified-v1.3.0.apk.sha256
+            e-Mjeshtri-Unified-v1.4.0.apk
+            e-Mjeshtri-Unified-v1.4.0.apk.sha256
           if-no-files-found: error
           retention-days: 30
