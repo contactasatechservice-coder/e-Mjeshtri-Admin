@@ -464,7 +464,21 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(s.t('offers'))),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: s.t('home'),
+          onPressed: () => context.go('/home'),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: Text(s.t('offers')),
+        actions: [
+          IconButton(
+            tooltip: s.t('home'),
+            onPressed: () => context.go('/home'),
+            icon: const Icon(Icons.home_rounded),
+          ),
+        ],
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: future,
         builder: (context, snap) {
@@ -487,6 +501,7 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
                       onPressed: () async {
                         await ref.read(marketplaceRepositoryProvider).expandRequestRadius(widget.requestId, 25);
                         if (context.mounted) {
+                          reload();
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('expandRadius'))));
                         }
                       },
