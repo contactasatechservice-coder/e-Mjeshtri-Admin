@@ -26,25 +26,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Install Android SDK 37
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDKMANAGER=""
-          for candidate in             "${ANDROID_SDK_ROOT:-}/cmdline-tools/latest/bin/sdkmanager"             "${ANDROID_HOME:-}/cmdline-tools/latest/bin/sdkmanager"             "/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager"; do
-            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
-              SDKMANAGER="$candidate"
-              break
-            fi
-          done
-          if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find /usr/local/lib/android /opt -type f -path '*/cmdline-tools/*/bin/sdkmanager' 2>/dev/null | head -n 1 || true)"
-          fi
-          test -n "$SDKMANAGER"
-          echo "Using sdkmanager: $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
-
       - name: Create Android project
         run: |
           rm -rf .build/e_mjeshtri
@@ -61,14 +42,9 @@ jobs:
           from pathlib import Path
           p = Path('android/app/build.gradle.kts')
           s = p.read_text()
-          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 37')
+          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
           s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
           p.write_text(s)
-          gp = Path('android/gradle.properties')
-          text = gp.read_text() if gp.exists() else ''
-          if 'android.suppressUnsupportedCompileSdk=37' not in text:
-              text += '\nandroid.suppressUnsupportedCompileSdk=37\n'
-          gp.write_text(text)
           PY
           flutter pub get
 
