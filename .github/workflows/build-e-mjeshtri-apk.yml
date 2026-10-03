@@ -88,23 +88,48 @@ jobs:
 
           pubspec=Path('pubspec.yaml')
           p=pubspec.read_text()
-          p=p.replace('version: 1.0.0+1','version: 1.4.2+23')
+          p=p.replace('version: 1.0.0+1','version: 1.4.3+24')
           pubspec.write_text(p)
 
           config=Path('lib/core/config/app_config.dart')
-          a=config.read_text().replace("currentVersion = '1.0.0'", "currentVersion = '1.4.2'")
+          a=config.read_text().replace("currentVersion = '1.0.0'", "currentVersion = '1.4.3'")
           config.write_text(a)
 
           splash=Path('lib/features/auth/splash_screen.dart')
           ss=splash.read_text()
-          ss=ss.replace("context.go(session == null ? '/auth' : '/home');", "context.go('/role');")
+          old_gate="""    final onboarded = await LocalPreferences.isOnboardingCompleted();
+    if (!mounted) return;
+    if (!onboarded) {
+      context.go('/onboarding');
+      return;
+    }
+    final session = Supabase.instance.client.auth.currentSession;
+    context.go(session == null ? '/auth' : '/home');"""
+          new_gate="""    final session = Supabase.instance.client.auth.currentSession;
+    if (!mounted) return;
+    if (session == null) {
+      context.go('/role');
+      return;
+    }
+
+    final onboarded = await LocalPreferences.isOnboardingCompleted();
+    if (!mounted) return;
+    if (!onboarded) {
+      context.go('/onboarding');
+      return;
+    }
+
+    context.go('/home');"""
+          if old_gate not in ss:
+              raise SystemExit('Splash gate source not found; refusing to build wrong startup flow.')
+          ss=ss.replace(old_gate,new_gate,1)
           splash.write_text(ss)
 
           strings=Path('lib/core/localization/app_strings.dart')
           if strings.exists():
               t=strings.read_text()
-              t=t.replace('Version 1.3.0', 'Version 1.4.2')
-              t=t.replace('Versione 1.3.0', 'Versione 1.4.2')
+              t=t.replace('Version 1.3.0', 'Version 1.4.3')
+              t=t.replace('Versione 1.3.0', 'Versione 1.4.3')
               strings.write_text(t)
 
           # Remove in-app role switching and send every explicit sign-out back
@@ -177,6 +202,8 @@ jobs:
           fi
           grep -Fq "context.go('/role')" "$APP/lib/features/profile/profile_screen.dart"
           grep -Fq "context.go('/role')" "$APP/lib/features/provider_portal/profile.dart"
+          grep -Fq "if (session == null)" "$APP/lib/features/auth/splash_screen.dart"
+          grep -Fq "context.go('/role')" "$APP/lib/features/auth/splash_screen.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           grep -F "version:" "$APP/pubspec.yaml" | head -1
@@ -198,15 +225,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.2.apk
-          sha256sum e-Mjeshtri-Unified-v1.4.2.apk > e-Mjeshtri-Unified-v1.4.2.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.3.apk
+          sha256sum e-Mjeshtri-Unified-v1.4.3.apk > e-Mjeshtri-Unified-v1.4.3.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.4.2-Android
+          name: e-Mjeshtri-Unified-v1.4.3-Android
           path: |
-            e-Mjeshtri-Unified-v1.4.2.apk
-            e-Mjeshtri-Unified-v1.4.2.apk.sha256
+            e-Mjeshtri-Unified-v1.4.3.apk
+            e-Mjeshtri-Unified-v1.4.3.apk.sha256
           if-no-files-found: error
           retention-days: 30
