@@ -88,11 +88,11 @@ jobs:
 
           pubspec=Path('pubspec.yaml')
           p=pubspec.read_text()
-          p=re.sub(r'^version:\\s*[^\\n]+', 'version: 1.4.1+22', p, count=1, flags=re.M)
+          p=p.replace('version: 1.0.0+1','version: 1.4.1+22')
           pubspec.write_text(p)
 
           config=Path('lib/core/config/app_config.dart')
-          a=re.sub(r"currentVersion\\s*=\\s*'[^']+'", "currentVersion = '1.4.1'", config.read_text(), count=1)
+          a=config.read_text().replace("currentVersion = '1.0.0'", "currentVersion = '1.4.1'")
           config.write_text(a)
 
           splash=Path('lib/features/auth/splash_screen.dart')
