@@ -46,11 +46,25 @@ class AdminRepository {
   }
 
   Future<Map<String, dynamic>> loadDashboard() async {
-    final raw = await _client.rpc('admin_dashboard_overview');
+    final results = await Future.wait([
+      _client.rpc('admin_dashboard_overview'),
+      _client.rpc('admin_citizens_list'),
+    ]);
+    final raw = results[0];
     if (raw is! Map) {
       throw const FormatException('Përgjigje e pavlefshme nga Dashboard API.');
     }
-    return Map<String, dynamic>.from(raw);
+
+    final dashboard = Map<String, dynamic>.from(raw);
+    final kpis = Map<String, dynamic>.from(
+      (dashboard['kpis'] as Map?) ?? const <String, dynamic>{},
+    );
+    final citizens = results[1];
+    if (citizens is List) {
+      kpis['citizens_total'] = citizens.length;
+    }
+    dashboard['kpis'] = kpis;
+    return dashboard;
   }
 
   Future<List<Map<String, dynamic>>> loadCitizens() async {
