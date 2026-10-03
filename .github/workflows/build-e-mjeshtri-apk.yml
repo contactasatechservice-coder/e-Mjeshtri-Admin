@@ -1,0 +1,99 @@
+name: Build e-Mjeshtri Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/e_mjeshtri_mobile_src.b64'
+      - '.github/workflows/build-e-mjeshtri-apk.yml'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Reconstruct mobile source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf mobile_app
+          mkdir -p mobile_app
+          base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_src.tar.gz
+          tar -xzf /tmp/e_mjeshtri_src.tar.gz -C mobile_app
+          mkdir -p mobile_app/assets/branding
+          cp assets/assets/branding/e_mjeshtri_logo.png mobile_app/assets/branding/e_mjeshtri_logo.png
+          cd mobile_app
+          flutter create --platforms=android --org al.emjeshtri --project-name e_mjeshtri .
+
+      - name: Configure Android
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('mobile_app/android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          if '<uses-permission android:name="android.permission.INTERNET"/>' not in s:
+              s=s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">','<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.CAMERA"/>')
+          s=s.replace('android:label="e_mjeshtri"','android:label="e-Mjeshtri"')
+          marker='</activity>'
+          intent='''            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="io.emjeshtri.app" android:host="login-callback"/>
+            </intent-filter>
+'''
+          if 'android:scheme="io.emjeshtri.app"' not in s:
+              s=s.replace(marker,intent+marker,1)
+          p.write_text(s)
+          gp=Path('mobile_app/android/app/build.gradle.kts')
+          if gp.exists():
+              g=gp.read_text()
+              g=g.replace('minSdk = flutter.minSdkVersion','minSdk = 23')
+              gp.write_text(g)
+          PY
+
+      - name: Dependencies
+        working-directory: mobile_app
+        run: flutter pub get
+
+      - name: Generate launcher icon
+        working-directory: mobile_app
+        run: dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
+
+      - name: Analyze
+        working-directory: mobile_app
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build release APK
+        working-directory: mobile_app
+        run: flutter build apk --release
+
+      - name: Rename APK
+        shell: bash
+        run: cp mobile_app/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-release.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: e-Mjeshtri-Android-APK
+          path: e-Mjeshtri-release.apk
+          if-no-files-found: error
+          retention-days: 30
