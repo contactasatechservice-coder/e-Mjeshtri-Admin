@@ -41,6 +41,8 @@ jobs:
           mkdir -p .build/e_mjeshtri
           base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified.tar.gz
           tar -xzf /tmp/e_mjeshtri_unified.tar.gz -C .build/e_mjeshtri
+          sed -i 's/file_picker: \\^13\\.1\\.0/file_picker: 10.3.8/' .build/e_mjeshtri/pubspec.yaml
+          rm -f .build/e_mjeshtri/pubspec.lock
           cd .build/e_mjeshtri
           flutter create --platforms=android --org io.emjeshtri --project-name e_mjeshtri .
           rm -rf test
