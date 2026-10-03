@@ -255,6 +255,7 @@ class _RoleTab extends StatelessWidget {
           ),
         ),
       );
+}
 
 class _RoleInfoCard extends StatelessWidget {
   const _RoleInfoCard({
