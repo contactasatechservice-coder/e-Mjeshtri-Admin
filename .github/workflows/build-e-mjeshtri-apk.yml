@@ -1,4 +1,4 @@
-name: Build e-Mjeshtri Android APK
+name: Build e-Mjeshtri Unified APK
 
 on:
   workflow_dispatch:
@@ -33,33 +33,32 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Reconstruct Unified mobile source
+      - name: Reconstruct unified mobile source
         shell: bash
         run: |
           set -euo pipefail
           rm -rf .build/e_mjeshtri
           mkdir -p .build/e_mjeshtri
-          base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified.tar.gz
-          tar -xzf /tmp/e_mjeshtri_unified.tar.gz -C .build/e_mjeshtri
+          base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified_v1_3_0.tar.gz
+          tar -xzf /tmp/e_mjeshtri_unified_v1_3_0.tar.gz -C .build/e_mjeshtri
           cd .build/e_mjeshtri
           flutter create --platforms=android --org io.emjeshtri --project-name e_mjeshtri .
           rm -rf test
 
           python3 - <<'PY'
           from pathlib import Path
-
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          s = manifest.read_text()
-          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-          permissions = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+          manifest=Path('android/app/src/main/AndroidManifest.xml')
+          s=manifest.read_text()
+          marker='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          permissions='''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
               <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
               <uses-permission android:name="android.permission.CAMERA"/>
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'''
-          s = s.replace(marker, permissions, 1)
-          s = s.replace('android:label="e_mjeshtri"', 'android:label="e-Mjeshtri"')
-          deep_link = '''            <intent-filter>
+          s=s.replace(marker,permissions,1)
+          s=s.replace('android:label="e_mjeshtri"','android:label="e-Mjeshtri"')
+          deep_link='''            <intent-filter>
                   <action android:name="android.intent.action.VIEW"/>
                   <category android:name="android.intent.category.DEFAULT"/>
                   <category android:name="android.intent.category.BROWSABLE"/>
@@ -67,43 +66,40 @@ jobs:
               </intent-filter>
           '''
           if 'android:scheme="io.emjeshtri.app"' not in s:
-              s = s.replace('</activity>', deep_link + '</activity>', 1)
+              s=s.replace('</activity>',deep_link+'</activity>',1)
           manifest.write_text(s)
 
-          gradle = Path('android/app/build.gradle.kts')
-          g = gradle.read_text()
-          g = g.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
-          g = g.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
+          gradle=Path('android/app/build.gradle.kts')
+          g=gradle.read_text()
+          g=g.replace('compileSdk = flutter.compileSdkVersion','compileSdk = 36')
+          g=g.replace('minSdk = flutter.minSdkVersion','minSdk = 23')
           gradle.write_text(g)
           PY
 
-          mkdir -p assets/branding
-          cp ../../.github/e_mjeshtri_final_logo.png assets/branding/e_mjeshtri_logo.png
-
-          sed -i "s#GoRoute(path:'/onboarding',builder:(_,__)=>const OnboardingScreen())#GoRoute(path:'/onboarding',builder:(_,__)=>const AuthWelcomeScreen())#" lib/app.dart
-          sed -i "s/themeMode:themeMode,/themeMode:ThemeMode.light,/" lib/app.dart
-          sed -i "s/^version:.*/version: 1.3.0+30/" pubspec.yaml
-          sed -i "s/static const currentVersion = '[^']*';/static const currentVersion = '1.3.0';/" lib/core/config/app_config.dart
-
           flutter pub get
 
-      - name: Verify Unified source
+      - name: Verify correct unified source
         shell: bash
         run: |
           set -euo pipefail
-          test -f .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          test -f .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
-          test -f .build/e_mjeshtri/lib/features/provider_portal/shell.dart
-          test -f .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          grep -q "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
-          grep -q "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          grep -q "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          grep -q "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          grep -q "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          grep -q "themeMode:ThemeMode.light" .build/e_mjeshtri/lib/app.dart
-          grep -q "GoRoute(path:'/onboarding',builder:(_,__)=>const AuthWelcomeScreen())" .build/e_mjeshtri/lib/app.dart
-          grep -q "version: 1.3.0+30" .build/e_mjeshtri/pubspec.yaml
-          cmp .github/e_mjeshtri_final_logo.png .build/e_mjeshtri/assets/branding/e_mjeshtri_logo.png
+          APP=.build/e_mjeshtri
+          test -f "$APP/lib/features/auth/role_selection_screen.dart"
+          test -f "$APP/lib/features/provider_portal/provider_gate.dart"
+          test -f "$APP/lib/features/provider_portal/shell.dart"
+          test -f "$APP/lib/features/subscriptions/subscription_screen.dart"
+          test -f "$APP/lib/core/utils/blue_tick.dart"
+          grep -q "GoRoute(path:'/provider'" "$APP/lib/app.dart"
+          grep -q "Qytetar" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -q "Mjeshtër" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -q "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -q "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -q "+500 Lek" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -q "blue_tick_expires_at" "$APP/lib/core/utils/blue_tick.dart"
+          grep -q "version: 1.3.0+20" "$APP/pubspec.yaml"
+          grep -q "currentVersion = '1.3.0'" "$APP/lib/core/config/app_config.dart"
+          grep -q "themeMode:ThemeMode.light" "$APP/lib/app.dart"
+          echo "751041fd7999974ceeb8a51d42aa56813918abece39bdcfcc7e54be5f0ee6f59  $APP/assets/branding/e_mjeshtri_logo.png" | sha256sum -c -
+          echo "UNIFIED SOURCE VERIFIED: citizen + provider + subscriptions + blue tick + final logo + light theme"
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
@@ -111,10 +107,7 @@ jobs:
 
       - name: Generate launcher icon
         working-directory: .build/e_mjeshtri
-        run: |
-          if [ -f flutter_launcher_icons_android.yaml ]; then
-            dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
-          fi
+        run: dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
 
       - name: Build release APK
         working-directory: .build/e_mjeshtri
