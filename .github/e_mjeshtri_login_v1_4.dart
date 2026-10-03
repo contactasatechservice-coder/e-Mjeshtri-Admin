@@ -27,7 +27,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(()=>{loading=true,error=null});
     try{
       await ref.read(authRepositoryProvider).signIn(email:email.text,password:password.text);
-      if(mounted)context.go('/permissions/location');
+      final role=_role;
+      if(mounted)context.go(role=='provider'?'/provider':'/permissions/location');
     }catch(_){
       if(mounted)setState(()=>error=AppStrings.of(context).t('loginFailed'));
     }finally{if(mounted)setState(()=>loading=false);}
