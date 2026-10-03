@@ -97,32 +97,13 @@ jobs:
 
           splash=Path('lib/features/auth/splash_screen.dart')
           ss=splash.read_text()
-          old_gate="""    final onboarded = await LocalPreferences.isOnboardingCompleted();
-    if (!mounted) return;
-    if (!onboarded) {
-      context.go('/onboarding');
-      return;
-    }
-    final session = Supabase.instance.client.auth.currentSession;
-    context.go(session == null ? '/auth' : '/home');"""
-          new_gate="""    final session = Supabase.instance.client.auth.currentSession;
-    if (!mounted) return;
-    if (session == null) {
-      context.go('/role');
-      return;
-    }
-
-    final onboarded = await LocalPreferences.isOnboardingCompleted();
-    if (!mounted) return;
-    if (!onboarded) {
-      context.go('/onboarding');
-      return;
-    }
-
-    context.go('/home');"""
-          if old_gate not in ss:
+          marker="    final onboarded = await LocalPreferences.isOnboardingCompleted();"
+          first_gate="    final session = Supabase.instance.client.auth.currentSession;\n    if (!mounted) return;\n    if (session == null) {\n      context.go('/role');\n      return;\n    }\n\n"
+          old_tail="    final session = Supabase.instance.client.auth.currentSession;\n    context.go(session == null ? '/auth' : '/home');"
+          if marker not in ss or old_tail not in ss:
               raise SystemExit('Splash gate source not found; refusing to build wrong startup flow.')
-          ss=ss.replace(old_gate,new_gate,1)
+          ss=ss.replace(marker,first_gate+marker,1)
+          ss=ss.replace(old_tail,"    context.go('/home');",1)
           splash.write_text(ss)
 
           strings=Path('lib/core/localization/app_strings.dart')
