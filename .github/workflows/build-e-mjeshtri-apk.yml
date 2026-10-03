@@ -77,280 +77,33 @@ jobs:
           gradle.write_text(g)
           PY
 
+          mkdir -p assets/branding
+          cp ../../.github/e_mjeshtri_final_logo.png assets/branding/e_mjeshtri_logo.png
+
+          sed -i "s#GoRoute(path:'/onboarding',builder:(_,__)=>const OnboardingScreen())#GoRoute(path:'/onboarding',builder:(_,__)=>const AuthWelcomeScreen())#" lib/app.dart
+          sed -i "s/themeMode:themeMode,/themeMode:ThemeMode.light,/" lib/app.dart
+          sed -i "s/^version:.*/version: 1.3.0+30/" pubspec.yaml
+          sed -i "s/static const currentVersion = '[^']*';/static const currentVersion = '1.3.0';/" lib/core/config/app_config.dart
+
           flutter pub get
-
-      - name: Apply Unified v1.3.0 branding and startup
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          mkdir -p .build/e_mjeshtri/assets/branding
-          cp .github/e_mjeshtri_final_logo.png .build/e_mjeshtri/assets/branding/e_mjeshtri_logo.png
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path('.build/e_mjeshtri')
-
-          # 1) Skip the legacy onboarding path. Startup goes to Auth or Unified role selection.
-          splash = root / 'lib/features/auth/splash_screen.dart'
-          s = splash.read_text()
-          old = """    final onboarded = await LocalPreferences.isOnboardingCompleted();
-    if (!mounted) return;
-    if (!onboarded) {
-      context.go('/onboarding');
-      return;
-    }
-    final session = Supabase.instance.client.auth.currentSession;
-    context.go(session == null ? '/auth' : '/role');"""
-          new = """    if (!mounted) return;
-    final session = Supabase.instance.client.auth.currentSession;
-    context.go(session == null ? '/auth' : '/role');"""
-          if old not in s:
-              raise SystemExit('Legacy onboarding bootstrap block not found')
-          splash.write_text(s.replace(old, new))
-
-          # 2) Force the Unified release to start and remain in the light design.
-          app = root / 'lib/app.dart'
-          a = app.read_text()
-          if 'themeMode:themeMode,' not in a:
-              raise SystemExit('themeMode marker not found')
-          a = a.replace('themeMode:themeMode,', 'themeMode:ThemeMode.light,')
-          app.write_text(a)
-
-          # 3) Give this corrected APK a clearly different version.
-          pubspec = root / 'pubspec.yaml'
-          p = pubspec.read_text()
-          if re.search(r'^version:\s*.+
-          set -u
-          fail=0
-          check_file() {
-            if [ -f "$1" ]; then
-              echo "PASS file: $1"
-            else
-              echo "MISSING file: $1"
-              fail=1
-            fi
-          }
-          check_grep() {
-            if grep -q "$1" "$2"; then
-              echo "PASS text: $1 in $2"
-            else
-              echo "MISSING text: $1 in $2"
-              fail=1
-            fi
-          }
-
-          echo "=== Feature files ==="
-          find .build/e_mjeshtri/lib/features -maxdepth 3 -type f | sort
-
-          check_file .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/shell.dart
-          check_file .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
-          check_grep "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-
-          echo "=== Role selection excerpt ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart 2>/dev/null || true
-          echo "=== Provider route excerpt ==="
-          grep -n "/provider" .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== App routes ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== Splash ==="
-          sed -n '1,260p' .build/e_mjeshtri/lib/features/auth/splash_screen.dart 2>/dev/null || true
-          echo "=== Onboarding ==="
-          sed -n '1,320p' .build/e_mjeshtri/lib/features/onboarding/onboarding_screen.dart 2>/dev/null || true
-          echo "=== Subscription markers ==="
-          grep -n -E "provider_subscription_quote|blue_tick|subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart 2>/dev/null || true
-
-          exit "$fail"
-
-      - name: Analyze
-        working-directory: .build/e_mjeshtri
-        run: flutter analyze lib --no-fatal-warnings --no-fatal-infos
-
-      - name: Generate launcher icon
-        working-directory: .build/e_mjeshtri
-        run: |
-          if [ -f flutter_launcher_icons_android.yaml ]; then
-            dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
-          fi
-
-      - name: Build release APK
-        working-directory: .build/e_mjeshtri
-        run: flutter build apk --release
-
-      - name: Prepare artifact
-        shell: bash
-        run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.3.0.apk
-          sha256sum e-Mjeshtri-Unified-v1.3.0.apk > e-Mjeshtri-Unified-v1.3.0.apk.sha256
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: e-Mjeshtri-Unified-v1.3.0-Android
-          path: |
-            e-Mjeshtri-Unified-v1.3.0.apk
-            e-Mjeshtri-Unified-v1.3.0.apk.sha256
-          if-no-files-found: error
-          retention-days: 30, p, flags=re.M):
-              p = re.sub(r'^version:\s*.+
-          set -u
-          fail=0
-          check_file() {
-            if [ -f "$1" ]; then
-              echo "PASS file: $1"
-            else
-              echo "MISSING file: $1"
-              fail=1
-            fi
-          }
-          check_grep() {
-            if grep -q "$1" "$2"; then
-              echo "PASS text: $1 in $2"
-            else
-              echo "MISSING text: $1 in $2"
-              fail=1
-            fi
-          }
-
-          echo "=== Feature files ==="
-          find .build/e_mjeshtri/lib/features -maxdepth 3 -type f | sort
-
-          check_file .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/shell.dart
-          check_file .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
-          check_grep "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-
-          echo "=== Role selection excerpt ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart 2>/dev/null || true
-          echo "=== Provider route excerpt ==="
-          grep -n "/provider" .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== App routes ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== Splash ==="
-          sed -n '1,260p' .build/e_mjeshtri/lib/features/auth/splash_screen.dart 2>/dev/null || true
-          echo "=== Onboarding ==="
-          sed -n '1,320p' .build/e_mjeshtri/lib/features/onboarding/onboarding_screen.dart 2>/dev/null || true
-          echo "=== Subscription markers ==="
-          grep -n -E "provider_subscription_quote|blue_tick|subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart 2>/dev/null || true
-
-          exit "$fail"
-
-      - name: Analyze
-        working-directory: .build/e_mjeshtri
-        run: flutter analyze lib --no-fatal-warnings --no-fatal-infos
-
-      - name: Generate launcher icon
-        working-directory: .build/e_mjeshtri
-        run: |
-          if [ -f flutter_launcher_icons_android.yaml ]; then
-            dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
-          fi
-
-      - name: Build release APK
-        working-directory: .build/e_mjeshtri
-        run: flutter build apk --release
-
-      - name: Prepare artifact
-        shell: bash
-        run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.3.0.apk
-          sha256sum e-Mjeshtri-Unified-v1.3.0.apk > e-Mjeshtri-Unified-v1.3.0.apk.sha256
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: e-Mjeshtri-Unified-v1.3.0-Android
-          path: |
-            e-Mjeshtri-Unified-v1.3.0.apk
-            e-Mjeshtri-Unified-v1.3.0.apk.sha256
-          if-no-files-found: error
-          retention-days: 30, 'version: 1.3.0+30', p, flags=re.M)
-          else:
-              p += '\nversion: 1.3.0+30\n'
-          pubspec.write_text(p)
-
-          config = root / 'lib/core/config/app_config.dart'
-          if config.exists():
-              q = config.read_text()
-              q = re.sub(
-                  r"static const currentVersion\s*=\s*'[^']+';",
-                  "static const currentVersion = '1.3.0';",
-                  q,
-              )
-              config.write_text(q)
-          PY
-
-          cmp .github/e_mjeshtri_final_logo.png .build/e_mjeshtri/assets/branding/e_mjeshtri_logo.png
-          grep -q "themeMode:ThemeMode.light" .build/e_mjeshtri/lib/app.dart
-          grep -q "version: 1.3.0+30" .build/e_mjeshtri/pubspec.yaml
-          if grep -q "context.go('/onboarding')" .build/e_mjeshtri/lib/features/auth/splash_screen.dart; then
-            echo "Legacy onboarding is still active in SplashScreen"
-            exit 1
-          fi
-          grep -q "context.go(session == null ? '/auth' : '/role')" .build/e_mjeshtri/lib/features/auth/splash_screen.dart
 
       - name: Verify Unified source
         shell: bash
         run: |
-          set -u
-          fail=0
-          check_file() {
-            if [ -f "$1" ]; then
-              echo "PASS file: $1"
-            else
-              echo "MISSING file: $1"
-              fail=1
-            fi
-          }
-          check_grep() {
-            if grep -q "$1" "$2"; then
-              echo "PASS text: $1 in $2"
-            else
-              echo "MISSING text: $1 in $2"
-              fail=1
-            fi
-          }
-
-          echo "=== Feature files ==="
-          find .build/e_mjeshtri/lib/features -maxdepth 3 -type f | sort
-
-          check_file .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
-          check_file .build/e_mjeshtri/lib/features/provider_portal/shell.dart
-          check_file .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
-          check_grep "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          check_grep "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          check_grep "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-
-          echo "=== Role selection excerpt ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart 2>/dev/null || true
-          echo "=== Provider route excerpt ==="
-          grep -n "/provider" .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== App routes ==="
-          sed -n '1,220p' .build/e_mjeshtri/lib/app.dart 2>/dev/null || true
-          echo "=== Splash ==="
-          sed -n '1,260p' .build/e_mjeshtri/lib/features/auth/splash_screen.dart 2>/dev/null || true
-          echo "=== Onboarding ==="
-          sed -n '1,320p' .build/e_mjeshtri/lib/features/onboarding/onboarding_screen.dart 2>/dev/null || true
-          echo "=== Subscription markers ==="
-          grep -n -E "provider_subscription_quote|blue_tick|subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart 2>/dev/null || true
-
-          exit "$fail"
+          set -euo pipefail
+          test -f .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          test -f .build/e_mjeshtri/lib/features/provider_portal/provider_gate.dart
+          test -f .build/e_mjeshtri/lib/features/provider_portal/shell.dart
+          test -f .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
+          grep -q "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          grep -q "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
+          grep -q "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "blue_tick" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "themeMode:ThemeMode.light" .build/e_mjeshtri/lib/app.dart
+          grep -q "GoRoute(path:'/onboarding',builder:(_,__)=>const AuthWelcomeScreen())" .build/e_mjeshtri/lib/app.dart
+          grep -q "version: 1.3.0+30" .build/e_mjeshtri/pubspec.yaml
+          cmp .github/e_mjeshtri_final_logo.png .build/e_mjeshtri/assets/branding/e_mjeshtri_logo.png
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
