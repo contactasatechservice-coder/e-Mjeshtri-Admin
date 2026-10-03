@@ -90,8 +90,9 @@ jobs:
           grep -q "GoRoute(path:'/provider'" .build/e_mjeshtri/lib/app.dart
           grep -q "Qytetar" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
           grep -q "Mjeshtër" .build/e_mjeshtri/lib/features/auth/role_selection_screen.dart
-          grep -q "2000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          grep -q "20000" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "provider_request_subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
+          grep -q "Tick blu" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
