@@ -4,14 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 
-bool hasActiveBlueTick(Map<String, dynamic> provider) {
-  final raw = provider['blue_tick_expires_at'];
-  if (raw == null) return false;
-  final expiresAt = DateTime.tryParse(raw.toString());
-  if (expiresAt == null) return false;
-  return expiresAt.toUtc().isAfter(DateTime.now().toUtc());
-}
-
 final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
   return MarketplaceRepository(Supabase.instance.client);
 });
