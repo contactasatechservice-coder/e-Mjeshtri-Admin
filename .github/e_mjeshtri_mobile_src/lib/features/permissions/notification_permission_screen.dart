@@ -1,0 +1,9 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../../core/localization/app_strings.dart';
+import '../../core/theme/app_colors.dart';
+
+class NotificationPermissionScreen extends StatefulWidget {const NotificationPermissionScreen({super.key});@override State<NotificationPermissionScreen> createState()=>_NotificationPermissionScreenState();}
+class _NotificationPermissionScreenState extends State<NotificationPermissionScreen>{bool loading=false;Future<void> request()async{setState(()=>loading=true);try{await Permission.notification.request();}finally{if(mounted){setState(()=>loading=false);context.go('/home');}}}@override Widget build(BuildContext context){final s=AppStrings.of(context);return Scaffold(body:SafeArea(child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[const Spacer(),Container(width:150,height:150,decoration:BoxDecoration(color:AppColors.orange.withValues(alpha:.10),borderRadius:BorderRadius.circular(44)),child:const Icon(Icons.notifications_active_rounded,size:70,color:AppColors.orange)),const SizedBox(height:34),Text(s.t('notificationsTitle'),textAlign:TextAlign.center,style:Theme.of(context).textTheme.headlineMedium),const SizedBox(height:12),Text(s.t('notificationsBody'),textAlign:TextAlign.center,style:Theme.of(context).textTheme.bodyLarge?.copyWith(color:AppColors.muted)),const Spacer(),SizedBox(width:double.infinity,height:56,child:FilledButton(onPressed:loading?null:request,child:loading?const CircularProgressIndicator(color:Colors.white):Text(s.t('enableNotifications')))),const SizedBox(height:10),TextButton(onPressed:()=>context.go('/home'),child:Text(s.t('notNow')))]))));}}
