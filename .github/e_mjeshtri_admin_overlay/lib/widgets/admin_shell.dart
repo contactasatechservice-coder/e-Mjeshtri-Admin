@@ -387,13 +387,28 @@ class _Sidebar extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  SizedBox(
-                    width: collapsed ? 48 : 132,
-                    height: 46,
+                  Container(
+                    width: collapsed ? 52 : 138,
+                    height: 50,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: collapsed ? 6 : 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(13),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .10),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
                     child: Image.asset(
                       'assets/branding/e_mjeshtri_logo.png',
                       fit: BoxFit.contain,
-                      alignment: Alignment.centerLeft,
+                      alignment: Alignment.center,
                     ),
                   ),
                   if (!collapsed) ...[
