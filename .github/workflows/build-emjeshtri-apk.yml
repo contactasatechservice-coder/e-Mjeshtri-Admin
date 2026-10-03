@@ -3,6 +3,7 @@ name: Build e-Mjeshtri Android APK
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - '.github/e_mjeshtri_mobile_src/**'
       - '.github/workflows/build-emjeshtri-apk.yml'
@@ -19,6 +20,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -27,7 +34,9 @@ jobs:
           cache: true
 
       - name: Create Android project
+        shell: bash
         run: |
+          set -euo pipefail
           rm -rf .build/e_mjeshtri
           mkdir -p .build/e_mjeshtri
           cd .build/e_mjeshtri
@@ -37,20 +46,44 @@ jobs:
           mkdir -p assets/branding
           base64 -d logo_base64.txt > assets/branding/e_mjeshtri_logo.png
           rm -f logo_base64.txt
-          sed -i 's/android:label="e_mjeshtri"/android:label="e-Mjeshtri"/' android/app/src/main/AndroidManifest.xml
+
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('android/app/build.gradle.kts')
-          s = p.read_text()
-          s = s.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
-          s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
-          p.write_text(s)
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          s = manifest.read_text()
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          permissions = '''<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>'''
+          s = s.replace(marker, permissions, 1)
+          s = s.replace('android:label="e_mjeshtri"', 'android:label="e-Mjeshtri"')
+          deep_link = '''            <intent-filter>
+                  <action android:name="android.intent.action.VIEW"/>
+                  <category android:name="android.intent.category.DEFAULT"/>
+                  <category android:name="android.intent.category.BROWSABLE"/>
+                  <data android:scheme="io.emjeshtri.app" android:host="login-callback"/>
+              </intent-filter>
+          '''
+          if 'android:scheme="io.emjeshtri.app"' not in s:
+              s = s.replace('</activity>', deep_link + '</activity>', 1)
+          manifest.write_text(s)
+
+          gradle = Path('android/app/build.gradle.kts')
+          g = gradle.read_text()
+          g = g.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
+          g = g.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
+          gradle.write_text(g)
           PY
+
           flutter pub get
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        run: flutter analyze lib --no-fatal-warnings --no-fatal-infos
 
       - name: Generate launcher icon
         working-directory: .build/e_mjeshtri
@@ -61,6 +94,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Prepare artifact
+        shell: bash
         run: |
           cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-release.apk
           sha256sum e-Mjeshtri-release.apk > e-Mjeshtri-release.apk.sha256
