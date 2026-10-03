@@ -373,19 +373,31 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       case 'subscriptions':
         if (item.kind == 'subscription_payment') {
           if (item.status == 'pending') {
-            actions.addAll(const [
+            final rawFee = item.data['blue_tick_fee_amount'];
+            final fee = rawFee is num
+                ? rawFee.toDouble()
+                : double.tryParse(rawFee?.toString() ?? '') ?? 0;
+            final included = item.data['blue_tick_included'] == true;
+            final approveLabel = included
+                ? 'Aprovo 20,000 ALL + Tick blu falas'
+                : fee >= 500
+                    ? 'Aprovo 2,500 ALL + Tick blu'
+                    : 'Aprovo 2,000 ALL pa Tick blu';
+            actions.add(
               _Action(
                 'approve_payment',
-                'Aprovo pagesën',
+                approveLabel,
                 Icons.verified_rounded,
               ),
-              _Action(
+            );
+            actions.add(
+              const _Action(
                 'reject_payment',
                 'Refuzo pagesën',
                 Icons.cancel_rounded,
                 destructive: true,
               ),
-            ]);
+            );
           }
         } else if (item.kind == 'subscription') {
           if (item.status == 'active') {
@@ -2080,6 +2092,9 @@ String _humanizeKey(String key) {
     'blue_tick_included': 'Tick blu i përfshirë',
     'blue_tick_active': 'Tick blu aktiv',
     'blue_tick_expires_at': 'Tick blu skadon',
+    'blue_tick_fee_amount': 'Pagesa për Tick blu',
+    'blue_tick_fee_paid_declared': '500 ALL të përfshira në pagesë',
+    'blue_tick_fee_status': 'Statusi i 500 ALL / Tick blu',
     'approved_subscription_id': 'Abonimi i aktivizuar',
     'is_verified': 'I verifikuar',
     'is_active': 'Aktiv',

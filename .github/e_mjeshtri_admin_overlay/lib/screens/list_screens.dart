@@ -413,7 +413,10 @@ class _ProvidersScreenState extends State<ProvidersScreen> {
                     ('Qytet', _text(row['city'])),
                     ('Adresë', _address(row)),
                     ('Status', _statusLabel(_text(row['status']))),
-                    ('Verifikuar', row['is_verified'] == true ? 'Po' : 'Jo'),
+                    ('Aprovim platforme', row['is_verified'] == true ? 'Aprovuar' : 'Jo'),
+                    ('Tick blu', row['blue_tick_active'] == true ? 'AKTIV' : 'Jo aktiv'),
+                    ('500 ALL Tick blu', _text(row['blue_tick_500_status'])),
+                    ('Tick blu skadon', _date(row['blue_tick_expires_at'])),
                     ('Kategori', _text(row['categories'])),
                     ('Nr. kategorive', _text(row['category_count'])),
                     ('Dokumente', _text(row['document_count'])),
@@ -759,6 +762,7 @@ class _ProvidersTable extends StatelessWidget {
             DataColumn(label: Text('Dok.')),
             DataColumn(label: Text('Rating')),
             DataColumn(label: Text('Abonim')),
+            DataColumn(label: Text('Tick blu')),
             DataColumn(label: Text('Status')),
             DataColumn(label: Text('Veprime')),
           ],
@@ -816,6 +820,19 @@ class _ProvidersTable extends StatelessWidget {
                     ),
                   ),
                   DataCell(Text(_text(row['plan']))),
+                  DataCell(
+                    Text(
+                      row['blue_tick_active'] == true
+                          ? '✓ Aktiv'
+                          : _text(row['blue_tick_500_status']),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: row['blue_tick_active'] == true
+                            ? Colors.blue
+                            : Colors.black54,
+                      ),
+                    ),
+                  ),
                   DataCell(_StatusChip(_text(row['status']))),
                   DataCell(
                     _ProviderActions(
@@ -928,12 +945,15 @@ class _ProviderCard extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
-                      if (row['is_verified'] == true) ...[
+                      if (row['blue_tick_active'] == true) ...[
                         const SizedBox(width: 5),
-                        const Icon(
-                          Icons.verified_rounded,
-                          size: 17,
-                          color: Colors.blue,
+                        const Tooltip(
+                          message: 'Tick blu aktiv',
+                          child: Icon(
+                            Icons.verified_rounded,
+                            size: 17,
+                            color: Colors.blue,
+                          ),
                         ),
                       ],
                     ],
@@ -957,6 +977,8 @@ class _ProviderCard extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _StatusChip(_text(row['status'])),
+                      if (row['blue_tick_active'] == true)
+                        const _SmallInfo(text: 'Tick blu aktiv'),
                       if (!complete)
                         const _SmallWarning(text: 'Profil i paplotë'),
                     ],
@@ -1226,6 +1248,30 @@ class _WarningBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SmallInfo extends StatelessWidget {
+  final String text;
+  const _SmallInfo({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.blue,
+          fontWeight: FontWeight.w800,
+          fontSize: 10.5,
+        ),
       ),
     );
   }
