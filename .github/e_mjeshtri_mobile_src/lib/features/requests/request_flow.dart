@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/localization/app_strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/blue_tick.dart';
 import '../../core/widgets/empty_state.dart';
 import '../home/home_repository.dart';
 import '../marketplace/marketplace_repository.dart';
