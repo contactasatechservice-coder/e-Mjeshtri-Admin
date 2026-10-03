@@ -25,12 +25,16 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
     'it': 'IT',
   };
 
-  void _continue() {
+  Future<void> _continue() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
       context.go('/login?role=$_role');
       return;
     }
+    try {
+      await Supabase.instance.client.rpc('set_my_app_role',params:{'p_role':_role});
+    } catch (_) {}
+    if (!mounted) return;
     context.go(_role == 'provider' ? '/provider' : '/home');
   }
 
