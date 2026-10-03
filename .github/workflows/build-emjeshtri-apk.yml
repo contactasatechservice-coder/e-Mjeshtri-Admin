@@ -42,10 +42,6 @@ jobs:
           base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified.tar.gz
           tar -xzf /tmp/e_mjeshtri_unified.tar.gz -C .build/e_mjeshtri
           rm -f .build/e_mjeshtri/pubspec.lock
-          sed -i -E 's/^version:.*/version: 1.2.1+13/' .build/e_mjeshtri/pubspec.yaml
-          if [ -f .build/e_mjeshtri/lib/core/config/app_config.dart ]; then
-            sed -i -E "s/static const currentVersion = '[^']+';/static const currentVersion = '1.2.1';/" .build/e_mjeshtri/lib/core/config/app_config.dart
-          fi
           cd .build/e_mjeshtri
           flutter create --platforms=android --org io.emjeshtri --project-name e_mjeshtri .
           rm -rf test
@@ -98,7 +94,6 @@ jobs:
           grep -q "provider_subscription_quote" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
           grep -q "provider_request_subscription" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
           grep -q "Tick blu" .build/e_mjeshtri/lib/features/subscriptions/subscription_screen.dart
-          grep -q "version: 1.2.1+13" .build/e_mjeshtri/pubspec.yaml
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
@@ -118,15 +113,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.2.1.apk
-          sha256sum e-Mjeshtri-Unified-v1.2.1.apk > e-Mjeshtri-Unified-v1.2.1.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.2.2.apk
+          sha256sum e-Mjeshtri-Unified-v1.2.2.apk > e-Mjeshtri-Unified-v1.2.2.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.2.1-Android
+          name: e-Mjeshtri-Unified-v1.2.2-Android
           path: |
-            e-Mjeshtri-Unified-v1.2.1.apk
-            e-Mjeshtri-Unified-v1.2.1.apk.sha256
+            e-Mjeshtri-Unified-v1.2.2.apk
+            e-Mjeshtri-Unified-v1.2.2.apk.sha256
           if-no-files-found: error
           retention-days: 30
