@@ -11,6 +11,9 @@ on:
       - '.github/e_mjeshtri_register_v1_4.dart'
       - '.github/e_mjeshtri_verify_v1_4.dart'
       - '.github/e_mjeshtri_splash_v1_4_3.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart'
       - 'assets/assets/branding/e_mjeshtri_logo.png'
       - '.github/workflows/build-e-mjeshtri-apk.yml'
 
@@ -55,6 +58,9 @@ jobs:
           cp ../../.github/e_mjeshtri_register_v1_4.dart lib/features/auth/register_screen.dart
           cp ../../.github/e_mjeshtri_verify_v1_4.dart lib/features/auth/signup_verification_screen.dart
           cp ../../.github/e_mjeshtri_splash_v1_4_3.dart lib/features/auth/splash_screen.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart lib/features/requests/request_flow.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart lib/features/onboarding/onboarding_screen.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart lib/features/marketplace/marketplace_repository.dart
           cp ../../assets/assets/branding/e_mjeshtri_logo.png assets/branding/e_mjeshtri_logo.png
 
           python3 - <<'PY'
@@ -90,18 +96,18 @@ jobs:
 
           pubspec=Path('pubspec.yaml')
           p=pubspec.read_text()
-          p=p.replace('version: 1.0.0+1','version: 1.4.3+24')
+          p=p.replace('version: 1.0.0+1','version: 1.4.4+25')
           pubspec.write_text(p)
 
           config=Path('lib/core/config/app_config.dart')
-          a=config.read_text().replace("currentVersion = '1.0.0'", "currentVersion = '1.4.3'")
+          a=config.read_text().replace("currentVersion = '1.0.0'", "currentVersion = '1.4.4'")
           config.write_text(a)
 
           strings=Path('lib/core/localization/app_strings.dart')
           if strings.exists():
               t=strings.read_text()
-              t=t.replace('Version 1.3.0', 'Version 1.4.3')
-              t=t.replace('Versione 1.3.0', 'Versione 1.4.3')
+              t=t.replace('Version 1.3.0', 'Version 1.4.4')
+              t=t.replace('Versione 1.3.0', 'Versione 1.4.4')
               strings.write_text(t)
 
           # Remove in-app role switching and send every explicit sign-out back
@@ -176,6 +182,10 @@ jobs:
           grep -Fq "context.go('/role')" "$APP/lib/features/provider_portal/profile.dart"
           grep -Fq "if (session == null)" "$APP/lib/features/auth/splash_screen.dart"
           grep -Fq "context.go('/role')" "$APP/lib/features/auth/splash_screen.dart"
+          grep -Fq "context.go('/home')" "$APP/lib/features/requests/request_flow.dart"
+          grep -Fq "reload();" "$APP/lib/features/requests/request_flow.dart"
+          grep -Fq "context.go('/permissions/location')" "$APP/lib/features/onboarding/onboarding_screen.dart"
+          grep -Fq "q.eq('is_verified', true)" "$APP/lib/features/marketplace/marketplace_repository.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           grep -F "version:" "$APP/pubspec.yaml" | head -1
@@ -197,15 +207,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.3.apk
-          sha256sum e-Mjeshtri-Unified-v1.4.3.apk > e-Mjeshtri-Unified-v1.4.3.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.4.apk
+          sha256sum e-Mjeshtri-Unified-v1.4.4.apk > e-Mjeshtri-Unified-v1.4.4.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.4.3-Android
+          name: e-Mjeshtri-Unified-v1.4.4-Android
           path: |
-            e-Mjeshtri-Unified-v1.4.3.apk
-            e-Mjeshtri-Unified-v1.4.3.apk.sha256
+            e-Mjeshtri-Unified-v1.4.4.apk
+            e-Mjeshtri-Unified-v1.4.4.apk.sha256
           if-no-files-found: error
           retention-days: 30
