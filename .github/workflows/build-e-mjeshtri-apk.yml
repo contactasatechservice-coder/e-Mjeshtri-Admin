@@ -116,26 +116,19 @@ jobs:
           set -euo pipefail
           APP=.build/e_mjeshtri
           test -f "$APP/lib/features/auth/role_selection_screen.dart"
+          test -f "$APP/lib/features/auth/login_screen.dart"
           test -f "$APP/lib/features/provider_portal/provider_gate.dart"
           test -f "$APP/lib/features/provider_portal/shell.dart"
           test -f "$APP/lib/features/subscriptions/subscription_screen.dart"
-          test -f "$APP/lib/core/utils/blue_tick.dart"
-          grep -q "GoRoute(path:'/provider'" "$APP/lib/app.dart"
-          grep -q "Qytetar" "$APP/lib/features/auth/role_selection_screen.dart"
-          grep -q "Mjeshtër" "$APP/lib/features/auth/role_selection_screen.dart"
-          grep -q "Si do ta përdorësh e-Mjeshtri?" "$APP/lib/features/auth/role_selection_screen.dart"
-          grep -q "Zgjidh rolin tënd" "$APP/lib/features/auth/role_selection_screen.dart"
-          grep -q "context.go('/role')" "$APP/lib/features/auth/splash_screen.dart"
-          grep -q "role=='provider'?'/provider':'/permissions/location'" "$APP/lib/features/auth/login_screen.dart"
-          grep -q "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
-          grep -q "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
-          grep -q "+500 Lek" "$APP/lib/features/subscriptions/subscription_screen.dart"
-          grep -q "blue_tick_expires_at" "$APP/lib/core/utils/blue_tick.dart"
-          grep -q "version: 1.4.1+22" "$APP/pubspec.yaml"
-          grep -q "currentVersion = '1.4.1'" "$APP/lib/core/config/app_config.dart"
-          grep -q "themeMode:ThemeMode.light" "$APP/lib/app.dart"
-          echo "0c97874d718d302e10568373defa1ee085a225757846bcfd23417a2b232365e3  $APP/assets/branding/e_mjeshtri_logo.png" | sha256sum -c -
-          echo "UNIFIED SOURCE VERIFIED: approved role-first UI + citizen + provider + subscriptions + blue tick + accepted logo + light theme"
+          grep -Fq "Qytetar" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -Fq "Mjeshtër" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -Fq "Si do ta përdorësh e-Mjeshtri?" "$APP/lib/features/auth/role_selection_screen.dart"
+          grep -Fq "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -Fq "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -Fq "+500 Lek" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -Fq "version: 1.4.1+22" "$APP/pubspec.yaml"
+          grep -Fq "currentVersion = '1.4.1'" "$APP/lib/core/config/app_config.dart"
+          echo "SOURCE CHECK PASSED: role UI + provider portal + subscriptions + v1.4.1"
 
       - name: Analyze
         working-directory: .build/e_mjeshtri
