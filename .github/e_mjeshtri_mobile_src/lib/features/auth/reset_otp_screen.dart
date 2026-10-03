@@ -1,0 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/localization/app_strings.dart';
+import '../../core/theme/app_colors.dart';
+import 'auth_repository.dart';
+import 'widgets/auth_scaffold.dart';
+
+class ResetOtpScreen extends ConsumerStatefulWidget {const ResetOtpScreen({super.key,required this.email});final String email;@override ConsumerState<ResetOtpScreen> createState()=>_ResetOtpScreenState();}
+class _ResetOtpScreenState extends ConsumerState<ResetOtpScreen>{final code=TextEditingController();bool loading=false;String? error;@override void dispose(){code.dispose();super.dispose();}Future<void> verify()async{if(code.text.trim().length!=6){setState(()=>error=AppStrings.of(context).t('otpSixDigits'));return;}setState(()=>loading=true);try{await ref.read(authRepositoryProvider).verifyEmailOtp(email:widget.email,token:code.text);if(mounted)context.go('/new-password');}catch(_){if(mounted)setState(()=>error=AppStrings.of(context).t('errorGeneric'));}finally{if(mounted)setState(()=>loading=false);}}@override Widget build(BuildContext context){final s=AppStrings.of(context);return AuthScaffold(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(s.t('enterCode'),style:Theme.of(context).textTheme.headlineMedium),const SizedBox(height:10),Text(widget.email,style:Theme.of(context).textTheme.bodyLarge?.copyWith(color:AppColors.muted)),const SizedBox(height:26),TextField(controller:code,maxLength:6,keyboardType:TextInputType.number,textAlign:TextAlign.center,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w700,letterSpacing:10),decoration:const InputDecoration(counterText:'',hintText:'••••••')),if(error!=null)...[const SizedBox(height:12),Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:AppColors.danger))],const SizedBox(height:20),AuthPrimaryButton(label:s.t('continue'),loading:loading,onPressed:verify),const SizedBox(height:8),TextButton(onPressed:()=>ref.read(authRepositoryProvider).sendEmailOtp(widget.email),child:Text(s.t('resendCode')))]));}}
