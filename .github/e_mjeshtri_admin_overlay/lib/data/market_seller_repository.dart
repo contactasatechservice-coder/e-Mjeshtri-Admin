@@ -494,6 +494,23 @@ class MarketSellerRepository {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<void> returnAction({
+    required String vendorId,
+    required String returnId,
+    required String action,
+    String? note,
+  }) async {
+    await client.rpc(
+      'market_vendor_return_action',
+      params: {
+        'p_vendor_id': vendorId,
+        'p_return_id': returnId,
+        'p_action': action,
+        'p_note': _nullIfEmpty(note),
+      },
+    );
+  }
+
   Future<List<Map<String, dynamic>>> inventory(String vendorId) async {
     final rows = await client
         .from('market_products')
