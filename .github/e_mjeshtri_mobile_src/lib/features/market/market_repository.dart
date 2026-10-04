@@ -149,6 +149,93 @@ class MarketRepository {
     return total;
   }
 
+  Future<Map<String, dynamic>> cartSnapshot(String audience) async {
+    final raw = await client.rpc(
+      'market_cart_snapshot',
+      params: {'p_audience': audience},
+    );
+    if (raw is! Map) {
+      return {
+        'cart_id': null,
+        'items': <Map<String, dynamic>>[],
+        'subtotal': 0,
+        'count': 0,
+      };
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<void> setCartItemQuantity(String cartItemId, int quantity) async {
+    if (quantity <= 0) {
+      await client.from('market_cart_items').delete().eq('id', cartItemId);
+      return;
+    }
+    await client
+        .from('market_cart_items')
+        .update({
+          'quantity': quantity,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', cartItemId);
+  }
+
+  Future<Map<String, dynamic>> checkoutDefaults() async {
+    final profile = await client
+        .from('profiles')
+        .select('first_name,last_name,phone')
+        .eq('id', uid)
+        .single();
+
+    final address = await client
+        .from('user_addresses')
+        .select()
+        .eq('user_id', uid)
+        .order('is_primary', ascending: false)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    return {
+      'profile': Map<String, dynamic>.from(profile),
+      'address': address == null
+          ? null
+          : Map<String, dynamic>.from(address),
+    };
+  }
+
+  Future<Map<String, dynamic>> checkout({
+    required String audience,
+    required String paymentMethod,
+    required String deliveryName,
+    required String deliveryPhone,
+    required String deliveryStreet,
+    required String deliveryCity,
+    String? deliveryPostalCode,
+    String? buyerNote,
+  }) async {
+    final raw = await client.rpc(
+      'market_checkout',
+      params: {
+        'p_buyer_role': audience,
+        'p_payment_method': paymentMethod,
+        'p_delivery_name': deliveryName.trim(),
+        'p_delivery_phone': deliveryPhone.trim(),
+        'p_delivery_street': deliveryStreet.trim(),
+        'p_delivery_city': deliveryCity.trim(),
+        'p_delivery_postal_code': deliveryPostalCode?.trim(),
+        'p_buyer_note': buyerNote?.trim(),
+        'p_delivery_methods': <String, dynamic>{},
+      },
+    );
+    if (raw is! Map) throw StateError('Checkout failed.');
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<List<Map<String, dynamic>>> orders() async {
+    final raw = await client.rpc('market_orders_list');
+    return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
+  }
+
   Future<String?> signedImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
