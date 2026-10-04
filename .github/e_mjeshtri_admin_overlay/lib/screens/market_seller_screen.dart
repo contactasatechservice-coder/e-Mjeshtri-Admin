@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/market_seller_repository.dart';
+import 'market_seller_extra_screens.dart';
 
 class MarketSellerLoginScreen extends StatefulWidget {
   const MarketSellerLoginScreen({super.key});
@@ -658,13 +659,23 @@ class _MarketSellerPanelState extends State<MarketSellerPanel> {
     'Dashboard',
     'Produktet',
     'Porositë',
-    'Profili',
+    'Shitjet',
+    'Anullime & Kthime',
+    'Faturat',
+    'Stoku',
+    'Financat',
+    'Profili publik',
   ];
 
   static const _icons = [
     Icons.dashboard_rounded,
     Icons.inventory_2_rounded,
     Icons.shopping_bag_rounded,
+    Icons.point_of_sale_rounded,
+    Icons.assignment_return_outlined,
+    Icons.receipt_long_rounded,
+    Icons.inventory_rounded,
+    Icons.account_balance_wallet_outlined,
     Icons.storefront_rounded,
   ];
 
@@ -674,6 +685,11 @@ class _MarketSellerPanelState extends State<MarketSellerPanel> {
       MarketSellerDashboard(vendorId: widget.vendorId),
       MarketSellerProducts(vendorId: widget.vendorId),
       MarketSellerOrders(vendorId: widget.vendorId),
+      MarketSellerSales(vendorId: widget.vendorId),
+      MarketSellerCancellationsReturns(vendorId: widget.vendorId),
+      MarketSellerInvoices(vendorId: widget.vendorId),
+      MarketSellerInventory(vendorId: widget.vendorId),
+      MarketSellerFinance(vendorId: widget.vendorId),
       MarketSellerProfile(
         vendorId: widget.vendorId,
         initialVendor: widget.vendor,
@@ -771,31 +787,35 @@ class _SellerNavigation extends StatelessWidget {
               fontSize: 17,
             ),
           ),
-          const SizedBox(height: 20),
-          for (var i = 0; i < _MarketSellerPanelState._labels.length; i++)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-              child: ListTile(
-                selected: i == selected,
-                selectedTileColor: Colors.white.withValues(alpha: .13),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                leading: Icon(
-                  _MarketSellerPanelState._icons[i],
-                  color: Colors.white,
-                ),
-                title: Text(
-                  _MarketSellerPanelState._labels[i],
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
+          const SizedBox(height: 14),
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: _MarketSellerPanelState._labels.length,
+              itemBuilder: (context, i) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                child: ListTile(
+                  selected: i == selected,
+                  selectedTileColor: Colors.white.withValues(alpha: .13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
+                  leading: Icon(
+                    _MarketSellerPanelState._icons[i],
+                    color: Colors.white,
+                  ),
+                  title: Text(
+                    _MarketSellerPanelState._labels[i],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () => onSelected(i),
                 ),
-                onTap: () => onSelected(i),
               ),
             ),
-          const Spacer(),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: OutlinedButton.icon(
