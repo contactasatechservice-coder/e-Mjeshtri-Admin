@@ -236,6 +236,15 @@ class MarketRepository {
     return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
   }
 
+  Future<Map<String, dynamic>> orderDetail(String orderId) async {
+    final raw = await client.rpc(
+      'market_order_detail',
+      params: {'p_order_id': orderId},
+    );
+    if (raw is! Map) throw StateError('Porosia nuk u gjet.');
+    return Map<String, dynamic>.from(raw);
+  }
+
   Future<String?> signedImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
