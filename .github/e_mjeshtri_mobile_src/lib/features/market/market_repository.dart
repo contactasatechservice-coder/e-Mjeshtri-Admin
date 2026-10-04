@@ -50,6 +50,21 @@ class MarketRepository {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<Map<String, dynamic>> vendorProfile({
+    required String vendorId,
+    required String audience,
+  }) async {
+    final raw = await client.rpc(
+      'market_vendor_public_profile',
+      params: {
+        'p_vendor_id': vendorId,
+        'p_audience': audience,
+      },
+    );
+    if (raw is! Map) throw StateError('Dyqani nuk u gjet.');
+    return Map<String, dynamic>.from(raw);
+  }
+
   Future<bool> isFavorite(String productId) async {
     final row = await client
         .from('market_favorites')
