@@ -12,6 +12,9 @@ on:
       - '.github/e_mjeshtri_verify_v1_4.dart'
       - '.github/e_mjeshtri_splash_v1_4_3.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/market/market_screen.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/market/market_repository.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/core/widgets/app_shell.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart'
@@ -61,6 +64,10 @@ jobs:
           cp ../../.github/e_mjeshtri_verify_v1_4.dart lib/features/auth/signup_verification_screen.dart
           cp ../../.github/e_mjeshtri_splash_v1_4_3.dart lib/features/auth/splash_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart lib/features/auth/auth_repository.dart
+          mkdir -p lib/features/market
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/market/market_repository.dart lib/features/market/market_repository.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/market/market_screen.dart lib/features/market/market_screen.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/core/widgets/app_shell.dart lib/core/widgets/app_shell.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart lib/features/marketplace/marketplace_repository.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart lib/features/onboarding/onboarding_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart lib/features/requests/request_flow.dart
@@ -102,7 +109,7 @@ jobs:
           lines=pubspec.read_text().splitlines()
           for i,line in enumerate(lines):
               if line.startswith('version:'):
-                  lines[i]='version: 1.4.6+27'
+                  lines[i]='version: 1.5.0+28'
                   break
           pubspec.write_text('\n'.join(lines)+'\n')
 
@@ -111,7 +118,7 @@ jobs:
           for i,line in enumerate(lines):
               if 'currentVersion' in line and '=' in line:
                   prefix=line.split('currentVersion',1)[0]
-                  lines[i]=prefix+"currentVersion = '1.4.6';"
+                  lines[i]=prefix+"currentVersion = '1.5.0';"
                   break
           config.write_text('\n'.join(lines)+'\n')
 
@@ -119,9 +126,9 @@ jobs:
           if strings.exists():
               t=strings.read_text()
               for old in ('Version 1.0.0','Version 1.3.0','Version 1.4.3','Version 1.4.4','Version 1.4.5'):
-                  t=t.replace(old,'Version 1.4.6')
+                  t=t.replace(old,'Version 1.5.0')
               for old in ('Versione 1.0.0','Versione 1.3.0','Versione 1.4.3','Versione 1.4.4','Versione 1.4.5'):
-                  t=t.replace(old,'Versione 1.4.6')
+                  t=t.replace(old,'Versione 1.5.0')
               strings.write_text(t)
 
           citizen_profile=Path('lib/features/profile/profile_screen.dart')
@@ -172,6 +179,13 @@ jobs:
 
           flutter pub get
 
+      - name: Inspect provider shell
+        shell: bash
+        run: |
+          echo "=== PROVIDER SHELL START ==="
+          sed -n '1,260p' .build/e_mjeshtri/lib/features/provider_portal/shell.dart
+          echo "=== PROVIDER SHELL END ==="
+
       - name: Verify correct unified source
         shell: bash
         run: |
@@ -210,8 +224,8 @@ jobs:
           grep -Fq "q.eq('is_verified', true)" "$APP/lib/features/marketplace/marketplace_repository.dart"
           grep -Fq "set_my_app_role" "$APP/lib/features/auth/login_screen.dart"
           grep -Fq "'app_role': role" "$APP/lib/features/auth/auth_repository.dart"
-          grep -Fq "version: 1.4.6+27" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.4.6'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "version: 1.5.0+28" "$APP/pubspec.yaml"
+          grep -Fq "currentVersion = '1.5.0'" "$APP/lib/core/config/app_config.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
 
@@ -232,15 +246,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.4.6.apk
-          sha256sum e-Mjeshtri-Unified-v1.4.6.apk > e-Mjeshtri-Unified-v1.4.6.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.5.0.apk
+          sha256sum e-Mjeshtri-Unified-v1.5.0.apk > e-Mjeshtri-Unified-v1.5.0.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.4.6-Android
+          name: e-Mjeshtri-Unified-v1.5.0-Android
           path: |
-            e-Mjeshtri-Unified-v1.4.6.apk
-            e-Mjeshtri-Unified-v1.4.6.apk.sha256
+            e-Mjeshtri-Unified-v1.5.0.apk
+            e-Mjeshtri-Unified-v1.5.0.apk.sha256
           if-no-files-found: error
           retention-days: 30
