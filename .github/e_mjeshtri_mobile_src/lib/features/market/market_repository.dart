@@ -1,0 +1,160 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+final marketRepositoryProvider = Provider<MarketRepository>(
+  (ref) => MarketRepository(Supabase.instance.client),
+);
+
+class MarketRepository {
+  MarketRepository(this.client);
+  final SupabaseClient client;
+
+  String get uid {
+    final id = client.auth.currentUser?.id;
+    if (id == null) throw StateError('User is not authenticated.');
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> categories(String audience) async {
+    final raw = await client.rpc(
+      'market_categories_for_audience',
+      params: {'p_audience': audience},
+    );
+    return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
+  }
+
+  Future<List<Map<String, dynamic>>> catalog({
+    required String audience,
+    String query = '',
+    String? categoryId,
+  }) async {
+    final raw = await client.rpc(
+      'market_catalog',
+      params: {
+        'p_audience': audience,
+        'p_query': query.trim().isEmpty ? null : query.trim(),
+        'p_category_id': categoryId,
+        'p_limit': 100,
+        'p_offset': 0,
+      },
+    );
+    return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
+  }
+
+  Future<Map<String, dynamic>> product(String productId) async {
+    final raw = await client.rpc(
+      'market_product_detail',
+      params: {'p_product_id': productId},
+    );
+    if (raw is! Map) throw StateError('Produkti nuk u gjet.');
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<bool> isFavorite(String productId) async {
+    final row = await client
+        .from('market_favorites')
+        .select('product_id')
+        .eq('user_id', uid)
+        .eq('product_id', productId)
+        .maybeSingle();
+    return row != null;
+  }
+
+  Future<void> setFavorite(String productId, bool value) async {
+    if (value) {
+      await client.from('market_favorites').upsert({
+        'user_id': uid,
+        'product_id': productId,
+      });
+    } else {
+      await client
+          .from('market_favorites')
+          .delete()
+          .eq('user_id', uid)
+          .eq('product_id', productId);
+    }
+  }
+
+  Future<String> _activeCartId() async {
+    final existing = await client
+        .from('market_carts')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('status', 'active')
+        .maybeSingle();
+    if (existing != null) return existing['id'].toString();
+
+    final created = await client
+        .from('market_carts')
+        .insert({'user_id': uid, 'status': 'active'})
+        .select('id')
+        .single();
+    return created['id'].toString();
+  }
+
+  Future<void> addToCart({
+    required String productId,
+    String? variantId,
+    int quantity = 1,
+  }) async {
+    final cartId = await _activeCartId();
+    var query = client
+        .from('market_cart_items')
+        .select('id,quantity')
+        .eq('cart_id', cartId)
+        .eq('product_id', productId);
+
+    if (variantId == null) {
+      query = query.isFilter('variant_id', null);
+    } else {
+      query = query.eq('variant_id', variantId);
+    }
+
+    final existing = await query.maybeSingle();
+    if (existing == null) {
+      await client.from('market_cart_items').insert({
+        'cart_id': cartId,
+        'product_id': productId,
+        'variant_id': variantId,
+        'quantity': quantity,
+      });
+    } else {
+      await client
+          .from('market_cart_items')
+          .update({
+            'quantity': (existing['quantity'] as num).toInt() + quantity,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', existing['id']);
+    }
+  }
+
+  Future<int> cartCount() async {
+    final cart = await client
+        .from('market_carts')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('status', 'active')
+        .maybeSingle();
+    if (cart == null) return 0;
+
+    final rows = await client
+        .from('market_cart_items')
+        .select('quantity')
+        .eq('cart_id', cart['id']);
+    var total = 0;
+    for (final row in List<Map<String, dynamic>>.from(rows)) {
+      total += (row['quantity'] as num?)?.toInt() ?? 0;
+    }
+    return total;
+  }
+
+  Future<String?> signedImageUrl(String? path) async {
+    if (path == null || path.trim().isEmpty) return null;
+    try {
+      return await client.storage.from('market-media').createSignedUrl(path, 1800);
+    } catch (_) {
+      return null;
+    }
+  }
+}
