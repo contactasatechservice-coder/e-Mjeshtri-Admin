@@ -1599,6 +1599,10 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
   late final TextEditingController _deliveryFee;
   late final TextEditingController _freeOver;
   late final TextEditingController _returnDays;
+  late final TextEditingController _bankName;
+  late final TextEditingController _bankAccountName;
+  late final TextEditingController _bankIban;
+  late final TextEditingController _bankNote;
 
   bool _delivery = true;
   bool _pickup = false;
@@ -1627,6 +1631,18 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
     _returnDays = TextEditingController(
       text: (v['return_window_days'] ?? 14).toString(),
     );
+    _bankName = TextEditingController(
+      text: (v['bank_name'] ?? '').toString(),
+    );
+    _bankAccountName = TextEditingController(
+      text: (v['bank_account_name'] ?? '').toString(),
+    );
+    _bankIban = TextEditingController(
+      text: (v['bank_iban'] ?? '').toString(),
+    );
+    _bankNote = TextEditingController(
+      text: (v['bank_note'] ?? '').toString(),
+    );
     _delivery = v['delivery_enabled'] != false;
     _pickup = v['pickup_enabled'] == true;
   }
@@ -1646,6 +1662,10 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
       _deliveryFee,
       _freeOver,
       _returnDays,
+      _bankName,
+      _bankAccountName,
+      _bankIban,
+      _bankNote,
     ]) {
       c.dispose();
     }
@@ -1673,6 +1693,10 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
         freeDeliveryOver:
             double.tryParse(_freeOver.text.replaceAll(',', '.')),
         returnWindowDays: int.tryParse(_returnDays.text) ?? 14,
+        bankName: _bankName.text,
+        bankAccountName: _bankAccountName.text,
+        bankIban: _bankIban.text,
+        bankNote: _bankNote.text,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1810,6 +1834,61 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 22),
+            const Divider(),
+            const SizedBox(height: 14),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Të dhënat bankare',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Përdoren vetëm kur blerësi zgjedh transfertë bankare.',
+                style: TextStyle(color: Colors.black54, fontSize: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _bankName,
+                    decoration: const InputDecoration(labelText: 'Banka'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _bankAccountName,
+                    decoration: const InputDecoration(
+                      labelText: 'Emri i përfituesit',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _bankIban,
+              decoration: const InputDecoration(labelText: 'IBAN'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _bankNote,
+              minLines: 2,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Shënim për pagesën',
+              ),
             ),
             const SizedBox(height: 18),
             Align(
