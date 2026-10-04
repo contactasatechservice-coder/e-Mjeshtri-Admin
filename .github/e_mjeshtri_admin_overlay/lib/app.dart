@@ -9,6 +9,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/list_screens.dart';
 import 'screens/login_screen.dart';
 import 'screens/market_screen.dart';
+import 'screens/market_seller_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/admin_shell.dart';
 
@@ -16,8 +17,17 @@ final _router = GoRouter(
   initialLocation: '/login',
   redirect: (context, state) async {
     final loggedIn = Supabase.instance.client.auth.currentSession != null;
-    final onLogin = state.matchedLocation == '/login';
+    final path = state.matchedLocation;
+    final sellerPath = path == '/seller' || path.startsWith('/seller/');
+    final sellerLogin = path == '/seller/login';
 
+    if (sellerPath) {
+      if (!loggedIn) return sellerLogin ? null : '/seller/login';
+      if (sellerLogin) return '/seller';
+      return null;
+    }
+
+    final onLogin = path == '/login';
     if (!loggedIn) return onLogin ? null : '/login';
 
     final admin = await AdminRepository.instance.currentAdmin();
@@ -30,13 +40,21 @@ final _router = GoRouter(
     if (onLogin) return '/dashboard';
 
     final role = admin['role']?.toString();
-    if (!_canAccessAdminPath(role, state.matchedLocation)) {
+    if (!_canAccessAdminPath(role, path)) {
       return '/dashboard';
     }
     return null;
   },
   routes: [
     GoRoute(path: '/login', builder: (c, s) => const LoginScreen()),
+    GoRoute(
+      path: '/seller/login',
+      builder: (c, s) => const MarketSellerLoginScreen(),
+    ),
+    GoRoute(
+      path: '/seller',
+      builder: (c, s) => const MarketSellerGateScreen(),
+    ),
     ShellRoute(
       builder: (c, s, child) => AdminShell(child: child),
       routes: [
