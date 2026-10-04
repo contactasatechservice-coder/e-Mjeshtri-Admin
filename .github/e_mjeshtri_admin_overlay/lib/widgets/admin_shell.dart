@@ -25,6 +25,7 @@ const navItems = <NavItem>[
   NavItem('Mosmarrëveshjet', '/disputes', Icons.gavel_rounded),
   NavItem('Financat', '/finance', Icons.account_balance_wallet_rounded),
   NavItem('Abonimet', '/subscriptions', Icons.workspace_premium_rounded),
+  NavItem('e-Market', '/market', Icons.storefront_rounded),
   NavItem('Njoftimet', '/notifications', Icons.notifications_active_rounded),
   NavItem('Support', '/support', Icons.support_agent_rounded),
   NavItem('Analitika', '/analytics', Icons.query_stats_rounded),
