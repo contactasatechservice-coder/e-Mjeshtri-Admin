@@ -114,17 +114,39 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                           ],
                         ),
                       ),
+                      IconButton.filledTonal(
+                        tooltip: 'Porositë e e-Market',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MarketOrdersScreen(
+                                audience: widget.audience,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.receipt_long_outlined),
+                      ),
+                      const SizedBox(width: 6),
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
                           IconButton.filledTonal(
                             tooltip: 'Shporta',
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Shporta e e-Market po ndërtohet në këtë fazë.'),
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => MarketCartScreen(
+                                    audience: widget.audience,
+                                  ),
                                 ),
                               );
+                              if (mounted) {
+                                final value = await ref
+                                    .read(marketRepositoryProvider)
+                                    .cartCount();
+                                if (mounted) setState(() => _cartCount = value);
+                              }
                             },
                             icon: const Icon(Icons.shopping_bag_outlined),
                           ),
@@ -803,6 +825,604 @@ class _ProductHero extends ConsumerWidget {
                     height: double.infinity,
                     fit: BoxFit.cover,
                   ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+
+class MarketCartScreen extends ConsumerStatefulWidget {
+  const MarketCartScreen({super.key, required this.audience});
+  final String audience;
+
+  @override
+  ConsumerState<MarketCartScreen> createState() => _MarketCartScreenState();
+}
+
+class _MarketCartScreenState extends ConsumerState<MarketCartScreen> {
+  late Future<Map<String, dynamic>> _future;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _future = ref.read(marketRepositoryProvider).cartSnapshot(widget.audience);
+  }
+
+  Future<void> _change(String id, int quantity) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(marketRepositoryProvider).setCartItemQuantity(id, quantity);
+      if (mounted) setState(_reload);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Shporta e e-Market')),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(
+              child: FilledButton.icon(
+                onPressed: () => setState(_reload),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Provo përsëri'),
+              ),
+            );
+          }
+
+          final data = snap.data ?? const {};
+          final items = List<Map<String, dynamic>>.from(
+            (data['items'] as List?) ?? const [],
+          );
+
+          if (items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 58,
+                      color: AppColors.blue,
+                    ),
+                    SizedBox(height: 14),
+                    Text(
+                      'Shporta është bosh',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 7),
+                    Text(
+                      'Shto produkte nga e-Market për të vazhduar.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+                  itemCount: items.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
+                    final unitPrice = (item['unit_price'] as num?)?.toDouble() ?? 0;
+                    final lineTotal = unitPrice * quantity;
+                    return Card(
+                      elevation: 0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF3F6FB),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: const Icon(
+                                Icons.inventory_2_outlined,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    (item['name'] ?? '').toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  if ((item['variant_name'] ?? '').toString().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 3),
+                                      child: Text(
+                                        (item['variant_name'] ?? '').toString(),
+                                        style: const TextStyle(
+                                          color: AppColors.muted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    (item['vendor_name'] ?? '').toString(),
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 7),
+                                  Text(
+                                    lineTotal.toStringAsFixed(0) +
+                                        ' ' +
+                                        (item['currency'] ?? 'ALL').toString(),
+                                    style: const TextStyle(
+                                      color: AppColors.blue,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              children: [
+                                IconButton(
+                                  tooltip: 'Shto',
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _change(
+                                            item['cart_item_id'].toString(),
+                                            quantity + 1,
+                                          ),
+                                  icon: const Icon(Icons.add_circle_outline_rounded),
+                                ),
+                                Text(
+                                  quantity.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: quantity == 1 ? 'Hiq' : 'Pakëso',
+                                  onPressed: _busy
+                                      ? null
+                                      : () => _change(
+                                            item['cart_item_id'].toString(),
+                                            quantity - 1,
+                                          ),
+                                  icon: Icon(
+                                    quantity == 1
+                                        ? Icons.delete_outline_rounded
+                                        : Icons.remove_circle_outline_rounded,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(color: Color(0xFFE9EDF4)),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Nëntotali',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            (data['subtotal'] ?? 0).toString() + ' ALL',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              color: AppColors.blue,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Transporti llogaritet veçmas për çdo shitës në checkout.',
+                          style: TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: FilledButton(
+                          onPressed: _busy
+                              ? null
+                              : () async {
+                                  final completed =
+                                      await Navigator.of(context).push<bool>(
+                                    MaterialPageRoute(
+                                      builder: (_) => MarketCheckoutScreen(
+                                        audience: widget.audience,
+                                      ),
+                                    ),
+                                  );
+                                  if (completed == true && mounted) {
+                                    setState(_reload);
+                                  }
+                                },
+                          child: const Text('Vazhdo me porosinë'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class MarketCheckoutScreen extends ConsumerStatefulWidget {
+  const MarketCheckoutScreen({super.key, required this.audience});
+  final String audience;
+
+  @override
+  ConsumerState<MarketCheckoutScreen> createState() =>
+      _MarketCheckoutScreenState();
+}
+
+class _MarketCheckoutScreenState extends ConsumerState<MarketCheckoutScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  final _street = TextEditingController();
+  final _city = TextEditingController();
+  final _postal = TextEditingController();
+  final _note = TextEditingController();
+
+  bool _loading = true;
+  bool _busy = false;
+  String _payment = 'cash_on_delivery';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaults();
+  }
+
+  Future<void> _loadDefaults() async {
+    try {
+      final raw = await ref.read(marketRepositoryProvider).checkoutDefaults();
+      final profile = Map<String, dynamic>.from(
+        (raw['profile'] as Map?) ?? const {},
+      );
+      final address = raw['address'] is Map
+          ? Map<String, dynamic>.from(raw['address'] as Map)
+          : <String, dynamic>{};
+
+      _name.text = (
+        (profile['first_name'] ?? '').toString() +
+        ' ' +
+        (profile['last_name'] ?? '').toString()
+      ).trim();
+      _phone.text = (profile['phone'] ?? '').toString();
+      final number = (address['street_number'] ?? '').toString().trim();
+      _street.text = (
+        (address['street'] ?? '').toString() +
+        (number.isEmpty ? '' : ' ' + number)
+      ).trim();
+      _city.text = (address['city'] ?? '').toString();
+      _postal.text = (address['postal_code'] ?? '').toString();
+    } catch (_) {
+      // User can fill the form manually.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    _street.dispose();
+    _city.dispose();
+    _postal.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await ref.read(marketRepositoryProvider).checkout(
+        audience: widget.audience,
+        paymentMethod: _payment,
+        deliveryName: _name.text,
+        deliveryPhone: _phone.text,
+        deliveryStreet: _street.text,
+        deliveryCity: _city.text,
+        deliveryPostalCode: _postal.text,
+        buyerNote: _note.text,
+      );
+
+      if (!mounted) return;
+      final number = (result['order_number'] ?? '').toString();
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          icon: const Icon(
+            Icons.check_circle_rounded,
+            color: Colors.green,
+            size: 46,
+          ),
+          title: const Text('Porosia u krijua'),
+          content: Text(
+            number.isEmpty
+                ? 'Porosia jote u regjistrua me sukses.'
+                : 'Numri i porosisë: ' + number,
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Në rregull'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Konfirmo porosinë')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 34),
+                children: [
+                  const Text(
+                    'Adresa e dorëzimit',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _name,
+                    decoration: const InputDecoration(labelText: 'Emri dhe mbiemri'),
+                    validator: (v) => v == null || v.trim().isEmpty ? '*' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Telefoni'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _street,
+                    decoration: const InputDecoration(labelText: 'Rruga / adresa'),
+                    validator: (v) => v == null || v.trim().isEmpty ? '*' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _city,
+                          decoration: const InputDecoration(labelText: 'Qyteti'),
+                          validator: (v) =>
+                              v == null || v.trim().isEmpty ? '*' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _postal,
+                          decoration: const InputDecoration(labelText: 'Kodi postar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  const Text(
+                    'Pagesa',
+                    style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  RadioListTile<String>(
+                    value: 'cash_on_delivery',
+                    groupValue: _payment,
+                    onChanged: (v) => setState(() => _payment = v!),
+                    title: const Text('Pagesë në dorëzim'),
+                    subtitle: const Text('Pagesa bëhet kur merr produktin.'),
+                  ),
+                  RadioListTile<String>(
+                    value: 'bank_transfer',
+                    groupValue: _payment,
+                    onChanged: (v) => setState(() => _payment = v!),
+                    title: const Text('Transfertë bankare'),
+                    subtitle: const Text('Pagesa regjistrohet për shitësin përkatës.'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _note,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Shënim për porosinë',
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: AppColors.danger),
+                    ),
+                  ],
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    height: 56,
+                    child: FilledButton.icon(
+                      onPressed: _busy ? null : _submit,
+                      icon: const Icon(Icons.lock_outline_rounded),
+                      label: Text(
+                        _busy ? 'Duke konfirmuar...' : 'Konfirmo porosinë',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class MarketOrdersScreen extends ConsumerWidget {
+  const MarketOrdersScreen({super.key, required this.audience});
+  final String audience;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Porositë e e-Market')),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: ref.read(marketRepositoryProvider).orders(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return const Center(child: Text('Porositë nuk mund të ngarkoheshin.'));
+          }
+          final items = snap.data ?? const [];
+          if (items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Nuk ke ende porosi nga e-Market.',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(18),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final order = items[index];
+              final subtitle = (order['status'] ?? '').toString() +
+                  ' • ' +
+                  (order['item_count'] ?? 0).toString() +
+                  ' produkte • ' +
+                  (order['vendor_count'] ?? 0).toString() +
+                  ' shitës';
+              return Card(
+                elevation: 0,
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.shopping_bag_outlined),
+                  ),
+                  title: Text(
+                    (order['order_number'] ?? '').toString(),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(subtitle),
+                  trailing: Text(
+                    (order['grand_total'] ?? 0).toString() +
+                        ' ' +
+                        (order['currency'] ?? 'ALL').toString(),
+                    style: const TextStyle(
+                      color: AppColors.blue,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
