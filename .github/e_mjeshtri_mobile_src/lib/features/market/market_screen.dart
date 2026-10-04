@@ -1643,9 +1643,9 @@ class _MarketOrderDetailScreenState
         'Kjo porosi është paguar. Anulimi kërkon proces rimbursimi nga shitësi ose Admini.';
     const late =
         'Kjo porosi nuk mund të anulohet më sepse është nisur ose përfunduar.';
-    if (raw.contains(paid)) return paid;
-    if (raw.contains(late)) return late;
-    if (raw.contains('Vendos arsyen e anulimit')) {
+    if (raw.contains('Paid orders require refund processing')) return paid;
+    if (raw.contains('This order can no longer be cancelled')) return late;
+    if (raw.contains('Cancellation reason is required')) {
       return 'Vendos arsyen e anulimit.';
     }
     return 'Anulimi nuk u krye. Provo përsëri.';
@@ -1862,11 +1862,18 @@ class _MarketOrderDetailScreenState
                 const SizedBox(height: 14),
                 ...vendors.map((vendor) {
                   final status = (vendor['status'] ?? '').toString();
+                  final vendorPaymentStatus =
+                      (vendor['vendor_payment_status'] ?? '').toString();
                   final canCancel = const {
-                    'pending',
-                    'confirmed',
-                    'processing',
-                  }.contains(status);
+                        'pending',
+                        'confirmed',
+                        'processing',
+                      }.contains(status) &&
+                      !const {
+                        'paid',
+                        'partially_refunded',
+                        'refunded',
+                      }.contains(vendorPaymentStatus);
                   final items = List<Map<String, dynamic>>.from(
                     (vendor['items'] as List?) ?? const [],
                   );
@@ -1956,6 +1963,21 @@ class _MarketOrderDetailScreenState
                                       ? 'Anulo porosinë nga ky shitës'
                                       : 'Anulo porosinë',
                                 ),
+                              ),
+                            ),
+                          ],
+                          if (status == 'cancelled' &&
+                              (vendor['cancellation_reason'] ?? '')
+                                  .toString()
+                                  .trim()
+                                  .isNotEmpty) ...[
+                            const Divider(),
+                            Text(
+                              'Arsyeja e anulimit: ' +
+                                  vendor['cancellation_reason'].toString(),
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
