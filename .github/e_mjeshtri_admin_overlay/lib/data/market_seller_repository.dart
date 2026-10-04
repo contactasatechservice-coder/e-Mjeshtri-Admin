@@ -249,6 +249,10 @@ class MarketSellerRepository {
     required double flatDeliveryFee,
     double? freeDeliveryOver,
     required int returnWindowDays,
+    String? bankName,
+    String? bankAccountName,
+    String? bankIban,
+    String? bankNote,
   }) async {
     await client
         .from('market_vendors')
@@ -267,6 +271,10 @@ class MarketSellerRepository {
           'flat_delivery_fee': flatDeliveryFee,
           'free_delivery_over': freeDeliveryOver,
           'return_window_days': returnWindowDays,
+          'bank_name': _nullIfEmpty(bankName),
+          'bank_account_name': _nullIfEmpty(bankAccountName),
+          'bank_iban': _nullIfEmpty(bankIban),
+          'bank_note': _nullIfEmpty(bankNote),
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', vendorId);
