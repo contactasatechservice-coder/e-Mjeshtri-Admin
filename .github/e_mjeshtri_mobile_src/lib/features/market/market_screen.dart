@@ -1,8 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import 'market_repository.dart';
+
+String _marketOrderStatusLabel(String value) {
+  switch (value) {
+    case 'pending':
+      return 'Në pritje';
+    case 'confirmed':
+      return 'Konfirmuar';
+    case 'processing':
+      return 'Po përgatitet';
+    case 'partially_shipped':
+      return 'Dërguar pjesërisht';
+    case 'shipped':
+      return 'U nis';
+    case 'delivered':
+      return 'U dorëzua';
+    case 'cancelled':
+      return 'U anulua';
+    case 'partially_returned':
+      return 'Kthyer pjesërisht';
+    case 'returned':
+      return 'U kthye';
+    case 'refunded':
+      return 'U rimbursua';
+    default:
+      return value;
+  }
+}
+
+String _marketPaymentMethodLabel(String value) {
+  switch (value) {
+    case 'cash_on_delivery':
+      return 'Pagesë në dorëzim';
+    case 'bank_transfer':
+      return 'Transfertë bankare';
+    case 'card':
+      return 'Kartë';
+    default:
+      return value;
+  }
+}
+
+String _marketPaymentStatusLabel(String value) {
+  switch (value) {
+    case 'pending':
+      return 'Në pritje';
+    case 'awaiting_confirmation':
+      return 'Pret konfirmim';
+    case 'paid':
+      return 'Paguar';
+    case 'partially_refunded':
+      return 'Rimbursuar pjesërisht';
+    case 'refunded':
+      return 'Rimbursuar';
+    case 'failed':
+      return 'Dështoi';
+    default:
+      return value;
+  }
+}
+
 
 class MarketScreen extends ConsumerStatefulWidget {
   const MarketScreen({
@@ -1572,12 +1633,21 @@ class MarketOrderDetailScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text('Status: ' + (order['status'] ?? '').toString()),
+                      Text(
+                        'Status: ' +
+                            _marketOrderStatusLabel(
+                              (order['status'] ?? '').toString(),
+                            ),
+                      ),
                       Text(
                         'Pagesa: ' +
-                            (order['payment_method'] ?? '').toString() +
+                            _marketPaymentMethodLabel(
+                              (order['payment_method'] ?? '').toString(),
+                            ) +
                             ' • ' +
-                            (order['payment_status'] ?? '').toString(),
+                            _marketPaymentStatusLabel(
+                              (order['payment_status'] ?? '').toString(),
+                            ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -1599,6 +1669,15 @@ class MarketOrderDetailScreen extends ConsumerWidget {
                 final items = List<Map<String, dynamic>>.from(
                   (vendor['items'] as List?) ?? const [],
                 );
+                final trackingCode =
+                    (vendor['tracking_code'] ?? '').toString().trim();
+                final trackingUrl =
+                    (vendor['tracking_url'] ?? '').toString().trim();
+                final trackingUri = Uri.tryParse(trackingUrl);
+                final canOpenTracking = trackingUri != null &&
+                    (trackingUri.scheme == 'http' ||
+                        trackingUri.scheme == 'https') &&
+                    trackingUri.host.isNotEmpty;
                 return Card(
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 12),
@@ -1625,7 +1704,9 @@ class MarketOrderDetailScreen extends ConsumerWidget {
                             ),
                             Chip(
                               label: Text(
-                                (vendor['status'] ?? '').toString(),
+                                _marketOrderStatusLabel(
+                                  (vendor['status'] ?? '').toString(),
+                                ),
                               ),
                             ),
                           ],
@@ -1655,18 +1736,34 @@ class MarketOrderDetailScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if ((vendor['tracking_code'] ?? '')
-                            .toString()
-                            .trim()
-                            .isNotEmpty) ...[
+                        if (trackingCode.isNotEmpty ||
+                            canOpenTracking) ...[
                           const Divider(),
-                          Text(
-                            'Gjurmimi: ' +
-                                vendor['tracking_code'].toString(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
+                          if (trackingCode.isNotEmpty)
+                            Text(
+                              'Kodi i gjurmimit: ' + trackingCode,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
+                          if (canOpenTracking) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  await launchUrl(
+                                    trackingUri!,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.local_shipping_outlined,
+                                ),
+                                label: const Text('Gjurmo porosinë'),
+                              ),
+                            ),
+                          ],
                         ],
                         if ((vendor['bank_iban'] ?? '')
                             .toString()
