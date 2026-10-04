@@ -60,6 +60,8 @@ String _marketPaymentStatusLabel(String value) {
       return 'Rimbursuar';
     case 'failed':
       return 'Dështoi';
+    case 'cancelled':
+      return 'Anuluar';
     default:
       return value;
   }
@@ -1598,7 +1600,7 @@ class MarketOrdersScreen extends ConsumerWidget {
 }
 
 
-class MarketOrderDetailScreen extends ConsumerWidget {
+class MarketOrderDetailScreen extends ConsumerStatefulWidget {
   const MarketOrderDetailScreen({
     super.key,
     required this.orderId,
@@ -1607,18 +1609,191 @@ class MarketOrderDetailScreen extends ConsumerWidget {
   final String orderId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MarketOrderDetailScreen> createState() =>
+      _MarketOrderDetailScreenState();
+}
+
+class _MarketOrderDetailScreenState
+    extends ConsumerState<MarketOrderDetailScreen> {
+  late Future<Map<String, dynamic>> _future;
+  bool _busy = false;
+
+  static const _cancelReasons = <String>[
+    'Nuk më duhet më produkti',
+    'E porosita gabimisht',
+    'Ndryshova mendje',
+    'Adresa ose të dhënat e porosisë janë gabim',
+    'Arsye tjetër',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _future =
+        ref.read(marketRepositoryProvider).orderDetail(widget.orderId);
+  }
+
+  String _friendlyError(Object error) {
+    final raw = error.toString();
+    const paid =
+        'Kjo porosi është paguar. Anulimi kërkon proces rimbursimi nga shitësi ose Admini.';
+    const late =
+        'Kjo porosi nuk mund të anulohet më sepse është nisur ose përfunduar.';
+    if (raw.contains(paid)) return paid;
+    if (raw.contains(late)) return late;
+    if (raw.contains('Vendos arsyen e anulimit')) {
+      return 'Vendos arsyen e anulimit.';
+    }
+    return 'Anulimi nuk u krye. Provo përsëri.';
+  }
+
+  Future<void> _cancelVendorOrder(
+    Map<String, dynamic> vendor,
+  ) async {
+    String selected = _cancelReasons.first;
+    final custom = TextEditingController();
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Anulo porosinë'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Shitësi: ' +
+                      (vendor['vendor_name'] ?? '').toString(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  decoration: const InputDecoration(
+                    labelText: 'Arsyeja e anulimit',
+                  ),
+                  items: _cancelReasons
+                      .map(
+                        (value) => DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selected = value);
+                    }
+                  },
+                ),
+                if (selected == 'Arsye tjetër') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: custom,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Shkruaj arsyen',
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                const Text(
+                  'Pas anulimit, stoku i rezervuar lirohet automatikisht. '
+                  'Porosia nuk mund të anulohet pasi të jetë nisur.',
+                  style: TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Mbyll'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = selected == 'Arsye tjetër'
+                    ? custom.text.trim()
+                    : selected;
+                if (value.length < 3) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Shkruaj arsyen e anulimit.'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, value);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.danger,
+              ),
+              child: const Text('Po, anuloje'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    custom.dispose();
+    if (reason == null || reason.trim().isEmpty) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(marketRepositoryProvider).cancelVendorOrder(
+            vendorOrderId: vendor['id'].toString(),
+            reason: reason,
+          );
+      if (!mounted) return;
+      setState(_reload);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Porosia u anulua dhe shitësi u njoftua.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Detajet e porosisë')),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: ref.read(marketRepositoryProvider).orderDetail(orderId),
+        future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError || snap.data == null) {
-            return const Center(
-              child: Text('Porosia nuk mund të ngarkohej.'),
+            return Center(
+              child: FilledButton.icon(
+                onPressed: () => setState(_reload),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Provo përsëri'),
+              ),
             );
           }
 
@@ -1630,198 +1805,234 @@ class MarketOrderDetailScreen extends ConsumerWidget {
             (data['vendor_orders'] as List?) ?? const [],
           );
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 34),
-            children: [
-              Card(
-                elevation: 0,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        (order['order_number'] ?? '').toString(),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Status: ' +
-                            _marketOrderStatusLabel(
-                              (order['status'] ?? '').toString(),
-                            ),
-                      ),
-                      Text(
-                        'Pagesa: ' +
-                            _marketPaymentMethodLabel(
-                              (order['payment_method'] ?? '').toString(),
-                            ) +
-                            ' • ' +
-                            _marketPaymentStatusLabel(
-                              (order['payment_status'] ?? '').toString(),
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        (order['grand_total'] ?? 0).toString() +
-                            ' ' +
-                            (order['currency'] ?? 'ALL').toString(),
-                        style: const TextStyle(
-                          color: AppColors.blue,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              ...vendors.map((vendor) {
-                final items = List<Map<String, dynamic>>.from(
-                  (vendor['items'] as List?) ?? const [],
-                );
-                final trackingCode =
-                    (vendor['tracking_code'] ?? '').toString().trim();
-                final trackingUrl =
-                    (vendor['tracking_url'] ?? '').toString().trim();
-                final trackingUri = Uri.tryParse(trackingUrl);
-                final canOpenTracking = trackingUri != null &&
-                    (trackingUri.scheme == 'http' ||
-                        trackingUri.scheme == 'https') &&
-                    trackingUri.host.isNotEmpty;
-                return Card(
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(_reload);
+              await _future;
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 34),
+              children: [
+                Card(
                   elevation: 0,
-                  margin: const EdgeInsets.only(bottom: 12),
                   child: Padding(
-                    padding: const EdgeInsets.all(15),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.storefront_rounded,
-                              color: AppColors.blue,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                (vendor['vendor_name'] ?? '').toString(),
+                        Text(
+                          (order['order_number'] ?? '').toString(),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Status: ' +
+                              _marketOrderStatusLabel(
+                                (order['status'] ?? '').toString(),
+                              ),
+                        ),
+                        Text(
+                          'Pagesa: ' +
+                              _marketPaymentMethodLabel(
+                                (order['payment_method'] ?? '').toString(),
+                              ) +
+                              ' • ' +
+                              _marketPaymentStatusLabel(
+                                (order['payment_status'] ?? '').toString(),
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          (order['grand_total'] ?? 0).toString() +
+                              ' ' +
+                              (order['currency'] ?? 'ALL').toString(),
+                          style: const TextStyle(
+                            color: AppColors.blue,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ...vendors.map((vendor) {
+                  final status = (vendor['status'] ?? '').toString();
+                  final canCancel = const {
+                    'pending',
+                    'confirmed',
+                    'processing',
+                  }.contains(status);
+                  final items = List<Map<String, dynamic>>.from(
+                    (vendor['items'] as List?) ?? const [],
+                  );
+                  final trackingCode =
+                      (vendor['tracking_code'] ?? '').toString().trim();
+                  final trackingUrl =
+                      (vendor['tracking_url'] ?? '').toString().trim();
+                  final trackingUri = Uri.tryParse(trackingUrl);
+                  final canOpenTracking = trackingUri != null &&
+                      (trackingUri.scheme == 'http' ||
+                          trackingUri.scheme == 'https') &&
+                      trackingUri.host.isNotEmpty;
+
+                  return Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.storefront_rounded,
+                                color: AppColors.blue,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  (vendor['vendor_name'] ?? '').toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                              ),
+                              Chip(
+                                label: Text(
+                                  _marketOrderStatusLabel(status),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...items.map(
+                            (item) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              title: Text(
+                                (item['product_name'] ?? '').toString(),
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Sasia: ' +
+                                    (item['quantity'] ?? 0).toString(),
+                              ),
+                              trailing: Text(
+                                (item['line_total'] ?? 0).toString() +
+                                    ' ' +
+                                    (order['currency'] ?? 'ALL').toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
-                            Chip(
-                              label: Text(
-                                _marketOrderStatusLabel(
-                                  (vendor['status'] ?? '').toString(),
+                          ),
+                          if (canCancel) ...[
+                            const Divider(),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _cancelVendorOrder(vendor),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.danger,
+                                  side: const BorderSide(
+                                    color: AppColors.danger,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.cancel_outlined),
+                                label: Text(
+                                  vendors.length > 1
+                                      ? 'Anulo porosinë nga ky shitës'
+                                      : 'Anulo porosinë',
                                 ),
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-                        ...items.map(
-                          (item) => ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
-                            title: Text(
-                              (item['product_name'] ?? '').toString(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                          if (trackingCode.isNotEmpty ||
+                              canOpenTracking) ...[
+                            const Divider(),
+                            if (trackingCode.isNotEmpty)
+                              Text(
+                                'Kodi i gjurmimit: ' + trackingCode,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            if (canOpenTracking) ...[
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () async {
+                                    await launchUrl(
+                                      trackingUri!,
+                                      mode:
+                                          LaunchMode.externalApplication,
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.local_shipping_outlined,
+                                  ),
+                                  label: const Text('Gjurmo porosinë'),
+                                ),
+                              ),
+                            ],
+                          ],
+                          if ((vendor['bank_iban'] ?? '')
+                              .toString()
+                              .trim()
+                              .isNotEmpty) ...[
+                            const Divider(),
+                            const Text(
+                              'Transferta bankare',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
-                            subtitle: Text(
-                              'Sasia: ' +
-                                  (item['quantity'] ?? 0).toString(),
+                            Text(
+                              'Banka: ' +
+                                  (vendor['bank_name'] ?? '').toString(),
                             ),
-                            trailing: Text(
-                              (item['line_total'] ?? 0).toString() +
-                                  ' ' +
-                                  (order['currency'] ?? 'ALL').toString(),
+                            Text(
+                              'Përfituesi: ' +
+                                  (vendor['bank_account_name'] ?? '')
+                                      .toString(),
+                            ),
+                            SelectableText(
+                              'IBAN: ' +
+                                  (vendor['bank_iban'] ?? '').toString(),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                          ),
-                        ),
-                        if (trackingCode.isNotEmpty ||
-                            canOpenTracking) ...[
-                          const Divider(),
-                          if (trackingCode.isNotEmpty)
                             Text(
-                              'Kodi i gjurmimit: ' + trackingCode,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          if (canOpenTracking) ...[
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () async {
-                                  await launchUrl(
-                                    trackingUri!,
-                                    mode: LaunchMode.externalApplication,
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.local_shipping_outlined,
-                                ),
-                                label: const Text('Gjurmo porosinë'),
-                              ),
+                              'Referenca: ' +
+                                  (vendor['vendor_order_number'] ?? '')
+                                      .toString(),
                             ),
                           ],
                         ],
-                        if ((vendor['bank_iban'] ?? '')
-                            .toString()
-                            .trim()
-                            .isNotEmpty) ...[
-                          const Divider(),
-                          const Text(
-                            'Transferta bankare',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          Text(
-                            'Banka: ' +
-                                (vendor['bank_name'] ?? '').toString(),
-                          ),
-                          Text(
-                            'Përfituesi: ' +
-                                (vendor['bank_account_name'] ?? '')
-                                    .toString(),
-                          ),
-                          SelectableText(
-                            'IBAN: ' +
-                                (vendor['bank_iban'] ?? '').toString(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            'Referenca: ' +
-                                (vendor['vendor_order_number'] ?? '')
-                                    .toString(),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              }),
-            ],
+                  );
+                }),
+              ],
+            ),
           );
         },
       ),
     );
   }
 }
+
