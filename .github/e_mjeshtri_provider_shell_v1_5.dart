@@ -163,7 +163,7 @@ class _ProviderWorkHubState extends State<_ProviderWorkHub> {
   @override
   void initState() {
     super.initState();
-    selected = widget.initialTab.clamp(0, 1);
+    selected = widget.initialTab.clamp(0, 1).toInt();
   }
 
   @override
