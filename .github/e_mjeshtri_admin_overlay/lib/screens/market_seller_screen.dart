@@ -1642,6 +1642,8 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
   bool _delivery = true;
   bool _pickup = false;
   bool _busy = false;
+  String? _logoPath;
+  String? _bannerPath;
 
   @override
   void initState() {
@@ -1680,6 +1682,8 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
     );
     _delivery = v['delivery_enabled'] != false;
     _pickup = v['pickup_enabled'] == true;
+    _logoPath = v['logo_path']?.toString();
+    _bannerPath = v['banner_path']?.toString();
   }
 
   @override
@@ -1705,6 +1709,69 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _uploadBrandAsset(String kind) async {
+    final file = await _repo.pickFile();
+    if (file == null) return;
+    setState(() => _busy = true);
+    try {
+      final path = await _repo.uploadVendorAsset(
+        vendorId: widget.vendorId,
+        kind: kind,
+        file: file,
+      );
+      if (!mounted) return;
+      setState(() {
+        if (kind == 'logo') {
+          _logoPath = path;
+        } else {
+          _bannerPath = path;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            kind == 'logo'
+                ? 'Logoja e dyqanit u përditësua.'
+                : 'Banneri i dyqanit u përditësua.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _brandImage(String? path, {required double height, BoxFit fit = BoxFit.cover}) {
+    return FutureBuilder<String?>(
+      future: _repo.signedMarketMediaUrl(path),
+      builder: (context, snap) {
+        final url = snap.data;
+        return Container(
+          width: double.infinity,
+          height: height,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          alignment: Alignment.center,
+          child: url == null
+              ? const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  size: 42,
+                  color: Colors.black38,
+                )
+              : Image.network(
+                  url,
+                  width: double.infinity,
+                  height: height,
+                  fit: fit,
+                ),
+        );
+      },
+    );
   }
 
   Future<void> _save() async {
@@ -1758,6 +1825,81 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
         title: 'Cilësimet e dyqanit',
         child: Column(
           children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Pamja publike e dyqanit',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _brandImage(_bannerPath, height: 160),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : () => _uploadBrandAsset('banner'),
+                icon: const Icon(Icons.wallpaper_outlined),
+                label: Text(
+                  _bannerPath == null || _bannerPath!.isEmpty
+                      ? 'Shto banner'
+                      : 'Ndrysho banner',
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 110,
+                  child: _brandImage(
+                    _logoPath,
+                    height: 110,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Logoja e dyqanit',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Shfaqet në profilin publik dhe pranë produkteve.',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed:
+                            _busy ? null : () => _uploadBrandAsset('logo'),
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        label: Text(
+                          _logoPath == null || _logoPath!.isEmpty
+                              ? 'Shto logo'
+                              : 'Ndrysho logo',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            const Divider(),
+            const SizedBox(height: 18),
             TextField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'Emri i dyqanit'),
