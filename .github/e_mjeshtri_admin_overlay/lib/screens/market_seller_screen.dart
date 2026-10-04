@@ -906,6 +906,18 @@ class _MarketSellerDashboardState extends State<MarketSellerDashboard> {
                     cardWidth,
                   ),
                   _SellerKpi(
+                    'Shitje të përfunduara',
+                    kpis['orders_delivered'],
+                    Icons.point_of_sale_rounded,
+                    cardWidth,
+                  ),
+                  _SellerKpi(
+                    'Xhiro e dorëzuar',
+                    marketMoney(kpis['revenue_delivered']),
+                    Icons.payments_outlined,
+                    cardWidth,
+                  ),
+                  _SellerKpi(
                     'Stok i ulët',
                     kpis['low_stock'],
                     Icons.warning_amber_rounded,
