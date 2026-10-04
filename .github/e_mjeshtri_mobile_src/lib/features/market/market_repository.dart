@@ -260,6 +260,21 @@ class MarketRepository {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<Map<String, dynamic>> cancelVendorOrder({
+    required String vendorOrderId,
+    required String reason,
+  }) async {
+    final raw = await client.rpc(
+      'market_cancel_vendor_order',
+      params: {
+        'p_vendor_order_id': vendorOrderId,
+        'p_reason': reason.trim(),
+      },
+    );
+    if (raw is! Map) throw StateError('Anulimi dështoi.');
+    return Map<String, dynamic>.from(raw);
+  }
+
   Future<String?> signedImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
