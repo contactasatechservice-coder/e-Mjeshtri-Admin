@@ -631,9 +631,23 @@ class _MarketProductScreenState extends ConsumerState<MarketProductScreen> {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.storefront_rounded, color: AppColors.blue),
+                      leading: const Icon(
+                        Icons.storefront_rounded,
+                        color: AppColors.blue,
+                      ),
                       title: Text((p['vendor_name'] ?? '').toString()),
                       subtitle: Text((p['vendor_city'] ?? '').toString()),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => MarketVendorProfileScreen(
+                              vendorId: p['vendor_id'].toString(),
+                              audience: widget.audience,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     ListTile(
                       leading: const Icon(Icons.inventory_2_outlined, color: AppColors.blue),
