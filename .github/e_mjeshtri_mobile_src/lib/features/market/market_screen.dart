@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_colors.dart';
 import 'market_repository.dart';
+import 'market_vendor_profile_screen.dart';
 
 String _marketOrderStatusLabel(String value) {
   switch (value) {
