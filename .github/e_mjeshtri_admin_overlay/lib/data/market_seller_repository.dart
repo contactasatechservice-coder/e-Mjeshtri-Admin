@@ -329,14 +329,183 @@ class MarketSellerRepository {
           ),
         );
 
+    final existing = await client
+        .from('market_product_media')
+        .select('id')
+        .eq('product_id', productId);
+    final firstImage = (existing as List).isEmpty;
+
     await client.from('market_product_media').insert({
       'product_id': productId,
       'media_type': 'image',
       'storage_path': path,
-      'sort_order': 0,
-      'is_primary': true,
+      'sort_order': (existing as List).length,
+      'is_primary': firstImage,
     });
     return path;
+  }
+
+  Future<List<Map<String, dynamic>>> productMedia(String productId) async {
+    final rows = await client
+        .from('market_product_media')
+        .select('id,product_id,media_type,storage_path,sort_order,is_primary,created_at')
+        .eq('product_id', productId)
+        .order('is_primary', ascending: false)
+        .order('sort_order')
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  Future<String?> signedMarketMediaUrl(String? path) async {
+    if (path == null || path.trim().isEmpty) return null;
+    try {
+      return await client.storage
+          .from('market-media')
+          .createSignedUrl(path, 1800);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setPrimaryProductMedia({
+    required String productId,
+    required String mediaId,
+  }) async {
+    await client
+        .from('market_product_media')
+        .update({'is_primary': false})
+        .eq('product_id', productId);
+    await client
+        .from('market_product_media')
+        .update({'is_primary': true})
+        .eq('id', mediaId)
+        .eq('product_id', productId);
+  }
+
+  Future<void> deleteProductMedia({
+    required String mediaId,
+    required String productId,
+    required String storagePath,
+  }) async {
+    await client
+        .from('market_product_media')
+        .delete()
+        .eq('id', mediaId)
+        .eq('product_id', productId);
+    await client.storage.from('market-media').remove([storagePath]);
+
+    final remaining = await productMedia(productId);
+    if (remaining.isNotEmpty &&
+        !remaining.any((m) => m['is_primary'] == true)) {
+      await setPrimaryProductMedia(
+        productId: productId,
+        mediaId: remaining.first['id'].toString(),
+      );
+    }
+  }
+
+  Future<String> uploadVendorAsset({
+    required String vendorId,
+    required String kind,
+    required html.File file,
+  }) async {
+    if (!const {'logo', 'banner'}.contains(kind)) {
+      throw ArgumentError('Lloj media i pavlefshëm.');
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      throw StateError('Fotoja nuk mund të jetë më e madhe se 20 MB.');
+    }
+
+    final bytes = await _readFile(file);
+    final ext = _extension(file.name);
+    final path = vendorId +
+        '/profile/' +
+        kind +
+        '-' +
+        DateTime.now().microsecondsSinceEpoch.toString() +
+        '.' +
+        ext;
+
+    await client.storage.from('market-media').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: file.type.isEmpty ? 'image/jpeg' : file.type,
+            upsert: false,
+          ),
+        );
+
+    final column = kind == 'logo' ? 'logo_path' : 'banner_path';
+    final current = await client
+        .from('market_vendors')
+        .select(column)
+        .eq('id', vendorId)
+        .single();
+    final oldPath = current[column]?.toString();
+
+    await client
+        .from('market_vendors')
+        .update({
+          column: path,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', vendorId);
+
+    if (oldPath != null && oldPath.isNotEmpty && oldPath != path) {
+      try {
+        await client.storage.from('market-media').remove([oldPath]);
+      } catch (_) {}
+    }
+    return path;
+  }
+
+  Future<Map<String, dynamic>> sales(String vendorId) async {
+    final raw = await client.rpc(
+      'market_vendor_sales',
+      params: {'p_vendor_id': vendorId},
+    );
+    if (raw is! Map) return const {'summary': {}, 'sales': []};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<Map<String, dynamic>> cancellationsAndReturns(String vendorId) async {
+    final raw = await client.rpc(
+      'market_vendor_cancellations_returns',
+      params: {'p_vendor_id': vendorId},
+    );
+    if (raw is! Map) return const {'cancelled': [], 'returns': []};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<List<Map<String, dynamic>>> invoices(String vendorId) async {
+    final raw = await client.rpc(
+      'market_vendor_invoices_list',
+      params: {'p_vendor_id': vendorId},
+    );
+    return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
+  }
+
+  Future<Map<String, dynamic>> finance(String vendorId) async {
+    final raw = await client.rpc(
+      'market_vendor_finance',
+      params: {'p_vendor_id': vendorId},
+    );
+    if (raw is! Map) return const {'summary': {}, 'payments': []};
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<List<Map<String, dynamic>>> inventory(String vendorId) async {
+    final rows = await client
+        .from('market_products')
+        .select(
+          'id,name,sku,status,stock_quantity,reserved_quantity,'
+          'low_stock_threshold,currency,retail_price,professional_price,'
+          'market_categories(name_sq)',
+        )
+        .eq('vendor_id', vendorId)
+        .neq('status', 'archived')
+        .order('name');
+    return List<Map<String, dynamic>>.from(rows);
   }
 
   Future<String> uploadVendorDocument({
