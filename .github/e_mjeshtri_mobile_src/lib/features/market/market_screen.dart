@@ -416,7 +416,13 @@ class _MarketProductScreenState extends ConsumerState<MarketProductScreen> {
               : p['retail_price'];
 
           if (_variantId != null) {
-            final variant = variants.where((v) => v['id']?.toString() == _variantId).firstOrNull;
+            Map<String, dynamic>? variant;
+            for (final item in variants) {
+              if (item['id']?.toString() == _variantId) {
+                variant = item;
+                break;
+              }
+            }
             if (variant != null) {
               final candidate = professional && variant['professional_price'] != null
                   ? variant['professional_price']
