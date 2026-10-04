@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -92,6 +94,136 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
       }
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+
+  Future<void> _showVendorDocuments(String vendorId) async {
+    try {
+      final raw = await _client.rpc(
+        'admin_market_vendor_documents',
+        params: {'p_vendor_id': vendorId},
+      );
+      final docs = List<Map<String, dynamic>>.from(
+        (raw as List?) ?? const [],
+      );
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Dokumentet e shitësit'),
+          content: SizedBox(
+            width: 680,
+            child: docs.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('Nuk ka dokumente të ngarkuara.'),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final doc = docs[index];
+                      final status = (doc['status'] ?? '').toString();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.description_outlined),
+                        ),
+                        title: Text(
+                          (doc['document_type'] ?? 'Dokument').toString(),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: Text(
+                          'Status: ' + status +
+                              ((doc['review_note'] ?? '').toString().trim().isEmpty
+                                  ? ''
+                                  : ' • ' + doc['review_note'].toString()),
+                        ),
+                        trailing: Wrap(
+                          spacing: 4,
+                          children: [
+                            IconButton(
+                              tooltip: 'Hap dokumentin',
+                              onPressed: () async {
+                                try {
+                                  final url = await _client.storage
+                                      .from('market-vendor-documents')
+                                      .createSignedUrl(
+                                        doc['storage_path'].toString(),
+                                        900,
+                                      );
+                                  html.window.open(url, '_blank');
+                                } catch (e) {
+                                  if (dialogContext.mounted) {
+                                    ScaffoldMessenger.of(dialogContext)
+                                        .showSnackBar(
+                                      SnackBar(content: Text(e.toString())),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.open_in_new_rounded),
+                            ),
+                            if (status == 'pending')
+                              IconButton(
+                                tooltip: 'Aprovo dokumentin',
+                                onPressed: _busy
+                                    ? null
+                                    : () async {
+                                        Navigator.pop(dialogContext);
+                                        await _action(
+                                          'document',
+                                          doc['id'].toString(),
+                                          'approve',
+                                        );
+                                      },
+                                icon: const Icon(
+                                  Icons.check_circle_outline_rounded,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            if (status == 'pending')
+                              IconButton(
+                                tooltip: 'Refuzo dokumentin',
+                                onPressed: _busy
+                                    ? null
+                                    : () async {
+                                        Navigator.pop(dialogContext);
+                                        await _action(
+                                          'document',
+                                          doc['id'].toString(),
+                                          'reject',
+                                          askNote: true,
+                                        );
+                                      },
+                                icon: const Icon(
+                                  Icons.cancel_outlined,
+                                  color: Colors.red,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Mbyll'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
 
@@ -196,6 +328,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
                     onReject: () => _action('vendor', v['id'].toString(), 'reject', askNote: true),
                     onSuspend: () => _action('vendor', v['id'].toString(), 'suspend', askNote: true),
                     onReactivate: () => _action('vendor', v['id'].toString(), 'reactivate'),
+                    onDocuments: () => _showVendorDocuments(v['id'].toString()),
                   )).toList(),
                 ),
         ),
@@ -314,6 +447,7 @@ class _VendorCard extends StatelessWidget {
     required this.onReject,
     required this.onSuspend,
     required this.onReactivate,
+    required this.onDocuments,
   });
   final Map<String, dynamic> row;
   final bool busy;
@@ -321,6 +455,7 @@ class _VendorCard extends StatelessWidget {
   final VoidCallback onReject;
   final VoidCallback onSuspend;
   final VoidCallback onReactivate;
+  final VoidCallback onDocuments;
 
   @override
   Widget build(BuildContext context) {
@@ -366,6 +501,11 @@ class _VendorCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
+                OutlinedButton.icon(
+                  onPressed: busy ? null : onDocuments,
+                  icon: const Icon(Icons.description_outlined),
+                  label: const Text('Dokumentet'),
+                ),
                 if (status == 'pending' || status == 'rejected')
                   FilledButton(onPressed: busy ? null : onApprove, child: const Text('Aprovo')),
                 if (status == 'pending')
