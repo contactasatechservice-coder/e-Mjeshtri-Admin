@@ -1047,6 +1047,21 @@ class _MarketSellerProductsState extends State<MarketSellerProducts> {
                     children: [
                       Chip(label: Text((p['status'] ?? '').toString())),
                       IconButton(
+                        tooltip: 'Fotot e produktit',
+                        onPressed: () async {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (_) => MarketProductMediaDialog(
+                              vendorId: widget.vendorId,
+                              productId: p['id'].toString(),
+                              productName: (p['name'] ?? '').toString(),
+                            ),
+                          );
+                          if (mounted) setState(_reload);
+                        },
+                        icon: const Icon(Icons.photo_library_outlined),
+                      ),
+                      IconButton(
                         tooltip: 'Ndrysho stokun',
                         onPressed: () => _editStock(p),
                         icon: const Icon(Icons.inventory_rounded),
