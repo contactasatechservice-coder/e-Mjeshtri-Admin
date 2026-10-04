@@ -11,6 +11,7 @@ on:
       - '.github/e_mjeshtri_register_v1_4.dart'
       - '.github/e_mjeshtri_verify_v1_4.dart'
       - '.github/e_mjeshtri_splash_v1_4_3.dart'
+      - '.github/e_mjeshtri_provider_shell_v1_5.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/market/market_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/market/market_repository.dart'
@@ -67,6 +68,7 @@ jobs:
           cp ../../.github/e_mjeshtri_register_v1_4.dart lib/features/auth/register_screen.dart
           cp ../../.github/e_mjeshtri_verify_v1_4.dart lib/features/auth/signup_verification_screen.dart
           cp ../../.github/e_mjeshtri_splash_v1_4_3.dart lib/features/auth/splash_screen.dart
+          cp ../../.github/e_mjeshtri_provider_shell_v1_5.dart lib/features/provider_portal/shell.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart lib/features/auth/auth_repository.dart
           mkdir -p lib/features/market
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/market/market_repository.dart lib/features/market/market_repository.dart
@@ -182,13 +184,6 @@ jobs:
           PY
 
           flutter pub get
-
-      - name: Inspect provider shell
-        shell: bash
-        run: |
-          echo "=== PROVIDER SHELL START ==="
-          sed -n '1,260p' .build/e_mjeshtri/lib/features/provider_portal/shell.dart
-          echo "=== PROVIDER SHELL END ==="
 
       - name: Verify correct unified source
         shell: bash
