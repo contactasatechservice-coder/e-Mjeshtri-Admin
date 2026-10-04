@@ -196,16 +196,50 @@ class _MarketSellerCancellationsReturnsState extends State<MarketSellerCancellat
             if (cancelled.isEmpty)
               const SellerExtraEmpty('Nuk ka porosi të anulluara.')
             else
-              ...cancelled.map((o) => Card(
-                elevation: 0,
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.cancel_outlined)),
-                  title: Text((o['vendor_order_number'] ?? '').toString(), style: const TextStyle(fontWeight: FontWeight.w900)),
-                  subtitle: Text((o['delivery_name'] ?? '').toString() + ' • ' + (o['delivery_city'] ?? '').toString()),
-                  trailing: Text(marketMoney(o['total'], (o['currency'] ?? 'ALL').toString()), style: const TextStyle(fontWeight: FontWeight.w900)),
-                ),
-              )),
+              ...cancelled.map((o) {
+                final reason =
+                    (o['cancellation_reason'] ?? '').toString().trim();
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.cancel_outlined),
+                    ),
+                    title: Text(
+                      (o['vendor_order_number'] ?? '').toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (o['delivery_name'] ?? '').toString() +
+                              ' • ' +
+                              (o['delivery_city'] ?? '').toString(),
+                        ),
+                        if (reason.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Arsyeja: ' + reason,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    trailing: Text(
+                      marketMoney(
+                        o['total'],
+                        (o['currency'] ?? 'ALL').toString(),
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                );
+              }),
           ],
         );
       },
