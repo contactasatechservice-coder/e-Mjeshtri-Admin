@@ -8,6 +8,7 @@ import 'screens/admin_module_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/list_screens.dart';
 import 'screens/login_screen.dart';
+import 'screens/market_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/admin_shell.dart';
 
@@ -79,6 +80,10 @@ bool _canAccessAdminPath(String? role, String path) {
   return path == '/dashboard';
 }
 final _moduleRoutes = <RouteBase>[
+  GoRoute(
+    path: '/market',
+    builder: (c, s) => const MarketAdminScreen(),
+  ),
   GoRoute(
     path: '/verifications',
     builder: (c, s) => const AdminModuleScreen(
