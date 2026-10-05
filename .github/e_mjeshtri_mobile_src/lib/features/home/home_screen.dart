@@ -251,6 +251,14 @@ class HomeScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
               sliver: SliverList.list(
                 children: [
+                  Center(
+                    child: Image.asset(
+                      'assets/branding/e_mjeshtri_logo.png',
+                      height: 58,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -348,7 +356,7 @@ class HomeScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
                   _SectionHeader(title: s.t('nearby')),
                   const SizedBox(height: 14),
                   providers.when(
