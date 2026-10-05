@@ -1,6 +1,6 @@
 abstract final class FeatureFlags {
-  static const providerAppEnabled = false;
-  static const adminPanelEnabled = false;
+  static const providerAppEnabled = true;
+  static const adminPanelEnabled = true;
   static const onlinePaymentsEnabled = false;
 
   // Enable only after the corresponding provider is configured in Supabase
