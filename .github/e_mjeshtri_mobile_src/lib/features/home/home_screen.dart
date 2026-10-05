@@ -10,6 +10,14 @@ import '../providers/provider_avatar.dart';
 import '../requests/request_flow.dart';
 import 'home_repository.dart';
 
+bool hasActiveBlueTick(Map<String, dynamic> provider) {
+  if (provider['is_verified'] != true) return false;
+  final raw = provider['blue_tick_expires_at']?.toString();
+  if (raw == null || raw.trim().isEmpty) return true;
+  final expires = DateTime.tryParse(raw);
+  return expires == null || expires.isAfter(DateTime.now().toUtc());
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
