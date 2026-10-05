@@ -275,6 +275,25 @@ class MarketRepository {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<Map<String, dynamic>> requestReturn({
+    required String vendorOrderId,
+    required String reason,
+    String? note,
+  }) async {
+    final raw = await client.rpc(
+      'market_request_return',
+      params: {
+        'p_vendor_order_id': vendorOrderId,
+        'p_reason': reason.trim(),
+        'p_note': note?.trim(),
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Kërkesa e kthimit nuk u krijua.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
   Future<String?> signedImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
