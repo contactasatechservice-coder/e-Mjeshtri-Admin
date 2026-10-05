@@ -141,7 +141,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               _tile(Icons.location_on_outlined, s.t('addresses'), () => context.push('/profile/addresses')),
               _tile(Icons.language_rounded, s.t('language'), () => context.push('/profile/language')),
-              _tile(Icons.palette_outlined, s.t('appearance'), () => context.push('/profile/appearance')),
               _tile(Icons.notifications_none_rounded, s.t('notificationSettings'), () => context.push('/profile/notifications')),
               _tile(Icons.shield_outlined, s.t('privacySecurity'), () => context.push('/profile/privacy')),
             ]),
