@@ -266,7 +266,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.of(context).t('saveDraft'))));
       }
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) setState(() => error = AppStrings.of(context).t('errorGeneric'));
     } finally {
       if (mounted) setState(() => busy = false);
     }
