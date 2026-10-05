@@ -664,6 +664,8 @@ class _MarketSellerPanelState extends State<MarketSellerPanel> {
     'Faturat',
     'Stoku',
     'Financat',
+    'Promocionet',
+    'Abonimi',
     'Profili publik',
   ];
 
@@ -676,6 +678,8 @@ class _MarketSellerPanelState extends State<MarketSellerPanel> {
     Icons.receipt_long_rounded,
     Icons.inventory_rounded,
     Icons.account_balance_wallet_outlined,
+    Icons.local_offer_outlined,
+    Icons.workspace_premium_outlined,
     Icons.storefront_rounded,
   ];
 
@@ -690,6 +694,8 @@ class _MarketSellerPanelState extends State<MarketSellerPanel> {
       MarketSellerInvoices(vendorId: widget.vendorId),
       MarketSellerInventory(vendorId: widget.vendorId),
       MarketSellerFinance(vendorId: widget.vendorId),
+      MarketSellerPromotions(vendorId: widget.vendorId),
+      MarketSellerSubscription(vendorId: widget.vendorId),
       MarketSellerProfile(
         vendorId: widget.vendorId,
         initialVendor: widget.vendor,
