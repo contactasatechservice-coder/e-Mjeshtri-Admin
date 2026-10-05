@@ -321,25 +321,34 @@ class HomeScreen extends ConsumerWidget {
                       final visible =
                           photoItems.length >= 6 ? photoItems : items.take(6).toList();
 
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: visible.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 1.24,
-                        ),
-                        itemBuilder: (context, i) {
-                          final item = visible[i];
-                          return _categoryPhotoCard(context, item, language);
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          const spacing = 12.0;
+                          final cardWidth =
+                              (constraints.maxWidth - spacing) / 2;
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: 10,
+                            children: [
+                              for (final item in visible)
+                                SizedBox(
+                                  width: cardWidth,
+                                  child: AspectRatio(
+                                    aspectRatio: 1.24,
+                                    child: _categoryPhotoCard(
+                                      context,
+                                      item,
+                                      language,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
                         },
                       );
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   _SectionHeader(title: s.t('nearby')),
                   const SizedBox(height: 14),
                   providers.when(
