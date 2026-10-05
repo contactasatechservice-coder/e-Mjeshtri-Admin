@@ -22,6 +22,48 @@ String translatedName(Map<String, dynamic> item, String language) {
   return (item['slug'] ?? '').toString();
 }
 
+IconData _serviceCategoryIcon(String? key) => switch (key) {
+  'plumbing' => Icons.plumbing_rounded,
+  'electrical' => Icons.electrical_services_rounded,
+  'ac_unit' => Icons.ac_unit_rounded,
+  'format_paint' => Icons.format_paint_rounded,
+  'construction' => Icons.construction_rounded,
+  'grid_view' => Icons.grid_view_rounded,
+  'carpenter' => Icons.carpenter_rounded,
+  'door_front' => Icons.door_front_door_rounded,
+  'home_repair_service' => Icons.home_repair_service_rounded,
+  'cleaning_services' => Icons.cleaning_services_rounded,
+  'yard' => Icons.yard_rounded,
+  'roofing' => Icons.roofing_rounded,
+  'window' => Icons.window_rounded,
+  'local_shipping' => Icons.local_shipping_rounded,
+  'videocam' => Icons.videocam_rounded,
+  'router' => Icons.router_rounded,
+  'solar_power' => Icons.solar_power_rounded,
+  _ => Icons.handyman_rounded,
+};
+
+Color _serviceCategoryColor(String? key) => switch (key) {
+  'plumbing' => const Color(0xFF1686D9),
+  'electrical' => const Color(0xFFF0A500),
+  'ac_unit' => const Color(0xFF5B8DEF),
+  'format_paint' => const Color(0xFFE76AA3),
+  'construction' => const Color(0xFFE08435),
+  'grid_view' => const Color(0xFF7B61D1),
+  'carpenter' => const Color(0xFFA86A32),
+  'door_front' => const Color(0xFF8B6C4A),
+  'home_repair_service' => const Color(0xFF2563EB),
+  'cleaning_services' => const Color(0xFF2DB7A3),
+  'yard' => const Color(0xFF2FA568),
+  'roofing' => const Color(0xFF7250E8),
+  'window' => const Color(0xFF16A871),
+  'local_shipping' => const Color(0xFFB06B1C),
+  'videocam' => const Color(0xFFF05B55),
+  'router' => const Color(0xFFF0A500),
+  'solar_power' => const Color(0xFF1672D4),
+  _ => AppColors.blue,
+};
+
 class AllCategoriesScreen extends ConsumerWidget {
   const AllCategoriesScreen({super.key});
   @override
@@ -43,8 +85,29 @@ class AllCategoriesScreen extends ConsumerWidget {
             return Card(
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: Container(width: 48, height: 48, decoration: BoxDecoration(color: AppColors.blue.withValues(alpha: .08), borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.home_repair_service_rounded, color: AppColors.blue)),
-                title: Text(translatedName(item, language), style: const TextStyle(fontWeight: FontWeight.w700)),
+                leading: Builder(
+                  builder: (context) {
+                    final key = item['icon_key']?.toString();
+                    final color = _serviceCategoryColor(key);
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: .10),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        _serviceCategoryIcon(key),
+                        color: color,
+                        size: 25,
+                      ),
+                    );
+                  },
+                ),
+                title: Text(
+                  translatedName(item, language),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () => context.push('/categories/${item['id']}'),
               ),
@@ -78,7 +141,24 @@ class CategoryDetailScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
             children: [
-              Container(height: 112, decoration: BoxDecoration(color: AppColors.blue.withValues(alpha: .07), borderRadius: BorderRadius.circular(28)), child: const Icon(Icons.handyman_rounded, size: 54, color: AppColors.blue)),
+              Builder(
+                builder: (context) {
+                  final key = category['icon_key']?.toString();
+                  final color = _serviceCategoryColor(key);
+                  return Container(
+                    height: 112,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Icon(
+                      _serviceCategoryIcon(key),
+                      size: 54,
+                      color: color,
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 22),
               Text(title, style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 8),
