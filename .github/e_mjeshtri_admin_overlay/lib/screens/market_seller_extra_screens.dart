@@ -576,6 +576,251 @@ class _MarketProductMediaDialogState extends State<MarketProductMediaDialog> {
   );
 }
 
+
+class MarketSellerPromotions extends StatefulWidget {
+  const MarketSellerPromotions({super.key, required this.vendorId});
+  final String vendorId;
+  @override
+  State<MarketSellerPromotions> createState() => _MarketSellerPromotionsState();
+}
+
+class _MarketSellerPromotionsState extends State<MarketSellerPromotions> {
+  final repo = MarketSellerRepository.instance;
+  late Future<List<Map<String, dynamic>>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    reload();
+  }
+
+  void reload() {
+    future = repo.promotions(widget.vendorId);
+  }
+
+  Future<void> createPromotion() async {
+    final name = TextEditingController();
+    final value = TextEditingController();
+    String type = 'percentage';
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Shto promocion'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Emri'),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: type,
+                  decoration: const InputDecoration(labelText: 'Lloji'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'percentage',
+                      child: Text('Përqindje'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'price',
+                      child: Text('Vlerë fikse'),
+                    ),
+                  ],
+                  onChanged: (v) => setLocal(() => type = v ?? 'percentage'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: value,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: type == 'percentage' ? 'Përqindja %' : 'Vlera ALL',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Anulo'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final n = double.tryParse(value.text.trim());
+                if (name.text.trim().isEmpty || n == null || n <= 0) return;
+                Navigator.pop(context, {
+                  'name': name.text.trim(),
+                  'type': type,
+                  'value': n,
+                });
+              },
+              child: const Text('Krijo'),
+            ),
+          ],
+        ),
+      ),
+    );
+    name.dispose();
+    value.dispose();
+    if (result == null) return;
+    await repo.createPromotion(
+      vendorId: widget.vendorId,
+      name: result['name'].toString(),
+      type: result['type'].toString(),
+      value: (result['value'] as num).toDouble(),
+    );
+    if (mounted) setState(reload);
+  }
+
+  @override
+  Widget build(BuildContext context) => SellerExtraPage(
+        title: 'Promocionet',
+        subtitle: 'Krijo dhe aktivizo oferta për produktet e dyqanit',
+        onRefresh: () => setState(reload),
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: future,
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final rows = snap.data ?? const [];
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FilledButton.icon(
+                  onPressed: createPromotion,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Shto promocion'),
+                ),
+                const SizedBox(height: 14),
+                if (rows.isEmpty)
+                  const SellerExtraEmpty('Nuk ka ende promocione.')
+                else
+                  ...rows.map((row) => Card(
+                        elevation: 0,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: SwitchListTile(
+                          value: row['is_active'] == true,
+                          onChanged: (v) async {
+                            await repo.togglePromotion(
+                              promotionId: row['id'].toString(),
+                              active: v,
+                            );
+                            if (mounted) setState(reload);
+                          },
+                          title: Text(
+                            (row['name'] ?? '').toString(),
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          subtitle: Text(
+                            (row['promotion_type'] ?? '') == 'percentage'
+                                ? row['value'].toString() + '%'
+                                : marketMoney(row['value']),
+                          ),
+                          secondary: IconButton(
+                            tooltip: 'Fshi',
+                            onPressed: () async {
+                              await repo.deletePromotion(row['id'].toString());
+                              if (mounted) setState(reload);
+                            },
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                        ),
+                      )),
+              ],
+            );
+          },
+        ),
+      );
+}
+
+class MarketSellerSubscription extends StatefulWidget {
+  const MarketSellerSubscription({super.key, required this.vendorId});
+  final String vendorId;
+  @override
+  State<MarketSellerSubscription> createState() =>
+      _MarketSellerSubscriptionState();
+}
+
+class _MarketSellerSubscriptionState extends State<MarketSellerSubscription> {
+  final repo = MarketSellerRepository.instance;
+  late Future<Map<String, dynamic>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    reload();
+  }
+
+  void reload() {
+    future = repo.subscriptionSnapshot(widget.vendorId);
+  }
+
+  @override
+  Widget build(BuildContext context) => SellerExtraPage(
+        title: 'Abonimi',
+        subtitle: 'Plani dhe vlefshmëria e abonimit të e-Market',
+        onRefresh: () => setState(reload),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: future,
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final raw = snap.data?['current'];
+            final current = raw is Map
+                ? Map<String, dynamic>.from(raw)
+                : <String, dynamic>{};
+            if (current.isEmpty) {
+              return const SellerExtraEmpty(
+                'Nuk ka abonim të konfiguruar. Kontakto administratorin.',
+              );
+            }
+            return Card(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (current['plan_code'] ?? 'standard').toString().toUpperCase(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Chip(
+                      label: Text(
+                        marketStatusSq((current['status'] ?? '').toString()),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Çmimi: ' +
+                          marketMoney(
+                            current['price_amount'],
+                            (current['currency'] ?? 'ALL').toString(),
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Fillon: ' + (current['starts_at'] ?? '—').toString()),
+                    const SizedBox(height: 6),
+                    Text('Skadon: ' + (current['ends_at'] ?? '—').toString()),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+}
+
 class SellerExtraPage extends StatelessWidget {
   const SellerExtraPage({
     super.key,
