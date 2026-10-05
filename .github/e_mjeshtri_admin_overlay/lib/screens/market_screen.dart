@@ -4,6 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+String _marketAdminFriendlyError(Object error) {
+  final text = error.toString();
+  if (text.contains('42501')) return 'Nuk ke leje për këtë veprim.';
+  if (text.contains('23505')) return 'Kjo e dhënë ekziston tashmë.';
+  if (text.contains('Product must have at least one image')) {
+    return 'Produkti duhet të ketë të paktën një foto para aprovimit.';
+  }
+  if (text.contains('JWT') || text.contains('session')) {
+    return 'Sesioni ka skaduar. Hyr përsëri në llogari.';
+  }
+  return 'Ndodhi një gabim në e-Market. Rifresko faqen dhe provo përsëri.';
+}
+
 class MarketAdminScreen extends StatefulWidget {
   const MarketAdminScreen({super.key});
   @override
@@ -42,7 +55,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
       if (raw is! Map) throw const FormatException('Përgjigje e pavlefshme nga e-Market.');
       _data = Map<String, dynamic>.from(raw);
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = _marketAdminFriendlyError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -91,7 +104,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_marketAdminFriendlyError(e))));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -161,7 +174,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
                                   if (dialogContext.mounted) {
                                     ScaffoldMessenger.of(dialogContext)
                                         .showSnackBar(
-                                      SnackBar(content: Text(e.toString())),
+                                      SnackBar(content: Text(_marketAdminFriendlyError(e))),
                                     );
                                   }
                                 }
@@ -222,7 +235,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(_marketAdminFriendlyError(e))),
         );
       }
     }
