@@ -50,7 +50,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       avatarPath = p['avatar_path']?.toString();
       avatarUrl = await repo.avatarSignedUrl(avatarPath);
     } catch (e) {
-      error = e.toString();
+      error = AppStrings.of(context).t('errorGeneric');
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -71,7 +71,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
       if (mounted) setState(() { avatarPath = newPath; avatarUrl = url; });
     } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+      if (mounted) setState(() => error = AppStrings.of(context).t('errorGeneric'));
     } finally {
       if (mounted) setState(() => avatarBusy = false);
     }
@@ -159,7 +159,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               );
                               if (context.mounted) context.pop();
                             } catch (e) {
-                              if (mounted) setState(() => error = e.toString());
+                              if (mounted) setState(() => error = AppStrings.of(context).t('errorGeneric'));
                             } finally {
                               if (mounted) setState(() => saving = false);
                             }
@@ -227,7 +227,7 @@ class _AddressEditScreenState extends ConsumerState<AddressEditScreen> {
       final p = await Geolocator.getCurrentPosition();
       if (mounted) setState(() { latitude = p.latitude; longitude = p.longitude; });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.of(context).t('errorGeneric'))));
     } finally {
       if (mounted) setState(() => locating = false);
     }
