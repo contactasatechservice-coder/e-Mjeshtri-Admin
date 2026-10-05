@@ -1414,7 +1414,7 @@ class _MarketCheckoutScreenState extends ConsumerState<MarketCheckoutScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString().replaceFirst('Exception: ', '');
+          _error = 'Nuk u ngarkua e-Market. Provo përsëri.';
         });
       }
     } finally {
