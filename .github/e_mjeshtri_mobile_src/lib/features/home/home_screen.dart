@@ -33,6 +33,14 @@ class HomeScreen extends ConsumerWidget {
       };
 
 
+  bool _hasActiveBlueTick(Map<String, dynamic> provider) {
+    if (provider['is_verified'] != true) return false;
+    final raw = provider['blue_tick_expires_at']?.toString();
+    if (raw == null || raw.trim().isEmpty) return true;
+    final expires = DateTime.tryParse(raw);
+    return expires == null || expires.isAfter(DateTime.now().toUtc());
+  }
+
   String? _categoryPhoto(Map<String, dynamic> item, String language) {
     final slug = (item['slug'] ?? '').toString().toLowerCase();
     final key = (item['icon_key'] ?? '').toString().toLowerCase();
@@ -103,7 +111,7 @@ class HomeScreen extends ConsumerWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: radius,
-        onTap: () => context.push('/categories/\${item['id']}'),
+        onTap: () => context.push('/categories/${item['id']}'),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: radius,
@@ -433,7 +441,7 @@ class _ProviderCard extends StatelessWidget {
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
-                            if (hasActiveBlueTick(provider))
+                            if (_hasActiveBlueTick(provider))
                               const Padding(
                                 padding: EdgeInsets.only(left: 6),
                                 child: Icon(Icons.verified_rounded, size: 18, color: AppColors.blue),
