@@ -46,6 +46,32 @@ String _marketPaymentMethodLabel(String value) {
   }
 }
 
+
+String _marketReturnStatusLabel(String value) {
+  switch (value) {
+    case 'requested':
+      return 'Në pritje të shitësit';
+    case 'vendor_approved':
+      return 'Pranuar nga shitësi';
+    case 'vendor_rejected':
+      return 'Refuzuar nga shitësi';
+    case 'escalated':
+      return 'Në shqyrtim nga Admini';
+    case 'admin_approved':
+      return 'Aprovuar nga Admini';
+    case 'admin_rejected':
+      return 'Refuzuar nga Admini';
+    case 'received':
+      return 'Produkti u pranua';
+    case 'refunded':
+      return 'Rimbursuar';
+    case 'closed':
+      return 'Mbyllur';
+    default:
+      return value;
+  }
+}
+
 String _marketPaymentStatusLabel(String value) {
   switch (value) {
     case 'pending':
@@ -1626,6 +1652,14 @@ class _MarketOrderDetailScreenState
     'Arsye tjetër',
   ];
 
+  static const _returnReasons = <String>[
+    'Produkti erdhi i dëmtuar',
+    'Produkti nuk përputhet me përshkrimin',
+    'Produkti është i gabuar',
+    'Produkti nuk funksionon',
+    'Arsye tjetër',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -1648,7 +1682,19 @@ class _MarketOrderDetailScreenState
     if (raw.contains('Cancellation reason is required')) {
       return 'Vendos arsyen e anulimit.';
     }
-    return 'Anulimi nuk u krye. Provo përsëri.';
+    if (raw.contains('Return window has expired')) {
+      return 'Afati i kthimit për këtë porosi ka përfunduar.';
+    }
+    if (raw.contains('A return request already exists')) {
+      return 'Për këtë porosi ekziston tashmë një kërkesë kthimi.';
+    }
+    if (raw.contains('Return reason is required')) {
+      return 'Vendos arsyen e kthimit.';
+    }
+    if (raw.contains('Delivered order not found')) {
+      return 'Kthimi lejohet vetëm për porosi të dorëzuara.';
+    }
+    return 'Veprimi nuk u krye. Provo përsëri.';
   }
 
   Future<void> _cancelVendorOrder(
@@ -1777,6 +1823,118 @@ class _MarketOrderDetailScreenState
     }
   }
 
+
+  Future<void> _requestReturn(
+    Map<String, dynamic> vendor,
+  ) async {
+    String selected = _returnReasons.first;
+    final note = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Kërko kthim'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Shitësi: ' + (vendor['vendor_name'] ?? '').toString(),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  decoration: const InputDecoration(
+                    labelText: 'Arsyeja e kthimit',
+                  ),
+                  items: _returnReasons
+                      .map(
+                        (value) => DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selected = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: note,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Shënim për shitësin (opsional)',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Afati i kthimit: ' +
+                      (vendor['return_window_days'] ?? 14).toString() +
+                      ' ditë nga dorëzimi.',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Mbyll'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                {
+                  'reason': selected,
+                  'note': note.text.trim(),
+                },
+              ),
+              icon: const Icon(Icons.assignment_return_outlined),
+              label: const Text('Dërgo kërkesën'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    note.dispose();
+    if (result == null) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(marketRepositoryProvider).requestReturn(
+            vendorOrderId: vendor['id'].toString(),
+            reason: result['reason'] ?? '',
+            note: result['note'],
+          );
+      if (!mounted) return;
+      setState(_reload);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kërkesa e kthimit iu dërgua shitësit.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1874,6 +2032,25 @@ class _MarketOrderDetailScreenState
                         'partially_refunded',
                         'refunded',
                       }.contains(vendorPaymentStatus);
+                  final deliveredAt = DateTime.tryParse(
+                    (vendor['delivered_at'] ?? '').toString(),
+                  )?.toLocal();
+                  final returnWindowDays =
+                      (vendor['return_window_days'] as num?)?.toInt() ?? 14;
+                  final returnStatus =
+                      (vendor['return_status'] ?? '').toString();
+                  final returnDeadline = deliveredAt?.add(
+                    Duration(days: returnWindowDays),
+                  );
+                  final canReturn = status == 'delivered' &&
+                      (returnStatus.isEmpty ||
+                          const {
+                            'vendor_rejected',
+                            'admin_rejected',
+                            'closed',
+                          }.contains(returnStatus)) &&
+                      (returnDeadline == null ||
+                          DateTime.now().isBefore(returnDeadline));
                   final items = List<Map<String, dynamic>>.from(
                     (vendor['items'] as List?) ?? const [],
                   );
@@ -1965,6 +2142,42 @@ class _MarketOrderDetailScreenState
                                 ),
                               ),
                             ),
+                          ],
+
+                          if (canReturn) ...[
+                            const Divider(),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _requestReturn(vendor),
+                                icon: const Icon(
+                                  Icons.assignment_return_outlined,
+                                ),
+                                label: const Text('Kërko kthim / rimbursim'),
+                              ),
+                            ),
+                          ],
+                          if (returnStatus.isNotEmpty) ...[
+                            const Divider(),
+                            Text(
+                              'Kthimi: ' + _marketReturnStatusLabel(returnStatus),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if ((vendor['return_reason'] ?? '')
+                                .toString()
+                                .trim()
+                                .isNotEmpty)
+                              Text(
+                                'Arsyeja: ' +
+                                    vendor['return_reason'].toString(),
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                ),
+                              ),
                           ],
                           if (status == 'cancelled' &&
                               (vendor['cancellation_reason'] ?? '')
