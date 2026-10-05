@@ -260,7 +260,7 @@ jobs:
           test -f "$APP/assets/category_cards/xham_alumini.webp"
           test -f "$APP/assets/category_cards/cati_hidroizolim.webp"
           grep -Fq "assets/category_cards/panel_diellore.webp" "$APP/lib/features/home/home_screen.dart"
-          grep -Fq "GridView.builder" "$APP/lib/features/home/home_screen.dart"
+          grep -Fq "return Wrap(" "$APP/lib/features/home/home_screen.dart"
 
           echo "SOURCE CHECK COMPLETE — continuing to Flutter analyze/build."
 
