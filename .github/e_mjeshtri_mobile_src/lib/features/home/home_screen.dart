@@ -32,15 +32,6 @@ class HomeScreen extends ConsumerWidget {
         _ => Icons.home_repair_service_rounded,
       };
 
-
-  bool _hasActiveBlueTick(Map<String, dynamic> provider) {
-    if (provider['is_verified'] != true) return false;
-    final raw = provider['blue_tick_expires_at']?.toString();
-    if (raw == null || raw.trim().isEmpty) return true;
-    final expires = DateTime.tryParse(raw);
-    return expires == null || expires.isAfter(DateTime.now().toUtc());
-  }
-
   String? _categoryPhoto(Map<String, dynamic> item, String language) {
     final slug = (item['slug'] ?? '').toString().toLowerCase();
     final key = (item['icon_key'] ?? '').toString().toLowerCase();
@@ -441,7 +432,7 @@ class _ProviderCard extends StatelessWidget {
                                 style: Theme.of(context).textTheme.titleMedium,
                               ),
                             ),
-                            if (_hasActiveBlueTick(provider))
+                            if (hasActiveBlueTick(provider))
                               const Padding(
                                 padding: EdgeInsets.only(left: 6),
                                 child: Icon(Icons.verified_rounded, size: 18, color: AppColors.blue),
