@@ -525,6 +525,63 @@ class MarketSellerRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  Future<List<Map<String, dynamic>>> promotions(String vendorId) async {
+    final rows = await client
+        .from('market_promotions')
+        .select(
+          'id,vendor_id,name,promotion_type,value,starts_at,ends_at,is_active,created_at',
+        )
+        .eq('vendor_id', vendorId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  Future<String> createPromotion({
+    required String vendorId,
+    required String name,
+    required String type,
+    required double value,
+    DateTime? startsAt,
+    DateTime? endsAt,
+  }) async {
+    final row = await client
+        .from('market_promotions')
+        .insert({
+          'vendor_id': vendorId,
+          'name': name.trim(),
+          'promotion_type': type,
+          'value': value,
+          'starts_at': startsAt?.toUtc().toIso8601String(),
+          'ends_at': endsAt?.toUtc().toIso8601String(),
+          'is_active': true,
+        })
+        .select('id')
+        .single();
+    return row['id'].toString();
+  }
+
+  Future<void> togglePromotion({
+    required String promotionId,
+    required bool active,
+  }) async {
+    await client
+        .from('market_promotions')
+        .update({'is_active': active})
+        .eq('id', promotionId);
+  }
+
+  Future<void> deletePromotion(String promotionId) async {
+    await client.from('market_promotions').delete().eq('id', promotionId);
+  }
+
+  Future<Map<String, dynamic>> subscriptionSnapshot(String vendorId) async {
+    final raw = await client.rpc(
+      'market_vendor_subscription_snapshot',
+      params: {'p_vendor_id': vendorId},
+    );
+    return raw is Map ? Map<String, dynamic>.from(raw) : const {};
+  }
+
   Future<String> uploadVendorDocument({
     required String vendorId,
     required String documentType,
