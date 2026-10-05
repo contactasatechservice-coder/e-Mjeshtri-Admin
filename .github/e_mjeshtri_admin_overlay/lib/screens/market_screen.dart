@@ -1,6 +1,7 @@
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MarketAdminScreen extends StatefulWidget {
@@ -285,6 +286,12 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
                 ],
               ),
             ),
+            FilledButton.icon(
+              onPressed: () => context.go('/market/backoffice'),
+              icon: const Icon(Icons.tune_rounded),
+              label: const Text('Menaxhim i plotë'),
+            ),
+            const SizedBox(width: 8),
             IconButton(
               tooltip: 'Rifresko',
               onPressed: _busy ? null : _load,
