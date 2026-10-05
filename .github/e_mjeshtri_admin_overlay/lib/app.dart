@@ -9,6 +9,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/list_screens.dart';
 import 'screens/login_screen.dart';
 import 'screens/market_screen.dart';
+import 'screens/market_backoffice_screen.dart';
 import 'screens/market_seller_screen.dart';
 import 'screens/settings_screen.dart';
 import 'widgets/admin_shell.dart';
@@ -101,6 +102,10 @@ final _moduleRoutes = <RouteBase>[
   GoRoute(
     path: '/market',
     builder: (c, s) => const MarketAdminScreen(),
+  ),
+  GoRoute(
+    path: '/market/backoffice',
+    builder: (c, s) => const MarketBackofficeScreen(),
   ),
   GoRoute(
     path: '/verifications',
