@@ -329,8 +329,8 @@ class HomeScreen extends ConsumerWidget {
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.05,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 1.24,
                         ),
                         itemBuilder: (context, i) {
                           final item = visible[i];
@@ -339,7 +339,7 @@ class HomeScreen extends ConsumerWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 26),
+                  const SizedBox(height: 8),
                   _SectionHeader(title: s.t('nearby')),
                   const SizedBox(height: 14),
                   providers.when(
