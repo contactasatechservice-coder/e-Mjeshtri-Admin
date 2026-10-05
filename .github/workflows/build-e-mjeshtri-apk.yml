@@ -135,6 +135,15 @@ jobs:
                   lines[i]='version: 1.7.1+33'
                   break
           pubspec.write_text('\n'.join(lines)+'\n')
+          ps=pubspec.read_text()
+          asset_line='    - assets/category_cards/'
+          if asset_line not in ps:
+              marker='    - assets/branding/e_mjeshtri_logo.png'
+              if marker in ps:
+                  ps=ps.replace(marker, marker+'\n'+asset_line)
+              else:
+                  raise SystemExit('Could not register category card assets in pubspec')
+          pubspec.write_text(ps)
 
           config=Path('lib/core/config/app_config.dart')
           lines=config.read_text().splitlines()
