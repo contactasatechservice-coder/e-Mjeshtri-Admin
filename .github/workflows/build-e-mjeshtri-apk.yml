@@ -21,6 +21,7 @@ on:
       - '.github/e_mjeshtri_mobile_src/lib/core/config/feature_flags.dart'
       - '.github/e_mjeshtri_mobile_src/lib/core/config/app_config.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/settings/settings_screens.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/profile/profile_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/messages/messages_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/notifications/notifications_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/market/market_vendor_profile_screen.dart'
@@ -88,6 +89,8 @@ jobs:
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart lib/features/marketplace/marketplace_repository.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart lib/features/onboarding/onboarding_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart lib/features/requests/request_flow.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/settings/settings_screens.dart lib/features/settings/settings_screens.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/profile/profile_screen.dart lib/features/profile/profile_screen.dart
           cp ../../assets/assets/branding/e_mjeshtri_logo.png assets/branding/e_mjeshtri_logo.png
 
           mkdir -p assets/category_cards
