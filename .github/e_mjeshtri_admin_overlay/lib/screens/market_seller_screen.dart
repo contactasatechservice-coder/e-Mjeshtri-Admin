@@ -165,6 +165,21 @@ class _MarketSellerLoginScreenState extends State<MarketSellerLoginScreen> {
   }
 }
 
+String _sellerFriendlyError(Object error) {
+  final text = error.toString();
+  if (text.contains('42501') || text.contains('Not authorized')) {
+    return 'Nuk ke leje për këtë veprim.';
+  }
+  if (text.contains('Vendor is not approved')) {
+    return 'Dyqani duhet të aprovohet nga administratori.';
+  }
+  if (text.contains('storage') || text.contains('bucket')) {
+    return 'Ngarkimi i skedarit dështoi. Provo përsëri.';
+  }
+  if (text.contains('23505')) return 'Kjo e dhënë ekziston tashmë.';
+  return 'Veprimi nuk u krye. Provo përsëri.';
+}
+
 class MarketSellerGateScreen extends StatefulWidget {
   const MarketSellerGateScreen({super.key});
 
@@ -192,7 +207,7 @@ class _MarketSellerGateScreenState extends State<MarketSellerGateScreen> {
     try {
       _membership = await _repo.membership();
     } catch (e) {
-      _error = e.toString();
+      _error = _sellerFriendlyError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -308,7 +323,7 @@ class _MarketVendorRegistrationScreenState
       );
       widget.onCreated();
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _sellerFriendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -515,7 +530,7 @@ class _MarketVendorStatusScreenState extends State<MarketVendorStatusScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(_sellerFriendlyError(e))),
         );
       }
     } finally {
@@ -1222,7 +1237,7 @@ class _AddMarketProductDialogState extends State<_AddMarketProductDialog> {
 
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _sellerFriendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1502,7 +1517,7 @@ class _MarketSellerOrdersState extends State<MarketSellerOrders> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(_sellerFriendlyError(e))),
         );
       }
     } finally {
@@ -1826,7 +1841,7 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(_sellerFriendlyError(e))),
         );
       }
     } finally {
