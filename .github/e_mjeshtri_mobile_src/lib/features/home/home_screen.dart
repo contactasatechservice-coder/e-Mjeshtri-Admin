@@ -32,6 +32,190 @@ class HomeScreen extends ConsumerWidget {
         _ => Icons.home_repair_service_rounded,
       };
 
+
+  String? _categoryPhoto(Map<String, dynamic> item, String language) {
+    final slug = (item['slug'] ?? '').toString().toLowerCase();
+    final key = (item['icon_key'] ?? '').toString().toLowerCase();
+    final name = translatedName(item, language).toLowerCase();
+    final source = '$slug $key $name';
+
+    if (source.contains('solar') || source.contains('panel')) {
+      return 'assets/category_cards/panel_diellore.webp';
+    }
+    if (source.contains('router') ||
+        source.contains('internet') ||
+        source.contains('smart')) {
+      return 'assets/category_cards/internet_tv_smart.webp';
+    }
+    if (source.contains('videocam') ||
+        source.contains('kamer') ||
+        source.contains('sigur')) {
+      return 'assets/category_cards/kamera_siguri.webp';
+    }
+    if (source.contains('local_shipping') ||
+        source.contains('transport') ||
+        source.contains('zhvend')) {
+      return 'assets/category_cards/transport_zhvendosje.webp';
+    }
+    if (source.contains('xham') ||
+        source.contains('alumin') ||
+        source.contains('door_front')) {
+      return 'assets/category_cards/xham_alumini.webp';
+    }
+    if (source.contains('roof') ||
+        source.contains('cati') ||
+        source.contains('çati') ||
+        source.contains('hidro')) {
+      return 'assets/category_cards/cati_hidroizolim.webp';
+    }
+    return null;
+  }
+
+  Color _categoryAccent(Map<String, dynamic> item, String language) {
+    switch (_categoryPhoto(item, language)) {
+      case 'assets/category_cards/panel_diellore.webp':
+        return const Color(0xFF1672D4);
+      case 'assets/category_cards/internet_tv_smart.webp':
+        return const Color(0xFFF0A500);
+      case 'assets/category_cards/kamera_siguri.webp':
+        return const Color(0xFFF05B55);
+      case 'assets/category_cards/transport_zhvendosje.webp':
+        return const Color(0xFFB06B1C);
+      case 'assets/category_cards/xham_alumini.webp':
+        return const Color(0xFF16A871);
+      case 'assets/category_cards/cati_hidroizolim.webp':
+        return const Color(0xFF7452E8);
+      default:
+        return AppColors.blue;
+    }
+  }
+
+  Widget _categoryPhotoCard(
+    BuildContext context,
+    Map<String, dynamic> item,
+    String language,
+  ) {
+    final photo = _categoryPhoto(item, language);
+    final accent = _categoryAccent(item, language);
+    final radius = BorderRadius.circular(24);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: radius,
+        onTap: () => context.push('/categories/\${item['id']}'),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            color: accent.withValues(alpha: .08),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 18,
+                offset: Offset(0, 7),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (photo != null)
+                  Image.asset(
+                    photo,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                  )
+                else
+                  ColoredBox(color: accent.withValues(alpha: .10)),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomLeft,
+                      end: Alignment.topRight,
+                      colors: [
+                        Colors.white.withValues(alpha: .97),
+                        Colors.white.withValues(alpha: .72),
+                        accent.withValues(alpha: .07),
+                        Colors.transparent,
+                      ],
+                      stops: const [0, .42, .66, 1],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 14,
+                  top: 14,
+                  child: Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .94),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x12000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _icon(item['icon_key']?.toString()),
+                      color: accent,
+                      size: 24,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 15,
+                  right: 50,
+                  bottom: 16,
+                  child: Text(
+                    translatedName(item, language),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF111827),
+                      fontSize: 16,
+                      height: 1.10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 11,
+                  bottom: 11,
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .94),
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x16000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: accent,
+                      size: 27,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = AppStrings.of(context);
@@ -118,46 +302,35 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   categories.when(
                     loading: () => const _CategorySkeleton(),
-                    error: (_, __) => EmptyState(icon: Icons.cloud_off_rounded, title: s.t('errorGeneric')),
-                    data: (items) => SizedBox(
-                      height: 112,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: items.take(8).length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (_, i) {
-                          final item = items[i];
-                          return InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () => context.push('/categories/${item['id']}'),
-                            child: SizedBox(
-                              width: 92,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 64,
-                                    height: 64,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.blue.withValues(alpha: .07),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Icon(_icon(item['icon_key']?.toString()), color: AppColors.blue),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    translatedName(item, language),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                    error: (_, __) => EmptyState(
+                      icon: Icons.cloud_off_rounded,
+                      title: s.t('errorGeneric'),
                     ),
+                    data: (items) {
+                      final photoItems = items
+                          .where((item) => _categoryPhoto(item, language) != null)
+                          .take(6)
+                          .toList();
+                      final visible =
+                          photoItems.length >= 6 ? photoItems : items.take(6).toList();
+
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: visible.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.05,
+                        ),
+                        itemBuilder: (context, i) {
+                          final item = visible[i];
+                          return _categoryPhotoCard(context, item, language);
+                        },
+                      );
+                    },
                   ),
                   const SizedBox(height: 26),
                   _SectionHeader(title: s.t('nearby')),
