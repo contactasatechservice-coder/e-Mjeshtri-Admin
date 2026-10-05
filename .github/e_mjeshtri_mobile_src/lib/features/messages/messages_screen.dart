@@ -230,7 +230,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       await action();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.of(context).t('errorGeneric'))));
     } finally {
       if (mounted) setState(() => attaching = false);
     }
