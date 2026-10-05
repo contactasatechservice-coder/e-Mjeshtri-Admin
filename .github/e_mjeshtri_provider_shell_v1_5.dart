@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../market/market_screen.dart';
 import 'core.dart';
@@ -23,6 +27,81 @@ class ProviderShell extends StatefulWidget {
 class _ProviderShellState extends State<ProviderShell> {
   int index = 0;
   int workTab = 0;
+  Timer? _locationTimer;
+  bool _locationTickBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _syncLiveLocation(),
+    );
+    Future<void>.delayed(const Duration(seconds: 1), _syncLiveLocation);
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _syncLiveLocation() async {
+    if (_locationTickBusy || !mounted) return;
+    _locationTickBusy = true;
+    try {
+      final client = Supabase.instance.client;
+      final rows = await client
+          .from('service_orders')
+          .select('id,status')
+          .eq('provider_id', widget.providerId)
+          .eq('status', 'provider_on_way')
+          .limit(1);
+
+      if (rows is! List || rows.isEmpty) return;
+      final order = Map<String, dynamic>.from(rows.first as Map);
+      final orderId = order['id']?.toString();
+      if (orderId == null || orderId.isEmpty) return;
+
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) return;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+
+      await client.from('order_live_locations').upsert(
+        {
+          'order_id': orderId,
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'heading': position.heading.isFinite ? position.heading : null,
+          'speed_kph':
+              position.speed.isFinite ? position.speed * 3.6 : null,
+          'accuracy_meters':
+              position.accuracy.isFinite ? position.accuracy : null,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        onConflict: 'order_id',
+      );
+    } catch (_) {
+      // Live location retries automatically on the next foreground tick.
+    } finally {
+      _locationTickBusy = false;
+    }
+  }
 
   void _openProviderTab(int requestedIndex) {
     setState(() {
