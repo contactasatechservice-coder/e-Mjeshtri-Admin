@@ -406,14 +406,39 @@ class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
           decoration: InputDecoration(labelText: s.t('newPassword')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(s.t('cancel'))),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(s.t('save'))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(s.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(s.t('save')),
+          ),
         ],
       ),
     );
     if (shouldSave == true && pass.text.length >= 8) {
-      await Supabase.instance.client.auth.updateUser(UserAttributes(password: pass.text));
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: pass.text),
+      );
     }
+  }
+
+  Widget _privacyCard({
+    required IconData icon,
+    required String title,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: Icon(icon),
+        title: Text(title),
+        trailing: trailing,
+        onTap: onTap,
+      ),
+    );
   }
 
   @override
@@ -424,47 +449,43 @@ class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.password_rounded),
-                  title: Text(s.t('changePassword')),
-                  onTap: _changePassword,
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.devices_rounded),
-                  title: Text(s.t('signOutAll')),
-                  onTap: () async {
-                    await Supabase.instance.client.auth.signOut(scope: SignOutScope.global);
-                    if (context.mounted) context.go('/auth');
-                  },
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.file_download_outlined),
-                  title: Text(s.t('exportData')),
-                  onTap: () async {
-                    await ref.read(marketplaceRepositoryProvider).requestDataExport();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(s.t('dataExportRequested'))),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
+          _privacyCard(
+            icon: Icons.password_rounded,
+            title: s.t('changePassword'),
+            onTap: _changePassword,
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.block_rounded),
-              title: Text(s.t('blockedUsers')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => context.push('/profile/blocked'),
-            ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            icon: Icons.devices_rounded,
+            title: s.t('signOutAll'),
+            onTap: () async {
+              await Supabase.instance.client.auth.signOut(
+                scope: SignOutScope.global,
+              );
+              if (context.mounted) context.go('/auth');
+            },
+          ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            icon: Icons.file_download_outlined,
+            title: s.t('exportData'),
+            onTap: () async {
+              await ref
+                  .read(marketplaceRepositoryProvider)
+                  .requestDataExport();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(s.t('dataExportRequested'))),
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _privacyCard(
+            icon: Icons.block_rounded,
+            title: s.t('blockedUsers'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/profile/blocked'),
           ),
         ],
       ),
@@ -475,7 +496,56 @@ class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
 class BlockedProvidersScreen extends ConsumerStatefulWidget {const BlockedProvidersScreen({super.key});@override ConsumerState<BlockedProvidersScreen> createState()=>_BlockedProvidersScreenState();}
 class _BlockedProvidersScreenState extends ConsumerState<BlockedProvidersScreen>{late Future<List<Map<String,dynamic>>> future;@override void initState(){super.initState();future=ref.read(marketplaceRepositoryProvider).blockedProviders();}void reload()=>setState(()=>future=ref.read(marketplaceRepositoryProvider).blockedProviders());@override Widget build(BuildContext context){final s=AppStrings.of(context);return Scaffold(appBar:AppBar(title:Text(s.t('blockedUsers'))),body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,snap){if(snap.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());final items=snap.data??[];if(items.isEmpty)return EmptyState(icon:Icons.block_rounded,title:s.t('noBlocked'));return ListView(padding:const EdgeInsets.all(18),children:items.map((x){final p=(x['providers'] as Map?)?.cast<String,dynamic>()??{};return Card(child:ListTile(title:Text((p['display_name']??'').toString()),trailing:TextButton(onPressed:()async{await ref.read(marketplaceRepositoryProvider).unblockProvider(p['id'].toString());reload();},child:Text(s.t('unblock')))));}).toList());}));}}
 
-class HelpCenterScreen extends StatelessWidget {const HelpCenterScreen({super.key});@override Widget build(BuildContext context){final s=AppStrings.of(context);final faqs=[(s.t('faqHowTitle'),s.t('faqHowBody')),(s.t('faqAddressTitle'),s.t('faqAddressBody')),(s.t('faqReportTitle'),s.t('faqReportBody'))];return Scaffold(appBar:AppBar(title:Text(s.t('helpCenter'))),body:ListView(padding:const EdgeInsets.all(18),children:[...faqs.map((x)=>Card(child:ExpansionTile(title:Text(x.$1,style:const TextStyle(fontWeight:FontWeight.w700)),children:[Padding(padding:const EdgeInsets.fromLTRB(16,0,16,16),child:Text(x.$2))]))),const SizedBox(height:12),SizedBox(height:52,child:FilledButton.icon(onPressed:()=>context.push('/support/new'),icon:const Icon(Icons.support_agent_rounded),label:Text(s.t('createTicket'))))]));}}
+class HelpCenterScreen extends StatelessWidget {
+  const HelpCenterScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    final faqs = [
+      (s.t('faqHowTitle'), s.t('faqHowBody')),
+      (s.t('faqAddressTitle'), s.t('faqAddressBody')),
+      (s.t('faqReportTitle'), s.t('faqReportBody')),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(title: Text(s.t('helpCenter'))),
+      body: ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          for (var i = 0; i < faqs.length; i++) ...[
+            Card(
+              child: ExpansionTile(
+                tilePadding: const EdgeInsets.symmetric(horizontal: 20),
+                childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                title: Text(
+                  faqs[i].$1,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(faqs[i].$2),
+                  ),
+                ],
+              ),
+            ),
+            if (i < faqs.length - 1) const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 52,
+            child: FilledButton.icon(
+              onPressed: () => context.push('/support/new'),
+              icon: const Icon(Icons.support_agent_rounded),
+              label: Text(s.t('createTicket')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class SupportTicketCreateScreen extends ConsumerStatefulWidget {const SupportTicketCreateScreen({super.key,this.orderId});final String? orderId;@override ConsumerState<SupportTicketCreateScreen> createState()=>_SupportTicketCreateScreenState();}
 class _SupportTicketCreateScreenState extends ConsumerState<SupportTicketCreateScreen>{final subject=TextEditingController(),message=TextEditingController();String category='general';bool busy=false;@override void dispose(){subject.dispose();message.dispose();super.dispose();}@override Widget build(BuildContext context){final s=AppStrings.of(context);return Scaffold(appBar:AppBar(title:Text(s.t('supportTicket'))),body:ListView(padding:const EdgeInsets.all(20),children:[DropdownButtonFormField<String>(value:category,decoration:InputDecoration(labelText:s.t('support')),items:[DropdownMenuItem(value:'general',child:Text(s.t('general'))),DropdownMenuItem(value:'order',child:Text(s.t('order'))),DropdownMenuItem(value:'payment',child:Text(s.t('payment'))),DropdownMenuItem(value:'safety',child:Text(s.t('safety')))],onChanged:(v)=>setState(()=>category=v??'general')),const SizedBox(height:12),TextField(controller:subject,decoration:InputDecoration(labelText:s.t('subject'))),const SizedBox(height:12),TextField(controller:message,minLines:5,maxLines:8,decoration:InputDecoration(labelText:s.t('supportMessage'))),const SizedBox(height:22),SizedBox(height:54,child:FilledButton(onPressed:busy?null:()async{if(subject.text.trim().isEmpty||message.text.trim().isEmpty)return;setState(()=>busy=true);try{await ref.read(marketplaceRepositoryProvider).createSupportTicket(category:category,subject:subject.text,message:message.text,orderId:widget.orderId);if(context.mounted){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.t('ticketSent'))));context.pop();}}finally{if(mounted)setState(()=>busy=false);}},child:Text(s.t('send'))))]));}}
