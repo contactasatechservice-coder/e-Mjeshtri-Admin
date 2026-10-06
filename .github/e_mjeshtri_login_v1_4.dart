@@ -27,10 +27,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if(!(formKey.currentState?.validate()??false))return;
     setState(()=>{loading=true,error=null});
     try{
-      await ref.read(authRepositoryProvider).signIn(email:email.text,password:password.text);
+      final auth = ref.read(authRepositoryProvider);
+      await auth.signIn(email:email.text,password:password.text);
       final role=_role;
       await Supabase.instance.client.rpc('set_my_app_role',params:{'p_role':role});
-      if(mounted)context.go(role=='provider'?'/provider':'/permissions/location');
+      final route = role == 'provider'
+          ? await auth.providerLandingRoute()
+          : '/permissions/location';
+      if(mounted)context.go(route);
     }catch(_){
       if(mounted)setState(()=>error=AppStrings.of(context).t('loginFailed'));
     }finally{if(mounted)setState(()=>loading=false);}
