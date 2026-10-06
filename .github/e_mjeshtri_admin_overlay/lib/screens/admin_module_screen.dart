@@ -739,7 +739,7 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     final ticket = rawTicket is Map
         ? Map<String, dynamic>.from(rawTicket)
         : <String, dynamic>{};
-    final messages = data['messages'] is List
+    final initialMessages = data['messages'] is List
         ? (data['messages'] as List)
             .whereType<Map>()
             .map((e) => Map<String, dynamic>.from(e))
@@ -747,61 +747,111 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
         : <Map<String, dynamic>>[];
 
     final reply = TextEditingController();
+    var sending = false;
     final canReply = _canWriteCurrentModule &&
         (ticket['status'] ?? '').toString() != 'closed';
 
-    final body = await showDialog<String>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text((ticket['subject'] ?? item.title).toString()),
-        content: SizedBox(
-          width: 720,
-          height: 560,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _InfoPill(
-                    icon: Icons.person_outline_rounded,
-                    text: (ticket['user_name'] ?? 'Përdorues').toString(),
-                  ),
-                  _InfoPill(
-                    icon: Icons.flag_outlined,
-                    text: (ticket['priority'] ?? 'normal').toString(),
-                  ),
-                  _InfoPill(
-                    icon: Icons.info_outline_rounded,
-                    text: _statusLabel((ticket['status'] ?? '').toString()),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Divider(),
-              const SizedBox(height: 8),
               Expanded(
-                child: messages.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Nuk ka mesazhe në këtë ticket.',
-                          style: TextStyle(color: Colors.black54),
-                        ),
-                      )
-                    : ListView.separated(
+                child: Text((ticket['subject'] ?? item.title).toString()),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 8, color: Colors.green),
+                    SizedBox(width: 5),
+                    Text(
+                      'LIVE',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 720,
+            height: 560,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoPill(
+                      icon: Icons.person_outline_rounded,
+                      text: (ticket['user_name'] ?? 'Përdorues').toString(),
+                    ),
+                    _InfoPill(
+                      icon: Icons.flag_outlined,
+                      text: (ticket['priority'] ?? 'normal').toString(),
+                    ),
+                    _InfoPill(
+                      icon: Icons.info_outline_rounded,
+                      text: _statusLabel((ticket['status'] ?? '').toString()),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: AdminModulesRepository.instance
+                        .supportMessagesStream(item.id),
+                    initialData: initialMessages,
+                    builder: (context, snap) {
+                      if (snap.hasError) {
+                        return Center(
+                          child: Text(
+                            _friendlyError(snap.error!),
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        );
+                      }
+                      final messages =
+                          snap.data ?? const <Map<String, dynamic>>[];
+                      if (messages.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            'Nuk ka mesazhe në këtë chat.',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
                         itemCount: messages.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 9),
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 9),
                         itemBuilder: (context, index) {
                           final message = messages[index];
                           final isAdmin =
-                              (message['sender_type'] ?? '').toString() == 'admin';
+                              (message['sender_type'] ?? '').toString() ==
+                                  'admin';
                           return Align(
                             alignment: isAdmin
                                 ? Alignment.centerRight
                                 : Alignment.centerLeft,
                             child: Container(
-                              constraints: const BoxConstraints(maxWidth: 520),
+                              constraints:
+                                  const BoxConstraints(maxWidth: 520),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: isAdmin
@@ -813,12 +863,13 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    (message['sender_name'] ??
-                                            (isAdmin ? 'Admin' : 'Përdorues'))
-                                        .toString(),
+                                    isAdmin
+                                        ? 'Suporti e-Mjeshtri'
+                                        : 'Mjeshtri',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 11,
@@ -832,7 +883,8 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
                                     const SizedBox(height: 6),
                                     Text(
                                       'Bashkëngjitje: ' +
-                                          message['attachment_path'].toString(),
+                                          message['attachment_path']
+                                              .toString(),
                                       style: const TextStyle(
                                         color: Colors.black54,
                                         fontSize: 11,
@@ -844,50 +896,85 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
                             ),
                           );
                         },
-                      ),
-              ),
-              if (canReply) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reply,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Përgjigju përdoruesit',
-                    alignLabelWithHint: true,
+                      );
+                    },
                   ),
                 ),
+                if (canReply) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: reply,
+                          minLines: 1,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            hintText: 'Shkruaj mesazhin...',
+                            labelText: 'Përgjigju në chat live',
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        onPressed: sending
+                            ? null
+                            : () async {
+                                final text = reply.text.trim();
+                                if (text.isEmpty) return;
+                                setDialogState(() => sending = true);
+                                try {
+                                  await AdminModulesRepository.instance
+                                      .replySupport(item.id, text);
+                                  reply.clear();
+                                } catch (e) {
+                                  if (dialogContext.mounted) {
+                                    ScaffoldMessenger.of(dialogContext)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content: Text(_friendlyError(e)),
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (dialogContext.mounted) {
+                                    setDialogState(() => sending = false);
+                                  }
+                                }
+                              },
+                        icon: sending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Mbyll'),
-          ),
-          if (canReply)
-            FilledButton.icon(
-              onPressed: () {
-                final text = reply.text.trim();
-                if (text.isEmpty) return;
-                Navigator.pop(context, text);
-              },
-              icon: const Icon(Icons.send_rounded),
-              label: const Text('Dërgo'),
             ),
-        ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Mbyll'),
+            ),
+          ],
+        ),
       ),
     );
 
     reply.dispose();
-    if (body == null || body.trim().isEmpty) return;
-
-    await _runRemote(
-      () => AdminModulesRepository.instance.replySupport(item.id, body),
-      success: 'Përgjigjja u dërgua.',
-    );
+    await _reload();
   }
+
   Future<void> _createCategory() async {
     final result = await _categoryDialog();
     if (result == null) return;
