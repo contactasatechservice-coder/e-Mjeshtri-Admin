@@ -33,7 +33,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await Supabase.instance.client.rpc('set_my_app_role',params:{'p_role':role});
       final route = role == 'provider'
           ? await auth.providerLandingRoute()
-          : '/permissions/location';
+          : '/home';
       if(mounted)context.go(route);
     }catch(_){
       if(mounted)setState(()=>error=AppStrings.of(context).t('loginFailed'));
