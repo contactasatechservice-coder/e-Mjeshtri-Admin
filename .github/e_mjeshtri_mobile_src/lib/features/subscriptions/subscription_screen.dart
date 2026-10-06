@@ -835,40 +835,97 @@ class _BankCard extends StatelessWidget {
     final configured = _text(details['bank_name']) != '—' &&
         _text(details['account_name']) != '—' &&
         _text(details['iban']) != '—';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.account_balance_rounded, color: AppColors.blue),
-                SizedBox(width: 9),
-                Text(
-                  'Të dhënat bankare',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (!configured)
-              const Text(
-                'Administratori nuk i ka vendosur ende të dhënat bankare.',
-                style: TextStyle(
-                  color: AppColors.danger,
-                  fontWeight: FontWeight.w700,
-                ),
-              )
-            else ...[
-              _KeyValue('Banka', _text(details['bank_name'])),
-              _KeyValue('Përfituesi', _text(details['account_name'])),
-              _KeyValue('IBAN', _text(details['iban']), selectable: true),
-              if (_text(details['note']) != '—')
-                _KeyValue('Shënim', _text(details['note'])),
-            ],
-          ],
+
+    return Container(
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: AppColors.blue.withValues(alpha: .035),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.blue.withValues(alpha: .12),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Color(0xFFEAF3FF),
+                child: Icon(
+                  Icons.account_balance_rounded,
+                  color: AppColors.blue,
+                ),
+              ),
+              SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Si bëhet pagesa?',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.blueDark,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Pagesa bëhet me transfertë bankare.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          if (!configured)
+            const Text(
+              'Administratori nuk i ka vendosur ende të dhënat bankare.',
+              style: TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: AppColors.blue.withValues(alpha: .10),
+                ),
+              ),
+              child: Column(
+                children: [
+                  _KeyValue('Banka', _text(details['bank_name'])),
+                  _KeyValue(
+                    'Përfituesi',
+                    _text(details['account_name']),
+                  ),
+                  _KeyValue(
+                    'IBAN',
+                    _text(details['iban']),
+                    selectable: true,
+                  ),
+                  _KeyValue(
+                    'Përshkrimi',
+                    _text(details['note']) == '—'
+                        ? 'Emri i biznesit / Abonimi e-Mjeshtri'
+                        : _text(details['note']),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -913,7 +970,11 @@ class _ProofCard extends StatelessWidget {
   final PlatformFile? proof;
   final Map<String, dynamic>? pending;
   final VoidCallback? onPick;
-  const _ProofCard({required this.proof, required this.pending, this.onPick});
+  const _ProofCard({
+    required this.proof,
+    required this.pending,
+    this.onPick,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -922,14 +983,19 @@ class _ProofCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.orange.withValues(alpha: .09),
+          color: AppColors.orange.withValues(alpha: .08),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.orange.withValues(alpha: .25)),
+          border: Border.all(
+            color: AppColors.orange.withValues(alpha: .24),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.hourglass_top_rounded, color: AppColors.orange),
+            const Icon(
+              Icons.hourglass_top_rounded,
+              color: AppColors.orange,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -937,13 +1003,17 @@ class _ProofCard extends StatelessWidget {
                 children: [
                   const Text(
                     'Pagesa është në verifikim',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.blueDark,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     fee >= 500
-                        ? 'Admini do të kontrollojë edhe 500 Lek për Tick-un blu.'
+                        ? 'Admini do të kontrollojë abonimin dhe Tick-un Blu.'
                         : 'Admini po kontrollon provën e abonimit.',
+                    style: const TextStyle(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -953,17 +1023,49 @@ class _ProofCard extends StatelessWidget {
       );
     }
 
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: const Icon(Icons.receipt_long_rounded, color: AppColors.blue),
-        title: Text(
-          proof?.name ?? 'Ngarko provën e pagesës',
-          style: const TextStyle(fontWeight: FontWeight.w800),
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 19,
         ),
-        subtitle: const Text('JPG, PNG ose PDF • maksimumi 8 MB'),
-        trailing: const Icon(Icons.upload_file_rounded),
-        onTap: onPick,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.blue.withValues(alpha: .34),
+            width: 1.4,
+          ),
+        ),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.cloud_upload_rounded,
+              color: AppColors.blue,
+              size: 34,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              proof?.name ?? 'Ngarko provën e pagesës',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.blue,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 3),
+            const Text(
+              'JPG, PNG ose PDF • maksimumi 8 MB',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -982,88 +1084,143 @@ class _StatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasSubscription = subscription != null;
-    final tickActive = blueTick['active'] == true;
+    final approved = subscription != null && pendingPayment == null;
+    final pending = pendingPayment != null;
+
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.blueDark, AppColors.blue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: AppColors.orange.withValues(alpha: .045),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.orange.withValues(alpha: .12),
         ),
-        borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.workspace_premium_rounded, color: Colors.white),
-              SizedBox(width: 8),
-              Text(
-                'Statusi i abonimit',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Color(0xFFFFF1E4),
+                child: Icon(
+                  Icons.schedule_rounded,
+                  color: AppColors.orange,
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Statusi i aktivizimit',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.blueDark,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            pendingPayment != null
-                ? 'Në pritje të aprovimit'
-                : hasSubscription
-                    ? _subscriptionLabel(subscription!)
-                    : 'Pa abonim aktiv',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
+          const SizedBox(height: 6),
+          const Text(
+            'Llogaria juaj do të aktivizohet vetëm pas miratimit nga admini.',
+            style: TextStyle(
+              color: AppColors.muted,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
             ),
           ),
-          if (hasSubscription) ...[
-            const SizedBox(height: 5),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _StatusStep(
+                  icon: Icons.schedule_rounded,
+                  label: 'Në pritje të\\nverifikimit',
+                  active: pending,
+                  color: AppColors.orange,
+                ),
+              ),
+              Expanded(
+                child: _StatusStep(
+                  icon: Icons.check_rounded,
+                  label: 'Aprovuar\\nnga Admini',
+                  active: approved,
+                  color: AppColors.success,
+                ),
+              ),
+              const Expanded(
+                child: _StatusStep(
+                  icon: Icons.close_rounded,
+                  label: 'Refuzuar\\n(me arsye)',
+                  active: false,
+                  color: AppColors.danger,
+                ),
+              ),
+            ],
+          ),
+          if (approved) ...[
+            const SizedBox(height: 12),
             Text(
-              'Rinovim / skadim: ${_date(subscription!['renews_at'])}',
-              style: const TextStyle(color: Colors.white70),
+              'Abonimi është aktiv deri më ${_date(subscription!['renews_at'])}.',
+              style: const TextStyle(
+                color: AppColors.success,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.verified_rounded,
-                  size: 18,
-                  color: tickActive ? Colors.lightBlueAccent : Colors.white60,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  tickActive
-                      ? 'Tick blu aktiv deri ${_date(blueTick['expires_at'])}'
-                      : 'Tick blu jo aktiv',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
+}
+
+class _StatusStep extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final Color color;
+
+  const _StatusStep({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: active
+                  ? color
+                  : AppColors.muted.withValues(alpha: .14),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: active ? Colors.white : AppColors.muted,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.2,
+              fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+              color: active ? color : AppColors.muted,
+            ),
+          ),
+        ],
+      );
 }
 
 class _ErrorCard extends StatelessWidget {
