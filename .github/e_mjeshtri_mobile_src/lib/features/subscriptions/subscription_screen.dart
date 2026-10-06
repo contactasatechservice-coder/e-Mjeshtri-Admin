@@ -15,10 +15,13 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   final _client = Supabase.instance.client;
   final _bankReference = TextEditingController();
+  final _cityController = TextEditingController();
 
   bool _loading = true;
   bool _sending = false;
   bool _openingSupport = false;
+  bool _savingSetup = false;
+  bool _uploadingVerification = false;
   String? _error;
   String? _providerId;
   String? _selectedPlan;
@@ -26,6 +29,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Map<String, dynamic> _overview = const {};
   Map<String, dynamic>? _quote;
   PlatformFile? _proof;
+  PlatformFile? _verificationFile;
+  Map<String, dynamic> _providerProfile = const {};
+  List<Map<String, dynamic>> _categories = const [];
+  String? _selectedCategoryId;
+  Map<String, dynamic>? _verificationDocument;
 
   @override
   void initState() {
@@ -36,6 +44,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   void dispose() {
     _bankReference.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -77,6 +86,56 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           ? Map<String, dynamic>.from(raw)
           : <String, dynamic>{};
 
+      final profileRaw = await _client
+          .from('providers')
+          .select('id,display_name,city,status,is_verified')
+          .eq('id', providerId)
+          .single();
+      final profile = Map<String, dynamic>.from(profileRaw);
+
+      final categoryRows = await _client
+          .from('service_categories')
+          .select(
+            'id,slug,sort_order,service_category_translations(language_code,name)',
+          )
+          .isFilter('parent_id', null)
+          .eq('is_active', true)
+          .order('sort_order');
+      final categories =
+          List<Map<String, dynamic>>.from(categoryRows as List);
+
+      final providerCategoryRows = await _client
+          .from('provider_categories')
+          .select('category_id,is_active')
+          .eq('provider_id', providerId)
+          .eq('is_active', true)
+          .limit(1);
+      String? providerCategoryId;
+      if (providerCategoryRows is List && providerCategoryRows.isNotEmpty) {
+        providerCategoryId =
+            (providerCategoryRows.first as Map)['category_id']?.toString();
+      }
+
+      final documentRows = await _client
+          .from('provider_documents')
+          .select('id,document_type,status,storage_path,created_at')
+          .eq('provider_id', providerId)
+          .order('created_at', ascending: false)
+          .limit(10);
+      Map<String, dynamic>? verificationDocument;
+      if (documentRows is List) {
+        for (final rawDoc in documentRows) {
+          if (rawDoc is! Map) continue;
+          final doc = Map<String, dynamic>.from(rawDoc);
+          if (doc['document_type'] == 'id_card') {
+            verificationDocument = doc;
+            if (doc['status'] == 'approved' || doc['status'] == 'pending') {
+              break;
+            }
+          }
+        }
+      }
+
       final plans = _maps(overview['plans']);
       final defaultPlan = plans.any((p) => p['code'] == 'monthly')
           ? 'monthly'
@@ -88,6 +147,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         setState(() {
           _providerId = providerId;
           _overview = overview;
+          _providerProfile = profile;
+          _categories = categories;
+          _selectedCategoryId ??= providerCategoryId;
+          _verificationDocument = verificationDocument;
+          _cityController.text = (profile['city'] ?? '').toString();
           _selectedPlan ??= defaultPlan;
         });
       }
@@ -96,6 +160,152 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       if (mounted) setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  String _categoryLabel(Map<String, dynamic> category) {
+    final translations = category['service_category_translations'];
+    if (translations is List) {
+      for (final raw in translations) {
+        if (raw is Map &&
+            (raw['language_code'] ?? '').toString() == 'sq' &&
+            (raw['name'] ?? '').toString().trim().isNotEmpty) {
+          return raw['name'].toString();
+        }
+      }
+      for (final raw in translations) {
+        if (raw is Map &&
+            (raw['name'] ?? '').toString().trim().isNotEmpty) {
+          return raw['name'].toString();
+        }
+      }
+    }
+    return (category['slug'] ?? 'Kategori').toString();
+  }
+
+  bool get _hasActiveCategory =>
+      _selectedCategoryId != null && _selectedCategoryId!.isNotEmpty;
+
+  String get _verificationStatus =>
+      (_verificationDocument?['status'] ?? 'missing').toString();
+
+  bool get _hasVerificationDocument =>
+      _verificationStatus == 'pending' || _verificationStatus == 'approved';
+
+  bool get _setupReady =>
+      _cityController.text.trim().isNotEmpty &&
+      _hasActiveCategory &&
+      _hasVerificationDocument;
+
+  Future<void> _saveProviderSetup() async {
+    if (_savingSetup) return;
+    final providerId = _providerId;
+    if (providerId == null) return;
+
+    final city = _cityController.text.trim();
+    final categoryId = _selectedCategoryId;
+    if (city.isEmpty) {
+      _toast('Vendos qytetin e Mjeshtrit.', error: true);
+      return;
+    }
+    if (categoryId == null || categoryId.isEmpty) {
+      _toast('Zgjidh të paktën një kategori.', error: true);
+      return;
+    }
+
+    setState(() => _savingSetup = true);
+    try {
+      await _client
+          .from('providers')
+          .update({'city': city})
+          .eq('id', providerId);
+
+      await _client.from('provider_categories').upsert(
+        {
+          'provider_id': providerId,
+          'category_id': categoryId,
+          'is_active': true,
+        },
+        onConflict: 'provider_id,category_id',
+      );
+
+      _toast('Profili u ruajt.');
+      await _load();
+    } catch (e) {
+      _toast(_friendlyError(e), error: true);
+    } finally {
+      if (mounted) setState(() => _savingSetup = false);
+    }
+  }
+
+  Future<void> _pickVerificationDocument() async {
+    if (_uploadingVerification) return;
+    final providerId = _providerId;
+    if (providerId == null) return;
+
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+    if (file == null) return;
+
+    final length = file.lengthSync() ?? await file.length();
+    if (length == null || length <= 0) {
+      _toast('Nuk u lexua dot dokumenti.', error: true);
+      return;
+    }
+    const maxBytes = 8 * 1024 * 1024;
+    if (length > maxBytes) {
+      _toast('Dokumenti duhet të jetë më i vogël se 8 MB.', error: true);
+      return;
+    }
+
+    setState(() {
+      _verificationFile = file;
+      _uploadingVerification = true;
+    });
+
+    String? uploadedPath;
+    try {
+      final safeName = _safeFileName(file.name);
+      final path = '$providerId/verification/'
+          '${DateTime.now().millisecondsSinceEpoch}_$safeName';
+      final bytes = await file.readAsBytes();
+      await _client.storage.from('provider-documents').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _contentType(safeName),
+              upsert: false,
+            ),
+          );
+      uploadedPath = path;
+
+      await _client.from('provider_documents').insert({
+        'provider_id': providerId,
+        'document_type': 'id_card',
+        'storage_path': path,
+        'status': 'pending',
+      });
+
+      _toast('Dokumenti u dërgua për verifikim.');
+      await _load();
+    } catch (e) {
+      if (uploadedPath != null) {
+        try {
+          await _client.storage
+              .from('provider-documents')
+              .remove([uploadedPath]);
+        } catch (_) {}
+      }
+      _toast(_friendlyError(e), error: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _verificationFile = null;
+          _uploadingVerification = false;
+        });
+      }
     }
   }
 
@@ -173,6 +383,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
     if (proof == null) {
       _toast('Ngarko provën e pagesës.', error: true);
+      return;
+    }
+    if (!_setupReady) {
+      _toast(
+        'Përfundo qytetin, kategorinë dhe dokumentin e verifikimit para pagesës.',
+        error: true,
+      );
       return;
     }
     if (!_hasBankDetails) {
@@ -352,6 +569,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           const SizedBox(height: 14),
                           _ErrorCard(text: _error!),
                         ],
+                        const SizedBox(height: 18),
+                        _ProviderSetupCard(
+                          cityController: _cityController,
+                          categories: _categories,
+                          selectedCategoryId: _selectedCategoryId,
+                          categoryLabel: _categoryLabel,
+                          verificationStatus: _verificationStatus,
+                          providerStatus:
+                              (_providerProfile['status'] ?? 'pending')
+                                  .toString(),
+                          saving: _savingSetup,
+                          uploadingDocument: _uploadingVerification,
+                          onCategoryChanged: (value) {
+                            setState(() => _selectedCategoryId = value);
+                          },
+                          onSave: _saveProviderSetup,
+                          onUploadDocument: _pickVerificationDocument,
+                        ),
                         const SizedBox(height: 18),
                         for (final plan in _maps(_overview['plans'])) ...[
                           _PlanCard(
@@ -569,6 +804,252 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 }
 
+class _ProviderSetupCard extends StatelessWidget {
+  final TextEditingController cityController;
+  final List<Map<String, dynamic>> categories;
+  final String? selectedCategoryId;
+  final String Function(Map<String, dynamic>) categoryLabel;
+  final String verificationStatus;
+  final String providerStatus;
+  final bool saving;
+  final bool uploadingDocument;
+  final ValueChanged<String?> onCategoryChanged;
+  final VoidCallback onSave;
+  final VoidCallback onUploadDocument;
+
+  const _ProviderSetupCard({
+    required this.cityController,
+    required this.categories,
+    required this.selectedCategoryId,
+    required this.categoryLabel,
+    required this.verificationStatus,
+    required this.providerStatus,
+    required this.saving,
+    required this.uploadingDocument,
+    required this.onCategoryChanged,
+    required this.onSave,
+    required this.onUploadDocument,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final docApproved = verificationStatus == 'approved';
+    final docPending = verificationStatus == 'pending';
+    final providerApproved = providerStatus == 'active';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.blue.withValues(alpha: .035),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.blue.withValues(alpha: .15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: Color(0xFFEAF3FF),
+                child: Icon(
+                  Icons.badge_outlined,
+                  color: AppColors.blue,
+                ),
+              ),
+              SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Përfundo profilin e Mjeshtrit',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.blueDark,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Këto të dhëna duhen para aprovimit nga Admini.',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: cityController,
+            decoration: InputDecoration(
+              labelText: 'Qyteti *',
+              prefixIcon: const Icon(Icons.location_city_rounded),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: selectedCategoryId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Kategoria kryesore *',
+              prefixIcon: const Icon(Icons.category_rounded),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            items: categories
+                .map(
+                  (category) => DropdownMenuItem<String>(
+                    value: category['id'].toString(),
+                    child: Text(
+                      categoryLabel(category),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onCategoryChanged,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: saving ? null : onSave,
+              icon: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: const Text('Ruaj profilin'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                foregroundColor: AppColors.blue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1),
+          ),
+          Row(
+            children: [
+              Icon(
+                docApproved
+                    ? Icons.verified_rounded
+                    : docPending
+                        ? Icons.hourglass_top_rounded
+                        : Icons.badge_outlined,
+                color: docApproved
+                    ? AppColors.success
+                    : docPending
+                        ? AppColors.orange
+                        : AppColors.blue,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  docApproved
+                      ? 'Dokumenti i identifikimit është aprovuar'
+                      : docPending
+                          ? 'Dokumenti është në pritje të verifikimit'
+                          : 'Ngarko dokumentin e identifikimit',
+                  style: const TextStyle(
+                    color: AppColors.blueDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (!docApproved && !docPending) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed:
+                    uploadingDocument ? null : onUploadDocument,
+                icon: uploadingDocument
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.upload_file_rounded),
+                label: const Text('Ngarko ID / Dokument'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'JPG, PNG ose PDF • maksimumi 8 MB',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(
+                providerApproved
+                    ? Icons.check_circle_rounded
+                    : Icons.schedule_rounded,
+                color: providerApproved
+                    ? AppColors.success
+                    : AppColors.orange,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  providerApproved
+                      ? 'Profili është aprovuar nga Admini'
+                      : 'Profili do të aprovohet nga Admini pasi të kontrollohen të dhënat.',
+                  style: TextStyle(
+                    color: providerApproved
+                        ? AppColors.success
+                        : AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SubscriptionHeader extends StatelessWidget {
   const _SubscriptionHeader();
 
@@ -593,7 +1074,7 @@ class _SubscriptionHeader extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Për të aktivizuar llogarinë, zgjidh një plan dhe ngarko provën e pagesës.',
+            'Përfundo profilin, verifikimin dhe abonimin për të aktivizuar llogarinë.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.muted,
