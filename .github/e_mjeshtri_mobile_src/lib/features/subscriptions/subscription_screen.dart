@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -353,6 +354,86 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           subscription: _currentSubscription,
                           pendingPayment: _pendingPayment,
                           blueTick: _blueTick,
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue.withValues(alpha: .035),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: AppColors.blue.withValues(alpha: .14),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Color(0xFFEAF3FF),
+                                    child: Icon(
+                                      Icons.support_agent_rounded,
+                                      color: AppColors.blue,
+                                    ),
+                                  ),
+                                  SizedBox(width: 11),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Ke problem me abonimin?',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                            color: AppColors.blueDark,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'Na shkruaj direkt nga aplikacioni.',
+                                          style: TextStyle(
+                                            color: AppColors.muted,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => context.push('/support/new'),
+                                  icon: const Icon(
+                                    Icons.chat_bubble_outline_rounded,
+                                  ),
+                                  label: const Text('Kontakto Suportin'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.blue,
+                                    side: BorderSide(
+                                      color: AppColors.blue
+                                          .withValues(alpha: .28),
+                                    ),
+                                    minimumSize:
+                                        const Size.fromHeight(50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(14),
+                                    ),
+                                    textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
                         FilledButton.icon(
@@ -1138,7 +1219,7 @@ class _StatusCard extends StatelessWidget {
               Expanded(
                 child: _StatusStep(
                   icon: Icons.schedule_rounded,
-                  label: 'Në pritje të\\nverifikimit',
+                  label: 'Në pritje të\nverifikimit',
                   active: pending,
                   color: AppColors.orange,
                 ),
@@ -1146,7 +1227,7 @@ class _StatusCard extends StatelessWidget {
               Expanded(
                 child: _StatusStep(
                   icon: Icons.check_rounded,
-                  label: 'Aprovuar\\nnga Admini',
+                  label: 'Aprovuar\nnga Admini',
                   active: approved,
                   color: AppColors.success,
                 ),
@@ -1154,7 +1235,7 @@ class _StatusCard extends StatelessWidget {
               const Expanded(
                 child: _StatusStep(
                   icon: Icons.close_rounded,
-                  label: 'Refuzuar\\n(me arsye)',
+                  label: 'Refuzuar\n(me arsye)',
                   active: false,
                   color: AppColors.danger,
                 ),
