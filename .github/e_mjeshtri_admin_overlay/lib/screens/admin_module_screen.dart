@@ -252,6 +252,11 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
         } else if (item.kind == 'provider' && item.status == 'pending') {
           actions.addAll(const [
             _Action(
+              'assign_category_local',
+              'Cakto kategori',
+              Icons.category_rounded,
+            ),
+            _Action(
                 'approve_provider', 'Aprovo mjeshtrin', Icons.verified_rounded),
             _Action('reject_provider', 'Refuzo mjeshtrin', Icons.block_rounded,
                 destructive: true),
@@ -500,6 +505,10 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       await _openProviderDocument(item.detail);
       return;
     }
+    if (action.key == 'assign_category_local') {
+      await _assignProviderCategory(item);
+      return;
+    }
     if (action.key == 'open_payment_proof_local') {
       await _openProviderDocument(
         (item.data['proof_storage_path'] ?? '').toString(),
@@ -719,6 +728,99 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _assignProviderCategory(AdminModuleItem item) async {
+    List<Map<String, dynamic>> categories;
+    try {
+      categories =
+          await AdminModulesRepository.instance.activeProviderCategories();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e))),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    if (categories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nuk ka kategori aktive.')),
+      );
+      return;
+    }
+
+    String labelFor(Map<String, dynamic> category) {
+      final translations = category['service_category_translations'];
+      if (translations is List) {
+        for (final raw in translations) {
+          if (raw is Map &&
+              (raw['language_code'] ?? '').toString() == 'sq' &&
+              (raw['name'] ?? '').toString().trim().isNotEmpty) {
+            return raw['name'].toString();
+          }
+        }
+        for (final raw in translations) {
+          if (raw is Map &&
+              (raw['name'] ?? '').toString().trim().isNotEmpty) {
+            return raw['name'].toString();
+          }
+        }
+      }
+      return (category['slug'] ?? 'Kategori').toString();
+    }
+
+    String? selectedId;
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Cakto kategori për ${item.title}'),
+          content: SizedBox(
+            width: 460,
+            child: DropdownButtonFormField<String>(
+              value: selectedId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Kategoria kryesore',
+              ),
+              items: categories
+                  .map(
+                    (category) => DropdownMenuItem<String>(
+                      value: category['id'].toString(),
+                      child: Text(labelFor(category)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                setDialogState(() => selectedId = value);
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Anulo'),
+            ),
+            FilledButton(
+              onPressed: selectedId == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, selectedId),
+              child: const Text('Ruaj kategorinë'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (chosen == null || chosen.isEmpty) return;
+
+    await _runRemote(
+      () => AdminModulesRepository.instance
+          .assignProviderCategory(item.id, chosen),
+      success: 'Kategoria iu caktua mjeshtrit.',
     );
   }
 
