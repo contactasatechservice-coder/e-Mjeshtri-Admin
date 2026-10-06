@@ -137,10 +137,15 @@ jobs:
           lines=pubspec.read_text().splitlines()
           for i,line in enumerate(lines):
               if line.startswith('version:'):
-                  lines[i]='version: 1.7.11+43'
+                  lines[i]='version: 1.7.12+44'
                   break
           pubspec.write_text('\n'.join(lines)+'\n')
           ps=pubspec.read_text()
+          if '\n  geocoding:' not in ps:
+              if '\n  geolocator:' in ps:
+                  ps=ps.replace('\n  geolocator:', '\n  geocoding: ^4.0.0\n  geolocator:', 1)
+              else:
+                  raise SystemExit('Could not add geocoding dependency')
           asset_line='    - assets/category_cards/'
           if asset_line not in ps:
               marker='    - assets/branding/e_mjeshtri_logo.png'
@@ -155,7 +160,7 @@ jobs:
           for i,line in enumerate(lines):
               if 'currentVersion' in line and '=' in line:
                   prefix=line.split('currentVersion',1)[0]
-                  lines[i]=prefix+"currentVersion = '1.7.11';"
+                  lines[i]=prefix+"currentVersion = '1.7.12';"
                   break
           config.write_text('\n'.join(lines)+'\n')
 
@@ -163,9 +168,9 @@ jobs:
           if strings.exists():
               t=strings.read_text()
               for old in ('Version 1.0.0','Version 1.3.0','Version 1.4.3','Version 1.4.4','Version 1.4.5'):
-                  t=t.replace(old,'Version 1.7.11')
+                  t=t.replace(old,'Version 1.7.12')
               for old in ('Versione 1.0.0','Versione 1.3.0','Versione 1.4.3','Versione 1.4.4','Versione 1.4.5'):
-                  t=t.replace(old,'Versione 1.7.11')
+                  t=t.replace(old,'Versione 1.7.12')
               strings.write_text(t)
 
           citizen_profile=Path('lib/features/profile/profile_screen.dart')
@@ -176,7 +181,15 @@ jobs:
 
           provider_profile=Path('lib/features/provider_portal/profile.dart')
           pp=provider_profile.read_text()
-          pp=pp.replace("    _Menu(icon:Icons.swap_horiz_rounded,title:'Ndrysho rol',onTap:()=>context.go('/role')),\n", "")
+          role_menu="    _Menu(icon:Icons.swap_horiz_rounded,title:'Ndrysho rol',onTap:()=>context.go('/role')),\n"
+          subscription_menu="    _Menu(icon:Icons.workspace_premium_rounded,title:'Abonimi i Mjeshtrit',onTap:()=>context.push('/profile/subscription')),\n"
+          if subscription_menu not in pp:
+              if role_menu in pp:
+                  pp=pp.replace(role_menu, subscription_menu, 1)
+              else:
+                  raise SystemExit('Could not add provider subscription menu')
+          else:
+              pp=pp.replace(role_menu, "")
           pp=pp.replace("if(context.mounted)context.go('/auth');", "if(context.mounted)context.go('/role');")
           provider_profile.write_text(pp)
 
@@ -270,16 +283,27 @@ jobs:
 
           grep -Fq "context.go('/role')" "$APP/lib/features/profile/profile_screen.dart"
           grep -Fq "context.go('/role')" "$APP/lib/features/provider_portal/profile.dart"
+          grep -Fq "Abonimi i Mjeshtrit" "$APP/lib/features/provider_portal/profile.dart"
+          if grep -Fq "Abonimi i Mjeshtrit" "$APP/lib/features/profile/profile_screen.dart"; then
+            echo "Citizen profile must not show provider subscription"
+            exit 1
+          fi
           grep -Fq "if (session == null)" "$APP/lib/features/auth/splash_screen.dart"
           grep -Fq "context.go('/role')" "$APP/lib/features/auth/splash_screen.dart"
           grep -Fq "context.go('/home')" "$APP/lib/features/requests/request_flow.dart"
           grep -Fq "Timer.periodic" "$APP/lib/features/requests/request_flow.dart"
-          grep -Fq "context.go('/permissions/location')" "$APP/lib/features/onboarding/onboarding_screen.dart"
+          grep -Fq "context.go('/home')" "$APP/lib/features/onboarding/onboarding_screen.dart"
+          if grep -Fq "/permissions/location" "$APP/lib/features/onboarding/onboarding_screen.dart" "$APP/lib/features/auth/login_screen.dart"; then
+            echo "Mandatory citizen location gate still present"
+            exit 1
+          fi
           grep -Fq "q.eq('is_verified', true)" "$APP/lib/features/marketplace/marketplace_repository.dart"
           grep -Fq "set_my_app_role" "$APP/lib/features/auth/login_screen.dart"
           grep -Fq "'app_role': role" "$APP/lib/features/auth/auth_repository.dart"
-          grep -Fq "version: 1.7.11+43" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.7.11'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "placemarkFromCoordinates" "$APP/lib/features/settings/settings_screens.dart"
+          grep -Fq "geocoding: ^4.0.0" "$APP/pubspec.yaml"
+          grep -Fq "version: 1.7.12+44" "$APP/pubspec.yaml"
+          grep -Fq "currentVersion = '1.7.12'" "$APP/lib/core/config/app_config.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           test -f "$APP/assets/category_cards/panel_diellore.webp"
@@ -308,15 +332,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.7.11.apk
-          sha256sum e-Mjeshtri-Unified-v1.7.11.apk > e-Mjeshtri-Unified-v1.7.11.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.7.12.apk
+          sha256sum e-Mjeshtri-Unified-v1.7.12.apk > e-Mjeshtri-Unified-v1.7.12.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.7.11-Android
+          name: e-Mjeshtri-Unified-v1.7.12-Android
           path: |
-            e-Mjeshtri-Unified-v1.7.11.apk
-            e-Mjeshtri-Unified-v1.7.11.apk.sha256
+            e-Mjeshtri-Unified-v1.7.12.apk
+            e-Mjeshtri-Unified-v1.7.12.apk.sha256
           if-no-files-found: error
           retention-days: 30
