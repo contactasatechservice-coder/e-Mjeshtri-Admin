@@ -9,6 +9,7 @@ import '../../core/config/app_config.dart';
 import '../../core/localization/app_strings.dart';
 import '../../core/storage/local_preferences.dart';
 import '../../core/theme/app_colors.dart';
+import 'auth_repository.dart';
 
 enum _SplashGate { loading, maintenance, update }
 
@@ -80,7 +81,15 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // Preserve the existing onboarding only for already signed-in accounts.
+    final appRole =
+        (session.user.userMetadata?['app_role'] ?? '').toString();
+    if (appRole == 'provider') {
+      final route = await AuthRepository().providerLandingRoute();
+      if (mounted) context.go(route);
+      return;
+    }
+
+    // Preserve the existing onboarding only for signed-in citizen accounts.
     final onboarded = await LocalPreferences.isOnboardingCompleted();
     if (!mounted) return;
     if (!onboarded) {
