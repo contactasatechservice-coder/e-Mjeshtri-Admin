@@ -93,6 +93,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
           .single();
       final profile = Map<String, dynamic>.from(profileRaw);
 
+      final currentSubscriptionRaw = overview['current_subscription'];
+      final currentSubscription = currentSubscriptionRaw is Map
+          ? Map<String, dynamic>.from(currentSubscriptionRaw)
+          : null;
+      final subscriptionActive =
+          currentSubscription?['effective_active'] == true;
+      final providerActive = profile['status'] == 'active';
+
+      if (subscriptionActive && providerActive) {
+        if (mounted) {
+          context.go('/provider');
+        }
+        return;
+      }
+
       final categoryRows = await _client
           .from('service_categories')
           .select(
