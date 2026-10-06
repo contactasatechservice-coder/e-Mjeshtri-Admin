@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -219,15 +220,76 @@ class _AddressEditScreenState extends ConsumerState<AddressEditScreen> {
     try {
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) throw StateError(AppStrings.of(context).t('gpsDisabled'));
+
       var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         throw StateError(AppStrings.of(context).t('locationDenied'));
       }
-      final p = await Geolocator.getCurrentPosition();
-      if (mounted) setState(() { latitude = p.latitude; longitude = p.longitude; });
+
+      final p = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+
+      Placemark? place;
+      try {
+        final places = await placemarkFromCoordinates(
+          p.latitude,
+          p.longitude,
+        );
+        if (places.isNotEmpty) place = places.first;
+      } catch (_) {
+        // Coordinates are still useful even if reverse geocoding is unavailable.
+      }
+
+      if (!mounted) return;
+      setState(() {
+        latitude = p.latitude;
+        longitude = p.longitude;
+
+        if (place != null) {
+          final streetName = (place!.thoroughfare ?? '').trim().isNotEmpty
+              ? place!.thoroughfare!.trim()
+              : (place!.street ?? '').trim();
+          final streetNumber = (place!.subThoroughfare ?? '').trim();
+          final cityName = (place!.locality ?? '').trim().isNotEmpty
+              ? place!.locality!.trim()
+              : (place!.subAdministrativeArea ?? '').trim().isNotEmpty
+                  ? place!.subAdministrativeArea!.trim()
+                  : (place!.administrativeArea ?? '').trim();
+          final postalCode = (place!.postalCode ?? '').trim();
+
+          if (streetName.isNotEmpty) street.text = streetName;
+          if (streetNumber.isNotEmpty) number.text = streetNumber;
+          if (cityName.isNotEmpty) city.text = cityName;
+          if (postalCode.isNotEmpty) postal.text = postalCode;
+        }
+      });
+
+      if (place == null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Vendndodhja u gjet. Plotëso manualisht adresën nëse mungon.',
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.of(context).t('errorGeneric'))));
+      if (mounted) {
+        final message = e is StateError
+            ? e.message.toString()
+            : AppStrings.of(context).t('errorGeneric');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
     } finally {
       if (mounted) setState(() => locating = false);
     }
