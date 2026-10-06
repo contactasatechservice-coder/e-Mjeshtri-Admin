@@ -455,6 +455,50 @@ class MarketplaceRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  Stream<List<Map<String, dynamic>>> supportMessagesStream(String ticketId) {
+    return client
+        .from('support_messages')
+        .stream(primaryKey: ['id'])
+        .eq('ticket_id', ticketId)
+        .order('created_at')
+        .map((rows) => List<Map<String, dynamic>>.from(rows));
+  }
+
+  Future<String> openSubscriptionSupportChat() async {
+    final existing = await client
+        .from('support_tickets')
+        .select('id,subject,status')
+        .eq('user_id', uid)
+        .eq('category', 'payment')
+        .inFilter('status', ['open', 'in_progress', 'waiting_user'])
+        .order('updated_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (existing != null) return existing['id'].toString();
+
+    final ticket = await client
+        .from('support_tickets')
+        .insert({
+          'user_id': uid,
+          'category': 'payment',
+          'subject': 'Abonimi i Mjeshtrit',
+          'priority': 'high',
+          'status': 'open',
+        })
+        .select('id')
+        .single();
+
+    final id = ticket['id'].toString();
+    await client.from('support_messages').insert({
+      'ticket_id': id,
+      'sender_user_id': uid,
+      'sender_type': 'user',
+      'body': 'Përshëndetje, kam nevojë për ndihmë me abonimin e Mjeshtrit.',
+    });
+    return id;
+  }
+
   Future<void> sendSupportMessage(String ticketId, String body) async {
     final text = body.trim();
     if (text.isEmpty) return;
@@ -464,6 +508,11 @@ class MarketplaceRepository {
       'sender_type': 'user',
       'body': text,
     });
+    await client
+        .from('support_tickets')
+        .update({'updated_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', ticketId)
+        .eq('user_id', uid);
   }
 
   Future<void> createReport({
