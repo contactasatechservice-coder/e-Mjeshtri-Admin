@@ -419,98 +419,304 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   }
 }
 
+class _SubscriptionHeader extends StatelessWidget {
+  const _SubscriptionHeader();
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Image.asset(
+            'assets/branding/e_mjeshtri_logo.png',
+            height: 88,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Abonimi i Mjeshtrit',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 28,
+              height: 1.05,
+              fontWeight: FontWeight.w900,
+              color: AppColors.blueDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Për të aktivizuar llogarinë, zgjidh një plan dhe ngarko provën e pagesës.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.muted,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      );
+}
+
 class _PlanCard extends StatelessWidget {
   final Map<String, dynamic> plan;
   final bool selected;
+  final bool wantsBlueTick;
+  final bool blueTickActive;
   final VoidCallback onTap;
+  final ValueChanged<bool>? onBlueTickChanged;
 
   const _PlanCard({
     required this.plan,
     required this.selected,
+    required this.wantsBlueTick,
+    required this.blueTickActive,
     required this.onTap,
+    required this.onBlueTickChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final yearly = plan['billing_cycle'] == 'yearly';
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    final accent = yearly ? AppColors.orange : AppColors.blue;
+
+    return Material(
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+          duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? AppColors.blue : Colors.transparent,
-              width: selected ? 2 : 0,
-            ),
+            color: yearly
+                ? AppColors.orange.withValues(alpha: .055)
+                : Colors.white,
             borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selected
+                  ? accent
+                  : accent.withValues(alpha: yearly ? .28 : .14),
+              width: selected ? 1.7 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: .045),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: (yearly ? AppColors.orange : AppColors.blue)
-                          .withValues(alpha: .10),
-                      borderRadius: BorderRadius.circular(14),
+                      color: accent.withValues(alpha: .10),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      yearly
-                          ? Icons.workspace_premium_rounded
-                          : Icons.calendar_month_rounded,
-                      color: yearly ? AppColors.orange : AppColors.blue,
+                      Icons.calendar_month_rounded,
+                      color: accent,
+                      size: 27,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          (plan['name'] ?? '').toString(),
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                yearly ? 'Plani Vjetor' : 'Plani Mujor',
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.blueDark,
+                                ),
+                              ),
+                            ),
+                            if (yearly)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.orange
+                                      .withValues(alpha: .10),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.workspace_premium_rounded,
+                                      size: 15,
+                                      color: AppColors.orange,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Më i leverdishëm',
+                                      style: TextStyle(
+                                        color: AppColors.orange,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
+                        const SizedBox(height: 3),
                         Text(
-                          yearly ? '12 muaj' : '1 muaj',
-                          style: const TextStyle(color: AppColors.muted),
+                          '${_money(plan['price_amount'])} Lek / ${yearly ? 'vit' : 'muaj'}',
+                          style: const TextStyle(
+                            color: AppColors.orange,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Icon(
                     selected
                         ? Icons.radio_button_checked_rounded
                         : Icons.radio_button_off_rounded,
-                    color: selected ? AppColors.blue : AppColors.muted,
+                    color: selected ? accent : AppColors.muted,
+                    size: 27,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                '${_money(plan['price_amount'])} Lek${yearly ? '/vit' : '/muaj'}',
-                style: const TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
+              const SizedBox(height: 14),
+              const _FeatureLine(text: 'Përdorim i panelit të Mjeshtrit'),
+              const _FeatureLine(text: 'Shfaqje në platformë'),
+              const _FeatureLine(
+                text: 'Menaxhim kërkesash dhe punësh',
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Divider(height: 1),
+              ),
+              if (yearly)
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.blue.withValues(alpha: .09),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tick Blu falas',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.blueDark,
+                            ),
+                          ),
+                          Text(
+                            'Përfshihet në planin vjetor',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Falas',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.blue.withValues(alpha: .09),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tick Blu',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.blueDark,
+                            ),
+                          ),
+                          Text(
+                            '+500 Lek / vit',
+                            style: TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Checkbox(
+                      value: wantsBlueTick,
+                      onChanged: blueTickActive
+                          ? null
+                          : (value) {
+                              onBlueTickChanged?.call(value ?? false);
+                            },
+                    ),
+                    const Text(
+                      'Shto',
+                      style: TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              _FeatureLine(
-                text: yearly
-                    ? 'Tick blu falas për 12 muaj'
-                    : 'Tick blu opsional +500 Lek / 12 muaj',
-                highlighted: yearly,
-              ),
-              const _FeatureLine(text: 'Aktivizohet pasi Admini verifikon pagesën'),
-              const _FeatureLine(text: 'Pagesa me transfertë bankare'),
             ],
           ),
         ),
