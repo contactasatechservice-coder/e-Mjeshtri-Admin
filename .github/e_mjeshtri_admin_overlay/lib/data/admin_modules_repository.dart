@@ -35,6 +35,30 @@ class AdminModulesRepository {
     return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
   }
 
+  Future<List<Map<String, dynamic>>> activeProviderCategories() async {
+    final rows = await _client
+        .from('service_categories')
+        .select('id,slug,sort_order,service_category_translations(language_code,name)')
+        .isFilter('parent_id', null)
+        .eq('is_active', true)
+        .order('sort_order');
+
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<void> assignProviderCategory(
+    String providerId,
+    String categoryId,
+  ) async {
+    await _client.rpc(
+      'admin_assign_provider_category',
+      params: {
+        'p_provider_id': providerId,
+        'p_category_id': categoryId,
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> supportThread(String ticketId) async {
     final raw = await _client.rpc(
       'admin_support_thread',
