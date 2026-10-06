@@ -18,6 +18,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   bool _loading = true;
   bool _sending = false;
+  bool _openingSupport = false;
   String? _error;
   String? _providerId;
   String? _selectedPlan;
@@ -265,6 +266,65 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       _text(_bankDetails['account_name']) != '—' &&
       _text(_bankDetails['iban']) != '—';
 
+  Future<void> _openLiveSupport() async {
+    if (_openingSupport) return;
+    setState(() => _openingSupport = true);
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Duhet të jesh i identifikuar.');
+      }
+
+      final existing = await _client
+          .from('support_tickets')
+          .select('id,subject,status')
+          .eq('user_id', user.id)
+          .eq('category', 'payment')
+          .inFilter('status', ['open', 'in_progress', 'waiting_user'])
+          .order('updated_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      String ticketId;
+      if (existing != null) {
+        ticketId = existing['id'].toString();
+      } else {
+        final ticket = await _client
+            .from('support_tickets')
+            .insert({
+              'user_id': user.id,
+              'category': 'payment',
+              'subject': 'Abonimi i Mjeshtrit',
+              'priority': 'high',
+              'status': 'open',
+            })
+            .select('id')
+            .single();
+        ticketId = ticket['id'].toString();
+
+        await _client.from('support_messages').insert({
+          'ticket_id': ticketId,
+          'sender_user_id': user.id,
+          'sender_type': 'user',
+          'body':
+              'Përshëndetje, kam nevojë për ndihmë me abonimin e Mjeshtrit.',
+        });
+      }
+
+      if (!mounted) return;
+      context.push(
+        '/support/$ticketId?subject=${Uri.encodeComponent('Abonimi i Mjeshtrit')}',
+      );
+    } catch (e) {
+      if (mounted) {
+        _toast('Nuk mund të hapet chat-i live. Provo përsëri.');
+      }
+    } finally {
+      if (mounted) setState(() => _openingSupport = false);
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -394,7 +454,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                         ),
                                         SizedBox(height: 2),
                                         Text(
-                                          'Na shkruaj direkt nga aplikacioni.',
+                                          'Fol direkt me suportin në kohë reale.',
                                           style: TextStyle(
                                             color: AppColors.muted,
                                             fontWeight: FontWeight.w600,
@@ -409,11 +469,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
-                                  onPressed: () => context.push('/support/new'),
-                                  icon: const Icon(
-                                    Icons.chat_bubble_outline_rounded,
-                                  ),
-                                  label: const Text('Kontakto Suportin'),
+                                  onPressed:
+                                      _openingSupport ? null : _openLiveSupport,
+                                  icon: _openingSupport
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.chat_bubble_outline_rounded,
+                                        ),
+                                  label: const Text('Chat Live me Suportin'),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.blue,
                                     side: BorderSide(
