@@ -18,7 +18,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Map<String, dynamic>? profile;
   String? avatarUrl;
-  String? providerId;
   bool loading = true;
 
   @override
@@ -32,25 +31,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final repo = ref.read(marketplaceRepositoryProvider);
       final p = await repo.profile();
       final url = await repo.avatarSignedUrl(p['avatar_path']?.toString());
-      final user = Supabase.instance.client.auth.currentUser;
-      Map<String, dynamic>? membership;
-      if (user != null) {
-        final rawMembership = await Supabase.instance.client
-            .from('provider_members')
-            .select('provider_id')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .limit(1)
-            .maybeSingle();
-        if (rawMembership != null) {
-          membership = Map<String, dynamic>.from(rawMembership);
-        }
-      }
       if (mounted) {
         setState(() {
           profile = p;
           avatarUrl = url;
-          providerId = membership?['provider_id']?.toString();
           loading = false;
         });
       }
@@ -133,12 +117,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 await context.push('/profile/edit');
                 await _load();
               }),
-              if (providerId != null)
-                _tile(
-                  Icons.workspace_premium_rounded,
-                  'Abonimi i Mjeshtrit',
-                  () => context.push('/profile/subscription'),
-                ),
               _tile(Icons.location_on_outlined, s.t('addresses'), () => context.push('/profile/addresses')),
               _tile(Icons.language_rounded, s.t('language'), () => context.push('/profile/language')),
               _tile(Icons.notifications_none_rounded, s.t('notificationSettings'), () => context.push('/profile/notifications')),
