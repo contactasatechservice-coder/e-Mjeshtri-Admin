@@ -460,8 +460,23 @@ class MarketplaceRepository {
         .from('support_messages')
         .stream(primaryKey: ['id'])
         .eq('ticket_id', ticketId)
-        .order('created_at')
-        .map((rows) => List<Map<String, dynamic>>.from(rows));
+        .map((rows) {
+          final items = List<Map<String, dynamic>>.from(rows);
+          items.sort((a, b) {
+            final aTime =
+                DateTime.tryParse((a['created_at'] ?? '').toString()) ??
+                    DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime =
+                DateTime.tryParse((b['created_at'] ?? '').toString()) ??
+                    DateTime.fromMillisecondsSinceEpoch(0);
+            final byTime = aTime.compareTo(bTime);
+            if (byTime != 0) return byTime;
+            return (a['id'] ?? '').toString().compareTo(
+                  (b['id'] ?? '').toString(),
+                );
+          });
+          return items;
+        });
   }
 
   Future<String> openSubscriptionSupportChat() async {
