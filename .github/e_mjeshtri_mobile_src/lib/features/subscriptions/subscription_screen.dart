@@ -267,130 +267,143 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Abonimi i Mjeshtrit')),
+      backgroundColor: Colors.white,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _providerId == null
-              ? const _CenteredMessage(
-                  icon: Icons.handyman_outlined,
-                  title: 'Kjo faqe është vetëm për mjeshtrat',
-                  body:
-                      'Llogaria jote nuk është e lidhur me një profil aktiv mjeshtri.',
+              ? const SafeArea(
+                  child: _CenteredMessage(
+                    icon: Icons.handyman_outlined,
+                    title: 'Kjo faqe është vetëm për mjeshtrat',
+                    body:
+                        'Llogaria jote nuk është e lidhur me një profil aktiv mjeshtri.',
+                  ),
                 )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 40),
-                    children: [
-                      _StatusCard(
-                        subscription: _currentSubscription,
-                        pendingPayment: _pendingPayment,
-                        blueTick: _blueTick,
-                      ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        _ErrorCard(text: _error!),
-                      ],
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Zgjidh planin',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      for (final plan in _maps(_overview['plans'])) ...[
-                        _PlanCard(
-                          plan: plan,
-                          selected: _selectedPlan == plan['code'],
-                          onTap: () => _selectPlan(plan['code'].toString()),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      if (_selectedPlan == 'monthly') ...[
-                        Card(
-                          child: SwitchListTile.adaptive(
-                            value: _wantsBlueTick || _blueTick['active'] == true,
-                            onChanged: _blueTick['active'] == true
-                                ? null
-                                : _toggleBlueTick,
-                            secondary: const Icon(
-                              Icons.verified_rounded,
-                              color: Colors.blue,
-                            ),
-                            title: const Text(
-                              'Tick blu për 12 muaj',
-                              style: TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            subtitle: Text(
-                              _blueTick['active'] == true
-                                  ? 'Tick-u është tashmë aktiv deri ${_date(_blueTick['expires_at'])}. Nuk paguan 500 Lek përsëri.'
-                                  : '+500 Lek vetëm një herë në 12 muaj.',
-                            ),
+              : SafeArea(
+                  child: RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(18, 14, 18, 34),
+                      children: [
+                        const _SubscriptionHeader(),
+                        if (_error != null) ...[
+                          const SizedBox(height: 14),
+                          _ErrorCard(text: _error!),
+                        ],
+                        const SizedBox(height: 18),
+                        for (final plan in _maps(_overview['plans'])) ...[
+                          _PlanCard(
+                            plan: plan,
+                            selected: _selectedPlan == plan['code'],
+                            wantsBlueTick:
+                                _wantsBlueTick || _blueTick['active'] == true,
+                            blueTickActive: _blueTick['active'] == true,
+                            onTap: () =>
+                                _selectPlan(plan['code'].toString()),
+                            onBlueTickChanged:
+                                plan['billing_cycle'] == 'yearly'
+                                    ? null
+                                    : _toggleBlueTick,
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (_quote != null) ...[
-                        _QuoteCard(quote: _quote!),
+                          const SizedBox(height: 12),
+                        ],
+                        if (_quote != null) ...[
+                          _QuoteCard(quote: _quote!),
+                          const SizedBox(height: 14),
+                        ],
+                        _BankCard(details: _bankDetails),
                         const SizedBox(height: 14),
-                      ],
-                      _BankCard(details: _bankDetails),
-                      const SizedBox(height: 14),
-                      _ProofCard(
-                        proof: _proof,
-                        pending: _pendingPayment,
-                        onPick: _pendingPayment == null ? _pickProof : null,
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _bankReference,
-                        enabled: _pendingPayment == null,
-                        decoration: const InputDecoration(
-                          labelText: 'Referenca bankare (opsionale)',
-                          hintText: 'P.sh. TRX123456',
-                          prefixIcon: Icon(Icons.numbers_rounded),
+                        _ProofCard(
+                          proof: _proof,
+                          pending: _pendingPayment,
+                          onPick:
+                              _pendingPayment == null ? _pickProof : null,
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      FilledButton.icon(
-                        onPressed: _pendingPayment != null ||
-                                !_hasBankDetails ||
-                                _sending
-                            ? null
-                            : _submit,
-                        icon: _sending
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.upload_file_rounded),
-                        label: Text(
-                          _pendingPayment != null
-                              ? 'Pagesa është në pritje'
-                              : _sending
-                                  ? 'Po dërgohet...'
-                                  : 'Dërgo provën për aprovim',
-                        ),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                      if (!_hasBankDetails) ...[
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Pagesa nuk mund të dërgohet derisa administratori të vendosë të dhënat bankare.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.danger,
-                            fontWeight: FontWeight.w700,
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _bankReference,
+                          enabled: _pendingPayment == null,
+                          decoration: InputDecoration(
+                            labelText: 'Referenca bankare (opsionale)',
+                            hintText: 'P.sh. TRX123456',
+                            prefixIcon:
+                                const Icon(Icons.numbers_rounded),
+                            filled: true,
+                            fillColor:
+                                AppColors.blue.withValues(alpha: .035),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color:
+                                    AppColors.blue.withValues(alpha: .12),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color:
+                                    AppColors.blue.withValues(alpha: .12),
+                              ),
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        _StatusCard(
+                          subscription: _currentSubscription,
+                          pendingPayment: _pendingPayment,
+                          blueTick: _blueTick,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _pendingPayment != null ||
+                                  !_hasBankDetails ||
+                                  _sending
+                              ? null
+                              : _submit,
+                          icon: _sending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.arrow_forward_rounded),
+                          label: Text(
+                            _pendingPayment != null
+                                ? 'Pagesa është në pritje'
+                                : _sending
+                                    ? 'Po dërgohet...'
+                                    : 'Dërgo për verifikim',
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.blue,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(56),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            textStyle: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        if (!_hasBankDetails) ...[
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Pagesa nuk mund të dërgohet derisa administratori të vendosë të dhënat bankare.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.danger,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
     );
