@@ -137,7 +137,7 @@ jobs:
           lines=pubspec.read_text().splitlines()
           for i,line in enumerate(lines):
               if line.startswith('version:'):
-                  lines[i]='version: 1.7.5+37'
+                  lines[i]='version: 1.7.6+38'
                   break
           pubspec.write_text('\n'.join(lines)+'\n')
           ps=pubspec.read_text()
@@ -155,7 +155,7 @@ jobs:
           for i,line in enumerate(lines):
               if 'currentVersion' in line and '=' in line:
                   prefix=line.split('currentVersion',1)[0]
-                  lines[i]=prefix+"currentVersion = '1.7.5';"
+                  lines[i]=prefix+"currentVersion = '1.7.6';"
                   break
           config.write_text('\n'.join(lines)+'\n')
 
@@ -163,9 +163,9 @@ jobs:
           if strings.exists():
               t=strings.read_text()
               for old in ('Version 1.0.0','Version 1.3.0','Version 1.4.3','Version 1.4.4','Version 1.4.5'):
-                  t=t.replace(old,'Version 1.7.5')
+                  t=t.replace(old,'Version 1.7.6')
               for old in ('Versione 1.0.0','Versione 1.3.0','Versione 1.4.3','Versione 1.4.4','Versione 1.4.5'):
-                  t=t.replace(old,'Versione 1.7.5')
+                  t=t.replace(old,'Versione 1.7.6')
               strings.write_text(t)
 
           citizen_profile=Path('lib/features/profile/profile_screen.dart')
@@ -185,6 +185,24 @@ jobs:
           st=st.replace("if (context.mounted) context.go('/auth');", "if (context.mounted) context.go('/role');")
           st=st.replace("if(context.mounted)context.go('/auth');", "if(context.mounted)context.go('/role');")
           settings.write_text(st)
+
+          app=Path('lib/app.dart')
+          ap=app.read_text()
+          subscription_import="import 'features/subscriptions/subscription_screen.dart';"
+          if subscription_import not in ap:
+              insert_after="import 'features/settings/settings_screens.dart';"
+              if insert_after in ap:
+                  ap=ap.replace(insert_after, insert_after+"\n"+subscription_import, 1)
+              else:
+                  raise SystemExit('Could not register subscription screen import in app.dart')
+          subscription_route="GoRoute(path:'/profile/subscription',builder:(_,__)=>const SubscriptionScreen()),"
+          if subscription_route not in ap:
+              home_route="GoRoute(path:'/home',builder:(_,__)=>const AppShell()),"
+              if home_route in ap:
+                  ap=ap.replace(home_route, subscription_route+"\n    "+home_route, 1)
+              else:
+                  raise SystemExit('Could not register subscription route in app.dart')
+          app.write_text(ap)
           PY
 
           python3 -m pip install --quiet pillow
@@ -238,6 +256,7 @@ jobs:
           grep -Fq "Mjeshtër" "$APP/lib/features/auth/role_selection_screen.dart"
           grep -Fq "provider_subscription_quote" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -Fq "provider_request_subscription" "$APP/lib/features/subscriptions/subscription_screen.dart"
+          grep -Fq "path:'/profile/subscription'" "$APP/lib/app.dart"
 
           if grep -Fq "Ndrysho rol" "$APP/lib/features/profile/profile_screen.dart" "$APP/lib/features/provider_portal/profile.dart"; then
             echo "Role-switch action still present"
@@ -254,8 +273,8 @@ jobs:
           grep -Fq "q.eq('is_verified', true)" "$APP/lib/features/marketplace/marketplace_repository.dart"
           grep -Fq "set_my_app_role" "$APP/lib/features/auth/login_screen.dart"
           grep -Fq "'app_role': role" "$APP/lib/features/auth/auth_repository.dart"
-          grep -Fq "version: 1.7.5+37" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.7.5'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "version: 1.7.6+38" "$APP/pubspec.yaml"
+          grep -Fq "currentVersion = '1.7.6'" "$APP/lib/core/config/app_config.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           test -f "$APP/assets/category_cards/panel_diellore.webp"
@@ -284,15 +303,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.7.5.apk
-          sha256sum e-Mjeshtri-Unified-v1.7.5.apk > e-Mjeshtri-Unified-v1.7.5.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.7.6.apk
+          sha256sum e-Mjeshtri-Unified-v1.7.6.apk > e-Mjeshtri-Unified-v1.7.6.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.7.5-Android
+          name: e-Mjeshtri-Unified-v1.7.6-Android
           path: |
-            e-Mjeshtri-Unified-v1.7.5.apk
-            e-Mjeshtri-Unified-v1.7.5.apk.sha256
+            e-Mjeshtri-Unified-v1.7.6.apk
+            e-Mjeshtri-Unified-v1.7.6.apk.sha256
           if-no-files-found: error
           retention-days: 30
