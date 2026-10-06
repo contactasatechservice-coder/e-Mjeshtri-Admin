@@ -667,70 +667,208 @@ class _SupportTicketsScreenState extends ConsumerState<SupportTicketsScreen> {
 }
 
 class SupportTicketDetailScreen extends ConsumerStatefulWidget {
-  const SupportTicketDetailScreen({super.key, required this.ticketId, this.subject});
+  const SupportTicketDetailScreen({
+    super.key,
+    required this.ticketId,
+    this.subject,
+  });
+
   final String ticketId;
   final String? subject;
+
   @override
-  ConsumerState<SupportTicketDetailScreen> createState() => _SupportTicketDetailScreenState();
+  ConsumerState<SupportTicketDetailScreen> createState() =>
+      _SupportTicketDetailScreenState();
 }
 
-class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailScreen> {
-  late Future<List<Map<String, dynamic>>> future;
+class _SupportTicketDetailScreenState
+    extends ConsumerState<SupportTicketDetailScreen> {
   final input = TextEditingController();
+  final scrollController = ScrollController();
   bool sending = false;
+
   @override
-  void initState() {
-    super.initState();
-    future = ref.read(marketplaceRepositoryProvider).supportMessages(widget.ticketId);
+  void dispose() {
+    input.dispose();
+    scrollController.dispose();
+    super.dispose();
   }
-  @override
-  void dispose() { input.dispose(); super.dispose(); }
-  void reload() => setState(() => future = ref.read(marketplaceRepositoryProvider).supportMessages(widget.ticketId));
+
   Future<void> send() async {
     if (input.text.trim().isEmpty || sending) return;
     final body = input.text;
     input.clear();
     setState(() => sending = true);
     try {
-      await ref.read(marketplaceRepositoryProvider).sendSupportMessage(widget.ticketId, body);
-      reload();
+      await ref
+          .read(marketplaceRepositoryProvider)
+          .sendSupportMessage(widget.ticketId, body);
+      _scrollToBottom();
     } finally {
       if (mounted) setState(() => sending = false);
     }
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scrollController.hasClients) return;
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final s = AppStrings.of(context);
+    final repo = ref.read(marketplaceRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.subject?.isNotEmpty == true ? widget.subject! : s.t('ticketDetails'))),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.subject?.isNotEmpty == true
+                  ? widget.subject!
+                  : 'Suport Live',
+            ),
+            const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.circle, size: 8, color: AppColors.success),
+                SizedBox(width: 5),
+                Text(
+                  'Chat live me suportin',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: future,
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: repo.supportMessagesStream(widget.ticketId),
               builder: (context, snap) {
-                if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
-                if (snap.hasError) return Center(child: FilledButton(onPressed: reload, child: Text(s.t('retry'))));
-                final items = snap.data ?? [];
+                if (snap.connectionState == ConnectionState.waiting &&
+                    !snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snap.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Nuk mund të lidhemi me chat-in e suportit. Provo përsëri.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppColors.danger),
+                      ),
+                    ),
+                  );
+                }
+
+                final items = snap.data ?? const <Map<String, dynamic>>[];
+                _scrollToBottom();
+
+                if (items.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Text(
+                        'Shkruaj mesazhin tënd. Suporti do të përgjigjet këtu në kohë reale.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
                   itemCount: items.length,
                   itemBuilder: (_, i) {
                     final m = items[i];
                     final mine = m['sender_type'] == 'user';
+                    final body = (m['body'] ?? '').toString();
+                    final createdAt =
+                        DateTime.tryParse((m['created_at'] ?? '').toString())
+                            ?.toLocal();
+
                     return Align(
-                      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment:
+                          mine ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * .78),
-                        decoration: BoxDecoration(
-                          color: mine ? AppColors.blue : Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(18),
-                          border: mine ? null : Border.all(color: AppColors.divider),
+                        margin: const EdgeInsets.only(bottom: 9),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
                         ),
-                        child: Text((m['body'] ?? '').toString(), style: TextStyle(color: mine ? Colors.white : Theme.of(context).colorScheme.onSurface)),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.sizeOf(context).width * .80,
+                        ),
+                        decoration: BoxDecoration(
+                          color: mine
+                              ? AppColors.blue
+                              : AppColors.blue.withValues(alpha: .055),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(18),
+                            topRight: const Radius.circular(18),
+                            bottomLeft: Radius.circular(mine ? 18 : 5),
+                            bottomRight: Radius.circular(mine ? 5 : 18),
+                          ),
+                          border: mine
+                              ? null
+                              : Border.all(
+                                  color:
+                                      AppColors.blue.withValues(alpha: .12),
+                                ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!mine) ...[
+                              const Text(
+                                'Suporti e-Mjeshtri',
+                                style: TextStyle(
+                                  color: AppColors.blue,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                            ],
+                            Text(
+                              body,
+                              style: TextStyle(
+                                color: mine ? Colors.white : AppColors.blueDark,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (createdAt != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  color: mine
+                                      ? Colors.white70
+                                      : AppColors.muted,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -740,13 +878,49 @@ class _SupportTicketDetailScreenState extends ConsumerState<SupportTicketDetailS
           ),
           SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(
+                    color: AppColors.blue.withValues(alpha: .08),
+                  ),
+                ),
+              ),
               child: Row(
                 children: [
-                  Expanded(child: TextField(controller: input, minLines: 1, maxLines: 5, decoration: InputDecoration(hintText: s.t('reply')))),
+                  Expanded(
+                    child: TextField(
+                      controller: input,
+                      minLines: 1,
+                      maxLines: 5,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: 'Shkruaj mesazhin...',
+                        filled: true,
+                        fillColor: AppColors.blue.withValues(alpha: .035),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  IconButton.filled(onPressed: sending ? null : send, icon: const Icon(Icons.send_rounded)),
+                  IconButton.filled(
+                    onPressed: sending ? null : send,
+                    icon: sending
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
                 ],
               ),
             ),
