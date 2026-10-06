@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/localization/locale_controller.dart';
 import '../../core/storage/local_preferences.dart';
 import '../../core/theme/app_colors.dart';
+import 'auth_repository.dart';
 
 class RoleSelectionScreen extends ConsumerStatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -35,7 +36,13 @@ class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
       await Supabase.instance.client.rpc('set_my_app_role',params:{'p_role':_role});
     } catch (_) {}
     if (!mounted) return;
-    context.go(_role == 'provider' ? '/provider' : '/home');
+    if (_role == 'provider') {
+      final route =
+          await ref.read(authRepositoryProvider).providerLandingRoute();
+      if (mounted) context.go(route);
+      return;
+    }
+    context.go('/home');
   }
 
   @override
