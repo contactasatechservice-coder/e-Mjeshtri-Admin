@@ -53,6 +53,17 @@ class AdminModulesRepository {
     );
   }
 
+  Stream<List<Map<String, dynamic>>> supportMessagesStream(
+    String ticketId,
+  ) {
+    return _client
+        .from('support_messages')
+        .stream(primaryKey: ['id'])
+        .eq('ticket_id', ticketId)
+        .order('created_at')
+        .map((rows) => List<Map<String, dynamic>>.from(rows));
+  }
+
   Future<String> signedProviderDocumentUrl(String storagePath) {
     return _client.storage
         .from('provider-documents')
