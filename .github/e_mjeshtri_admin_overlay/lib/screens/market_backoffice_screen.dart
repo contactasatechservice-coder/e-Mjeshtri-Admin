@@ -2309,6 +2309,275 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
   }
 }
 
+Color _marketManagementStatusColor(String status) {
+  switch (status) {
+    case 'active':
+    case 'approved':
+    case 'published':
+    case 'resolved':
+    case 'delivered':
+      return const Color(0xFF168C5A);
+    case 'pending':
+    case 'pending_review':
+    case 'reviewing':
+    case 'processing':
+    case 'confirmed':
+      return const Color(0xFFB7791F);
+    case 'needs_correction':
+      return const Color(0xFFC2410C);
+    case 'rejected':
+    case 'suspended':
+    case 'removed':
+    case 'cancelled':
+      return const Color(0xFFC24141);
+    default:
+      return const Color(0xFF667085);
+  }
+}
+
+String _marketManagementStatusLabel(String status) {
+  switch (status) {
+    case 'pending_review':
+      return 'Në aprovim';
+    case 'needs_correction':
+      return 'Kërkon korrigjim';
+    case 'active':
+      return 'Aktiv';
+    case 'approved':
+      return 'Aprovuar';
+    case 'rejected':
+      return 'Refuzuar';
+    case 'suspended':
+      return 'Pezulluar';
+    case 'inactive':
+      return 'Jo aktiv';
+    case 'archived':
+      return 'Arkivuar';
+    case 'pending':
+      return 'Në pritje';
+    case 'confirmed':
+      return 'Konfirmuar';
+    case 'processing':
+      return 'Në përpunim';
+    case 'shipped':
+      return 'Dërguar';
+    case 'delivered':
+      return 'Dorëzuar';
+    case 'cancelled':
+      return 'Anuluar';
+    case 'published':
+      return 'Publikuar';
+    case 'hidden':
+      return 'Fshehur';
+    case 'reported':
+      return 'Raportuar';
+    case 'removed':
+      return 'Hequr';
+    case 'reviewing':
+      return 'Në shqyrtim';
+    case 'resolved':
+      return 'Zgjidhur';
+    case 'dismissed':
+      return 'Mbyllur';
+    default:
+      return status;
+  }
+}
+
+class _ManagementFilterChip extends StatelessWidget {
+  const _ManagementFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 9,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF125C9E)
+                : const Color(0xFFF8FAFD),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF125C9E)
+                  : const Color(0xFFE4EAF2),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? Colors.white
+                  : const Color(0xFF344054),
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+}
+
+class _ManagementTag extends StatelessWidget {
+  const _ManagementTag({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ManagementKpi extends StatelessWidget {
+  const _ManagementKpi({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final double width;
+  final String label;
+  final dynamic value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: const Color(0xFFE4EAF2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF125C9E)
+                      .withValues(alpha: .09),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: const Color(0xFF125C9E),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (value ?? 0).toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ManagementPanel extends StatelessWidget {
+  const _ManagementPanel({
+    required this.title,
+    required this.child,
+  });
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFFE4EAF2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            child,
+          ],
+        ),
+      );
+}
+
 class _EmptyBackoffice extends StatelessWidget {
   const _EmptyBackoffice(this.text);
   final String text;
