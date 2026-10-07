@@ -268,6 +268,25 @@ class MarketplaceRepository {
         await client.from('providers').select('*,provider_categories(*,service_categories(slug,service_category_translations(language_code,name))),provider_media(*),provider_branches(*)').eq('id', id).single(),
       );
 
+  Future<Map<String,dynamic>> providerPublicProfileStats(String providerId) async {
+    final raw = await client.rpc(
+      'provider_public_profile_stats',
+      params: {'p_provider_id': providerId},
+    );
+    return raw is Map ? Map<String,dynamic>.from(raw) : <String,dynamic>{};
+  }
+
+  Future<List<Map<String,dynamic>>> providerReviews(String providerId) async {
+    final rows = await client
+        .from('reviews')
+        .select('id,rating,comment,created_at,status')
+        .eq('provider_id', providerId)
+        .eq('status', 'published')
+        .order('created_at', ascending: false)
+        .limit(6);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+
   Future<bool> isFavorite(String providerId) async {
     final row = await client.from('favorites').select('provider_id').eq('user_id', uid).eq('provider_id', providerId).maybeSingle();
     return row != null;
