@@ -496,13 +496,22 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                     final displayProducts =
                         featured.isNotEmpty ? featured : products;
 
-                    final vendors = <String, Map<String, dynamic>>{};
+                    final featuredVendors =
+                        <String, Map<String, dynamic>>{};
+                    final verifiedVendors =
+                        <String, Map<String, dynamic>>{};
                     for (final p in products) {
                       if (p['vendor_verified'] != true) continue;
                       final id = p['vendor_id']?.toString();
                       if (id == null || id.isEmpty) continue;
-                      vendors.putIfAbsent(id, () => p);
+                      verifiedVendors.putIfAbsent(id, () => p);
+                      if (p['vendor_featured'] == true) {
+                        featuredVendors.putIfAbsent(id, () => p);
+                      }
                     }
+                    final vendors = featuredVendors.isNotEmpty
+                        ? featuredVendors
+                        : verifiedVendors;
 
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 125),
