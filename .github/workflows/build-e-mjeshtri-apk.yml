@@ -21,6 +21,7 @@ on:
       - '.github/e_mjeshtri_mobile_assets/category_cards/**'
       - '.github/e_mjeshtri_mobile_src/lib/core/config/feature_flags.dart'
       - '.github/e_mjeshtri_mobile_src/lib/core/config/app_config.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/core/localization/app_strings.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/settings/settings_screens.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/profile/profile_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/messages/messages_screen.dart'
@@ -82,6 +83,7 @@ jobs:
           cp ../../.github/e_mjeshtri_splash_v1_4_3.dart lib/features/auth/splash_screen.dart
           cp ../../.github/e_mjeshtri_provider_shell_v1_5.dart lib/features/provider_portal/shell.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart lib/features/auth/auth_repository.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/core/localization/app_strings.dart lib/core/localization/app_strings.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/home/home_screen.dart lib/features/home/home_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/home/home_repository.dart lib/features/home/home_repository.dart
           mkdir -p lib/features/market
@@ -282,7 +284,9 @@ jobs:
           grep -Fq "Përfundo profilin e Mjeshtrit" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -Fq "context.go('/provider')" "$APP/lib/features/subscriptions/subscription_screen.dart"
           grep -Fq "Ngarko ID / Dokument" "$APP/lib/features/subscriptions/subscription_screen.dart"
-          grep -Fq "Krijo kërkesë" "$APP/lib/features/home/home_screen.dart"
+          grep -Fq "createRequest" "$APP/lib/features/home/home_screen.dart"
+          grep -Fq "'createRequest':'Krijo kërkesë'" "$APP/lib/core/localization/app_strings.dart"
+          grep -Fq "'chooseService':'Zgjidh shërbimin'" "$APP/lib/core/localization/app_strings.dart"
           grep -Fq "'plumbing'" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "'appliance_repair'" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "'internet_tv_smart_home'" "$APP/lib/features/home/home_screen.dart"
