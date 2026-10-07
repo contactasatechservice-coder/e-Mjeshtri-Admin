@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,89 +13,157 @@ import '../requests/request_flow.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
+
   @override
   ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerProviderStateMixin {
+class _OrdersScreenState extends ConsumerState<OrdersScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController tabs;
-  late Future<List<Map<String, dynamic>>> future;
+  late Future<List<Map<String, dynamic>>> requestFuture;
+  late Future<List<Map<String, dynamic>>> orderFuture;
+  Timer? refreshTimer;
+
+  MarketplaceRepository get repo => ref.read(marketplaceRepositoryProvider);
 
   @override
   void initState() {
     super.initState();
     tabs = TabController(length: 4, vsync: this);
-    future = ref.read(marketplaceRepositoryProvider).orders();
+    requestFuture = repo.activityRequests();
+    orderFuture = repo.orders();
+    refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) reload(silent: true);
+    });
   }
 
   @override
   void dispose() {
+    refreshTimer?.cancel();
     tabs.dispose();
     super.dispose();
   }
 
-  void reload() {
-    setState(() {
-      future = ref.read(marketplaceRepositoryProvider).orders();
-    });
+  Future<void> reload({bool silent = false}) async {
+    final nextRequests = repo.activityRequests();
+    final nextOrders = repo.orders();
+    if (mounted) {
+      setState(() {
+        requestFuture = nextRequests;
+        orderFuture = nextOrders;
+      });
+    }
+    if (!silent) {
+      await Future.wait([nextRequests, nextOrders]);
+    }
   }
 
-  List<Map<String, dynamic>> filter(List<Map<String, dynamic>> all, int tab) {
-    if (tab == 0) return all.where((o) => !['completed', 'cancelled'].contains(o['status'])).toList();
-    if (tab == 1) return all.where((o) => o['status'] == 'completed').toList();
-    if (tab == 2) return all.where((o) => o['status'] == 'cancelled').toList();
-    return const [];
-  }
+  List<Map<String, dynamic>> _activeRequests(
+    List<Map<String, dynamic>> rows,
+  ) =>
+      rows
+          .where((r) => const {
+                'published',
+                'searching',
+                'offers_received',
+              }.contains((r['status'] ?? '').toString()))
+          .toList();
+
+  List<Map<String, dynamic>> _drafts(List<Map<String, dynamic>> rows) =>
+      rows.where((r) => r['status'] == 'draft').toList();
+
+  List<Map<String, dynamic>> _activeOrders(List<Map<String, dynamic>> rows) =>
+      rows
+          .where((o) => !const {'completed', 'cancelled'}
+              .contains((o['status'] ?? '').toString()))
+          .toList();
+
+  List<Map<String, dynamic>> _historyOrders(List<Map<String, dynamic>> rows) =>
+      rows
+          .where((o) => const {'completed', 'cancelled'}
+              .contains((o['status'] ?? '').toString()))
+          .toList();
 
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-            child: Text(s.t('orders'), style: Theme.of(context).textTheme.headlineMedium),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+            child: Text(
+              s.t('serviceActivity'),
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
           ),
-          TabBar(
-            controller: tabs,
-            isScrollable: true,
-            tabs: [
-              Tab(text: s.t('active')),
-              Tab(text: s.t('completed')),
-              Tab(text: s.t('cancelled')),
-              Tab(text: s.t('drafts')),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: TabBar(
+              controller: tabs,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: [
+                Tab(text: s.t('serviceRequests')),
+                Tab(text: s.t('activeJobs')),
+                Tab(text: s.t('history')),
+                Tab(text: s.t('drafts')),
+              ],
+            ),
           ),
+          const SizedBox(height: 4),
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: future,
+            child: FutureBuilder<List<dynamic>>(
+              future: Future.wait([requestFuture, orderFuture]),
               builder: (context, snap) {
                 if (snap.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  );
                 }
                 if (snap.hasError) {
-                  return Center(child: FilledButton(onPressed: reload, child: Text(s.t('retry'))));
+                  return Center(
+                    child: FilledButton.icon(
+                      onPressed: () => reload(),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text(s.t('retry')),
+                    ),
+                  );
                 }
+
+                final requests =
+                    List<Map<String, dynamic>>.from(snap.data![0] as List);
+                final orders =
+                    List<Map<String, dynamic>>.from(snap.data![1] as List);
+
                 return TabBarView(
                   controller: tabs,
-                  children: List.generate(4, (tab) {
-                    if (tab == 3) return const _DraftRequestsList();
-                    final items = filter(snap.data ?? [], tab);
-                    if (items.isEmpty) {
-                      return EmptyState(icon: Icons.receipt_long_outlined, title: s.t('noOrders'));
-                    }
-                    return RefreshIndicator(
-                      onRefresh: () async => reload(),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 120),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _OrderCard(order: items[i]),
-                      ),
-                    );
-                  }),
+                  children: [
+                    _RequestList(
+                      items: _activeRequests(requests),
+                      emptyTitle: s.t('noServiceRequests'),
+                      onRefresh: reload,
+                    ),
+                    _OrderList(
+                      items: _activeOrders(orders),
+                      emptyTitle: s.t('noActiveJobs'),
+                      onRefresh: reload,
+                    ),
+                    _OrderList(
+                      items: _historyOrders(orders),
+                      emptyTitle: s.t('noHistory'),
+                      onRefresh: reload,
+                    ),
+                    _RequestList(
+                      items: _drafts(requests),
+                      emptyTitle: s.t('noDrafts'),
+                      onRefresh: reload,
+                      drafts: true,
+                    ),
+                  ],
                 );
               },
             ),
@@ -104,60 +174,464 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> with SingleTickerPr
   }
 }
 
-class _DraftRequestsList extends ConsumerWidget {
-  const _DraftRequestsList();
+class _RequestList extends StatelessWidget {
+  const _RequestList({
+    required this.items,
+    required this.emptyTitle,
+    required this.onRefresh,
+    this.drafts = false,
+  });
+
+  final List<Map<String, dynamic>> items;
+  final String emptyTitle;
+  final Future<void> Function({bool silent}) onRefresh;
+  final bool drafts;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final repo = ref.read(marketplaceRepositoryProvider);
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => onRefresh(silent: false),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
+          children: [
+            const SizedBox(height: 50),
+            EmptyState(
+              icon: drafts
+                  ? Icons.edit_note_rounded
+                  : Icons.assignment_outlined,
+              title: emptyTitle,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => onRefresh(silent: false),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) => _RequestActivityCard(
+          request: items[i],
+          draft: drafts,
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestActivityCard extends StatelessWidget {
+  const _RequestActivityCard({
+    required this.request,
+    required this.draft,
+  });
+
+  final Map<String, dynamic> request;
+  final bool draft;
+
+  List<Map<String, dynamic>> get currentOffers {
+    final raw = request['offers'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((x) => Map<String, dynamic>.from(x))
+        .where((x) =>
+            x['is_current'] == true &&
+            (x['status'] ?? '').toString() == 'submitted')
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = AppStrings.of(context);
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: repo.requests(status: 'draft'),
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final items = snap.data ?? [];
-        if (items.isEmpty) {
-          return EmptyState(icon: Icons.edit_note_rounded, title: s.t('noOrders'));
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 120),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, i) {
-            final r = items[i];
-            final c = (r['service_categories'] as Map?)?.cast<String, dynamic>() ?? {};
-            return Card(
-              child: ListTile(
-                title: Text(
-                  translatedName(c, Localizations.localeOf(context).languageCode),
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  (r['description'] ?? '').toString(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push('/request/${r['id']}/summary'),
+    final category =
+        (request['service_categories'] as Map?)?.cast<String, dynamic>() ?? {};
+    final offers = currentOffers;
+    final totals = offers
+        .map((x) => (x['total_amount'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList()
+      ..sort();
+    final best = totals.isEmpty ? null : totals.first;
+    final status = (request['status'] ?? '').toString();
+
+    void open() {
+      final id = request['id'].toString();
+      if (!draft && offers.isNotEmpty) {
+        context.push('/request/${id}/offers');
+      } else {
+        context.push('/request/${id}/summary');
+      }
+    }
+
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      shadowColor: const Color(0x12000000),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: open,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppColors.blue.withValues(alpha: .08),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.home_repair_service_rounded,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          translatedName(
+                            category,
+                            Localizations.localeOf(context).languageCode,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          (request['city'] ?? '').toString(),
+                          style: const TextStyle(color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _RequestStatusPill(status: status),
+                ],
               ),
-            );
-          },
-        );
-      },
+              const SizedBox(height: 12),
+              Text(
+                (request['description'] ?? '').toString(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 13),
+              if (draft)
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      size: 18,
+                      color: AppColors.muted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      s.t('continueDraft'),
+                      style: const TextStyle(
+                        color: AppColors.blue,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.muted,
+                    ),
+                  ],
+                )
+              else if (offers.isEmpty)
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.hourglass_top_rounded,
+                      size: 18,
+                      color: AppColors.orange,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        s.t('waitingOffers'),
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.muted,
+                    ),
+                  ],
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.blue.withValues(alpha: .06),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_offer_rounded,
+                        color: AppColors.blue,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${offers.length} ${s.t('offers').toLowerCase()}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                      if (best != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '• ${s.t('fromPrice')} ${best.toStringAsFixed(0)} ALL',
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        s.t('viewOffers'),
+                        style: const TextStyle(
+                          color: AppColors.blue,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.blue,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderList extends StatelessWidget {
+  const _OrderList({
+    required this.items,
+    required this.emptyTitle,
+    required this.onRefresh,
+  });
+
+  final List<Map<String, dynamic>> items;
+  final String emptyTitle;
+  final Future<void> Function({bool silent}) onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: () => onRefresh(silent: false),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
+          children: [
+            const SizedBox(height: 50),
+            EmptyState(
+              icon: Icons.work_outline_rounded,
+              title: emptyTitle,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => onRefresh(silent: false),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) => _OrderCard(order: items[i]),
+      ),
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order}); final Map<String,dynamic> order;
-  @override Widget build(BuildContext context){final p=(order['providers'] as Map?)?.cast<String,dynamic>()??{};final r=(order['service_requests'] as Map?)?.cast<String,dynamic>()??{};return Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>context.push('/orders/${order['id']}'),child:Padding(padding:const EdgeInsets.all(16),child:Row(children:[Container(width:50,height:50,decoration:BoxDecoration(color:AppColors.blue.withValues(alpha:.08),borderRadius:BorderRadius.circular(16)),child:const Icon(Icons.handyman_rounded,color:AppColors.blue)),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text((p['display_name']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:4),Text((r['description']??'').toString(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:AppColors.muted)),const SizedBox(height:7),Row(children:[_StatusPill(status:(order['status']??'').toString()),const Spacer(),Text('${order['current_total']} ${order['currency']}',style:const TextStyle(fontWeight:FontWeight.w800,color:AppColors.blue))])])),const SizedBox(width:6),const Icon(Icons.chevron_right_rounded)]))));}
+  const _OrderCard({required this.order});
+
+  final Map<String, dynamic> order;
+
+  @override
+  Widget build(BuildContext context) {
+    final p =
+        (order['providers'] as Map?)?.cast<String, dynamic>() ?? {};
+    final r =
+        (order['service_requests'] as Map?)?.cast<String, dynamic>() ?? {};
+    final total = (order['current_total'] as num?)?.toDouble() ?? 0;
+
+    return Material(
+      color: Colors.white,
+      elevation: 1,
+      shadowColor: const Color(0x12000000),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => context.push('/orders/${order['id']}'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.handyman_rounded,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (p['display_name'] ?? '').toString(),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (r['description'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        _StatusPill(
+                          status: (order['status'] ?? '').toString(),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${total.toStringAsFixed(0)} ${order['currency'] ?? 'ALL'}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RequestStatusPill extends StatelessWidget {
+  const _RequestStatusPill({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    final (text, color) = switch (status) {
+      'offers_received' => (s.t('offersReceived'), AppColors.blue),
+      'searching' => (s.t('searching'), AppColors.orange),
+      'published' => (s.t('published'), AppColors.success),
+      'draft' => (s.t('drafts'), AppColors.muted),
+      'cancelled' => (s.t('cancelled'), AppColors.danger),
+      'expired' => (s.t('expired'), AppColors.muted),
+      _ => (status, AppColors.muted),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w800,
+          fontSize: 10.5,
+        ),
+      ),
+    );
+  }
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status}); final String status;
-  @override Widget build(BuildContext context){final s=AppStrings.of(context);final (text,color)=switch(status){'confirmed'=>(s.t('statusConfirmed'),AppColors.blue),'provider_on_way'=>(s.t('statusOnWay'),AppColors.orange),'arrived'=>(s.t('statusArrived'),AppColors.orange),'in_progress'=>(s.t('statusInProgress'),AppColors.orange),'completion_pending'=>(s.t('statusCompletionPending'),AppColors.orange),'completed'=>(s.t('completed'),AppColors.success),'cancelled'=>(s.t('cancelled'),AppColors.danger),_=>(status,AppColors.muted)};return Container(padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),decoration:BoxDecoration(color:color.withValues(alpha:.09),borderRadius:BorderRadius.circular(30)),child:Text(text,style:TextStyle(color:color,fontWeight:FontWeight.w700,fontSize:11)));}
+  const _StatusPill({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
+    final (text, color) = switch (status) {
+      'confirmed' => (s.t('statusConfirmed'), AppColors.blue),
+      'provider_on_way' => (s.t('statusOnWay'), AppColors.orange),
+      'arrived' => (s.t('statusArrived'), AppColors.orange),
+      'in_progress' => (s.t('statusInProgress'), AppColors.orange),
+      'completion_pending' =>
+        (s.t('statusCompletionPending'), AppColors.orange),
+      'completed' => (s.t('completed'), AppColors.success),
+      'cancelled' => (s.t('cancelled'), AppColors.danger),
+      _ => (status, AppColors.muted),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .09),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
 }
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
