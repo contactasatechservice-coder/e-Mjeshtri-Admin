@@ -46,7 +46,12 @@ final _router = GoRouter(
     GoRoute(path:'/permissions/notifications',builder:(_,__)=>const NotificationPermissionScreen()),
     GoRoute(path:'/search',builder:(_,__)=>const SearchScreen()),
     GoRoute(path:'/notifications',builder:(_,__)=>const NotificationsScreen()),
-    GoRoute(path:'/categories',builder:(_,__)=>const AllCategoriesScreen()),
+    GoRoute(
+      path:'/categories',
+      builder:(_,state)=>AllCategoriesScreen(
+        requestMode: state.uri.queryParameters['request'] == '1',
+      ),
+    ),
     GoRoute(path:'/categories/:id',builder:(_,state)=>CategoryDetailScreen(categoryId:state.pathParameters['id']!)),
     GoRoute(path:'/request/new',builder:(_,state)=>CreateRequestScreen(categoryId:state.uri.queryParameters['categoryId']??'')),
     GoRoute(path:'/request/:id/summary',builder:(_,state)=>RequestSummaryScreen(requestId:state.pathParameters['id']!)),
