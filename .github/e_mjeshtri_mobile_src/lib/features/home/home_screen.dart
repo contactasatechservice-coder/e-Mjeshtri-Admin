@@ -21,6 +21,15 @@ bool hasActiveBlueTick(Map<String, dynamic> provider) {
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  static const _homeCategorySlugs = <String>[
+    'plumbing',
+    'electrical',
+    'heating_ac',
+    'appliance_repair',
+    'internet_tv_smart_home',
+    'painting',
+  ];
+
   IconData _icon(String? key) => switch (key) {
         'plumbing' => Icons.plumbing_rounded,
         'electrical' => Icons.electrical_services_rounded,
@@ -42,59 +51,23 @@ class HomeScreen extends ConsumerWidget {
 
   String? _categoryPhoto(Map<String, dynamic> item, String language) {
     final slug = (item['slug'] ?? '').toString().toLowerCase();
-    final key = (item['icon_key'] ?? '').toString().toLowerCase();
-    final name = translatedName(item, language).toLowerCase();
-    final source = '$slug $key $name';
-
-    if (source.contains('solar') || source.contains('panel')) {
-      return 'assets/category_cards/panel_diellore.webp';
-    }
-    if (source.contains('router') ||
-        source.contains('internet') ||
-        source.contains('smart')) {
+    if (slug == 'internet_tv_smart_home') {
       return 'assets/category_cards/internet_tv_smart.webp';
-    }
-    if (source.contains('videocam') ||
-        source.contains('kamer') ||
-        source.contains('sigur')) {
-      return 'assets/category_cards/kamera_siguri.webp';
-    }
-    if (source.contains('local_shipping') ||
-        source.contains('transport') ||
-        source.contains('zhvend')) {
-      return 'assets/category_cards/transport_zhvendosje.webp';
-    }
-    if (source.contains('xham') ||
-        source.contains('alumin') ||
-        source.contains('door_front')) {
-      return 'assets/category_cards/xham_alumini.webp';
-    }
-    if (source.contains('roof') ||
-        source.contains('cati') ||
-        source.contains('çati') ||
-        source.contains('hidro')) {
-      return 'assets/category_cards/cati_hidroizolim.webp';
     }
     return null;
   }
 
   Color _categoryAccent(Map<String, dynamic> item, String language) {
-    switch (_categoryPhoto(item, language)) {
-      case 'assets/category_cards/panel_diellore.webp':
-        return const Color(0xFF1672D4);
-      case 'assets/category_cards/internet_tv_smart.webp':
-        return const Color(0xFFF0A500);
-      case 'assets/category_cards/kamera_siguri.webp':
-        return const Color(0xFFF05B55);
-      case 'assets/category_cards/transport_zhvendosje.webp':
-        return const Color(0xFFB06B1C);
-      case 'assets/category_cards/xham_alumini.webp':
-        return const Color(0xFF16A871);
-      case 'assets/category_cards/cati_hidroizolim.webp':
-        return const Color(0xFF7452E8);
-      default:
-        return AppColors.blue;
-    }
+    final slug = (item['slug'] ?? '').toString().toLowerCase();
+    return switch (slug) {
+      'plumbing' => const Color(0xFF1687D9),
+      'electrical' => const Color(0xFFF4A300),
+      'heating_ac' => const Color(0xFF24A6C8),
+      'appliance_repair' => const Color(0xFF6C5CE7),
+      'internet_tv_smart_home' => const Color(0xFFF0A500),
+      'painting' => const Color(0xFFE86E49),
+      _ => AppColors.blue,
+    };
   }
 
   Widget _categoryPhotoCard(
@@ -104,7 +77,7 @@ class HomeScreen extends ConsumerWidget {
   ) {
     final photo = _categoryPhoto(item, language);
     final accent = _categoryAccent(item, language);
-    final radius = BorderRadius.circular(24);
+    final radius = BorderRadius.circular(22);
 
     return Material(
       color: Colors.transparent,
@@ -135,7 +108,26 @@ class HomeScreen extends ConsumerWidget {
                     filterQuality: FilterQuality.high,
                   )
                 else
-                  ColoredBox(color: accent.withValues(alpha: .10)),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white,
+                          accent.withValues(alpha: .12),
+                        ],
+                      ),
+                    ),
+                    child: Align(
+                      alignment: const Alignment(.72, -.25),
+                      child: Icon(
+                        _icon(item['icon_key']?.toString()),
+                        size: 88,
+                        color: accent.withValues(alpha: .14),
+                      ),
+                    ),
+                  ),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -155,11 +147,11 @@ class HomeScreen extends ConsumerWidget {
                   left: 14,
                   top: 14,
                   child: Container(
-                    width: 46,
-                    height: 46,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .94),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(13),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x12000000),
@@ -171,7 +163,7 @@ class HomeScreen extends ConsumerWidget {
                     child: Icon(
                       _icon(item['icon_key']?.toString()),
                       color: accent,
-                      size: 24,
+                      size: 22,
                     ),
                   ),
                 ),
@@ -185,7 +177,7 @@ class HomeScreen extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF111827),
-                      fontSize: 16,
+                      fontSize: 14.5,
                       height: 1.10,
                       fontWeight: FontWeight.w900,
                     ),
@@ -195,8 +187,8 @@ class HomeScreen extends ConsumerWidget {
                   right: 11,
                   bottom: 11,
                   child: Container(
-                    width: 38,
-                    height: 38,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: .94),
                       shape: BoxShape.circle,
@@ -211,7 +203,7 @@ class HomeScreen extends ConsumerWidget {
                     child: Icon(
                       Icons.chevron_right_rounded,
                       color: accent,
-                      size: 27,
+                      size: 23,
                     ),
                   ),
                 ),
@@ -221,6 +213,18 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _homeCategories(
+    List<Map<String, dynamic>> items,
+  ) {
+    final bySlug = <String, Map<String, dynamic>>{
+      for (final item in items) (item['slug'] ?? '').toString(): item,
+    };
+    return [
+      for (final slug in _homeCategorySlugs)
+        if (bySlug[slug] != null) bySlug[slug]!,
+    ];
   }
 
   @override
@@ -248,42 +252,48 @@ class HomeScreen extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
               sliver: SliverList.list(
                 children: [
                   Center(
                     child: Image.asset(
                       'assets/branding/e_mjeshtri_logo.png',
-                      height: 58,
+                      height: 52,
                       fit: BoxFit.contain,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.t('location'), style: Theme.of(context).textTheme.bodyMedium),
-                            const SizedBox(height: 3),
-                            InkWell(
-                              onTap: () => context.push('/profile/addresses'),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.location_on_rounded, size: 18, color: AppColors.blue),
-                                  const SizedBox(width: 5),
-                                  Flexible(
-                                    child: Text(
-                                      s.t('myLocation'),
-                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => context.push('/profile/addresses'),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_rounded,
+                                  size: 18,
+                                  color: AppColors.blue,
+                                ),
+                                SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    'Vendndodhja ime',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                  const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                                ],
-                              ),
+                                ),
+                                Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                       IconButton.filledTonal(
@@ -292,23 +302,42 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   Text(
                     first.isEmpty ? s.t('hello') : '${s.t('hello')}, $first',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
                   ),
                   const SizedBox(height: 4),
                   Text(s.t('search'), style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   TextField(
                     readOnly: true,
                     onTap: () => context.push('/search'),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded, color: AppColors.blue),
-                      hintText: s.t('search'),
+                      hintText: 'Kërko shërbime, mjeshtra, kategori...',
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 54,
+                    child: FilledButton.icon(
+                      onPressed: () => context.push('/categories?request=1'),
+                      icon: const Icon(Icons.add_task_rounded),
+                      label: const Text(
+                        'Krijo kërkesë',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
                   _SectionHeader(
                     title: s.t('categories'),
                     action: s.t('seeAll'),
@@ -322,12 +351,7 @@ class HomeScreen extends ConsumerWidget {
                       title: s.t('errorGeneric'),
                     ),
                     data: (items) {
-                      final photoItems = items
-                          .where((item) => _categoryPhoto(item, language) != null)
-                          .take(6)
-                          .toList();
-                      final visible =
-                          photoItems.length >= 6 ? photoItems : items.take(6).toList();
+                      final visible = _homeCategories(items);
 
                       return LayoutBuilder(
                         builder: (context, constraints) {
@@ -342,7 +366,7 @@ class HomeScreen extends ConsumerWidget {
                                 SizedBox(
                                   width: cardWidth,
                                   child: AspectRatio(
-                                    aspectRatio: 1.24,
+                                    aspectRatio: 1.42,
                                     child: _categoryPhotoCard(
                                       context,
                                       item,
@@ -357,14 +381,28 @@ class HomeScreen extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 20),
-                  _SectionHeader(title: s.t('nearby')),
+                  _SectionHeader(
+                    title: s.t('nearby'),
+                    action: s.t('seeAll'),
+                    onAction: () => context.push('/search'),
+                  ),
                   const SizedBox(height: 14),
                   providers.when(
                     loading: () => const LinearProgressIndicator(minHeight: 2),
                     error: (_, __) => EmptyState(icon: Icons.cloud_off_rounded, title: s.t('errorGeneric')),
                     data: (items) => items.isEmpty
                         ? EmptyState(icon: Icons.handyman_rounded, title: s.t('noProviders'))
-                        : Column(children: items.map((p) => _ProviderCard(provider: p)).toList()),
+                        : Column(
+                            children: items
+                                .take(4)
+                                .map(
+                                  (p) => _ProviderCard(
+                                    provider: p,
+                                    language: language,
+                                  ),
+                                )
+                                .toList(),
+                          ),
                   ),
                   const SizedBox(height: 26),
                   _SectionHeader(title: s.t('rebook')),
@@ -374,10 +412,7 @@ class HomeScreen extends ConsumerWidget {
                     builder: (context, snap) {
                       final completed = (snap.data ?? []).where((o) => o['status'] == 'completed').take(2).toList();
                       if (completed.isEmpty) {
-                        return EmptyState(
-                          icon: Icons.history_rounded,
-                          title: s.t('rebookEmpty'),
-                        );
+                        return const _CompactEmptyRebook();
                       }
                       return Column(
                         children: completed.map((o) {
@@ -429,62 +464,258 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.provider});
+  const _ProviderCard({
+    required this.provider,
+    required this.language,
+  });
+
   final Map<String, dynamic> provider;
+  final String language;
+
+  String _specialty() {
+    final rows = provider['provider_categories'];
+    if (rows is! List) return '';
+    for (final raw in rows) {
+      if (raw is! Map || raw['is_active'] != true) continue;
+      final category = raw['service_categories'];
+      if (category is Map) {
+        return translatedName(
+          Map<String, dynamic>.from(category),
+          language,
+        );
+      }
+    }
+    return '';
+  }
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(22),
-            onTap: () => context.push('/providers/${provider['id']}'),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  ProviderAvatar(path: provider['logo_path']?.toString(), size: 54, borderRadius: 18),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                (provider['display_name'] ?? '').toString(),
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
+  Widget build(BuildContext context) {
+    final ratingCount = (provider['rating_count'] as num?)?.toInt() ?? 0;
+    final ratingAvg = (provider['rating_avg'] as num?)?.toDouble() ?? 0;
+    final specialty = _specialty();
+    final available =
+        provider['accepts_asap'] == true && provider['vacation_mode'] != true;
+    final distance = (provider['distance_km'] as num?)?.toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => context.push('/providers/${provider['id']}'),
+          child: Padding(
+            padding: const EdgeInsets.all(15),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ProviderAvatar(
+                      path: provider['logo_path']?.toString(),
+                      size: 58,
+                      borderRadius: 20,
+                    ),
+                    if (available)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          width: 15,
+                          height: 15,
+                          decoration: BoxDecoration(
+                            color: AppColors.success,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 3,
                             ),
-                            if (hasActiveBlueTick(provider))
-                              const Padding(
-                                padding: EdgeInsets.only(left: 6),
-                                child: Icon(Icons.verified_rounded, size: 18, color: AppColors.blue),
-                              ),
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 5),
-                        Text((provider['city'] ?? '').toString(), style: Theme.of(context).textTheme.bodyMedium),
-                        const SizedBox(height: 7),
-                        Row(
-                          children: [
-                            const Icon(Icons.star_rounded, size: 18, color: AppColors.orange),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${provider['rating_avg'] ?? 0} (${provider['rating_count'] ?? 0})',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              (provider['display_name'] ?? '').toString(),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w900),
                             ),
-                          ],
+                          ),
+                          if (hasActiveBlueTick(provider))
+                            const Padding(
+                              padding: EdgeInsets.only(left: 5),
+                              child: Icon(
+                                Icons.verified_rounded,
+                                size: 17,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          _MiniMeta(
+                            icon: Icons.location_on_outlined,
+                            text: (provider['city'] ?? '').toString(),
+                          ),
+                          if (distance != null)
+                            _MiniMeta(
+                              icon: Icons.near_me_outlined,
+                              text: distance < 1
+                                  ? '${(distance * 1000).round()} m'
+                                  : '${distance.toStringAsFixed(1)} km',
+                            ),
+                        ],
+                      ),
+                      if (specialty.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        _MiniMeta(
+                          icon: Icons.handyman_outlined,
+                          text: specialty,
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (available)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.success
+                                    .withValues(alpha: .10),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'I disponueshëm',
+                                style: TextStyle(
+                                  color: AppColors.success,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          if (available) const SizedBox(width: 10),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Icon(
+                                  ratingCount == 0
+                                      ? Icons.star_border_rounded
+                                      : Icons.star_rounded,
+                                  size: 17,
+                                  color: ratingCount == 0
+                                      ? AppColors.muted
+                                      : AppColors.orange,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    ratingCount == 0
+                                        ? 'Pa vlerësime ende'
+                                        : '${ratingAvg.toStringAsFixed(1)} ($ratingCount)',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: ratingCount == 0
+                                          ? AppColors.muted
+                                          : null,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-                ],
-              ),
+                ),
+                const SizedBox(width: 5),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                ),
+              ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniMeta extends StatelessWidget {
+  const _MiniMeta({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: AppColors.muted),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      );
+}
+
+class _CompactEmptyRebook extends StatelessWidget {
+  const _CompactEmptyRebook();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        decoration: BoxDecoration(
+          color: AppColors.blue.withValues(alpha: .04),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.blue.withValues(alpha: .08),
+          ),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.history_rounded, color: AppColors.blue),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Rezervimet e mëparshme do të shfaqen këtu.',
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       );
 }
