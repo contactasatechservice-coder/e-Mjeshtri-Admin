@@ -16,7 +16,7 @@ class RoleSelectionScreen extends ConsumerStatefulWidget {
 }
 
 class _RoleSelectionScreenState extends ConsumerState<RoleSelectionScreen> {
-  String _role = 'provider';
+  String _role = 'citizen';
 
   static const _languages = <String, String>{
     'sq': 'SQ',
