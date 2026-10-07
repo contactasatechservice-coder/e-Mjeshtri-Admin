@@ -15,6 +15,7 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
   final _client = Supabase.instance.client;
   late Future<Map<String, dynamic>> _future;
   bool _busy = false;
+  String _productFilter = 'all';
 
   @override
   void initState() {
@@ -669,6 +670,35 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
     plan.dispose();
     price.dispose();
     if (payload != null) await _action('subscription', null, 'create', payload);
+  }
+
+  Future<void> _adminAction(
+    String entity,
+    String id,
+    String action, {
+    String? note,
+  }) async {
+    setState(() => _busy = true);
+    try {
+      await _client.rpc(
+        'admin_market_action',
+        params: {
+          'p_entity': entity,
+          'p_id': id,
+          'p_action': action,
+          'p_note': note,
+        },
+      );
+      if (mounted) setState(_reload);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<String?> _noteDialog(String title) {
