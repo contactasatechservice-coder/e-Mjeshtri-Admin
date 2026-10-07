@@ -78,7 +78,7 @@ class AllCategoriesScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
     return Scaffold(
       appBar: AppBar(
-        title: Text(requestMode ? 'Zgjidh shërbimin' : s.t('allCategories')),
+        title: Text(requestMode ? s.t('chooseService') : s.t('allCategories')),
       ),
       body: categories.when(
         loading: () => const Center(child: CircularProgressIndicator()),
