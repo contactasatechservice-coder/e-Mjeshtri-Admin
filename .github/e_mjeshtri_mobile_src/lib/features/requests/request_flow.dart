@@ -694,7 +694,183 @@ class _OffersScreenState extends ConsumerState<OffersScreen> {
 }
 
 class RequestSummaryScreen extends ConsumerStatefulWidget {
-  const RequestSummaryScreen({super.key,required this.requestId});final String requestId;
-  @override ConsumerState<RequestSummaryScreen> createState()=>_RequestSummaryScreenState();
+  const RequestSummaryScreen({super.key, required this.requestId});
+  final String requestId;
+
+  @override
+  ConsumerState<RequestSummaryScreen> createState() =>
+      _RequestSummaryScreenState();
 }
-class _RequestSummaryScreenState extends ConsumerState<RequestSummaryScreen>{bool busy=false;@override Widget build(BuildContext context){final s=AppStrings.of(context);final repo=ref.read(marketplaceRepositoryProvider);return Scaffold(appBar:AppBar(title:Text(s.t('viewRequest'))),body:FutureBuilder<Map<String,dynamic>>(future:repo.request(widget.requestId),builder:(context,snap){if(snap.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());if(snap.hasError)return Center(child:Text(s.t('errorGeneric')));final r=snap.data!;final c=(r['service_categories'] as Map?)?.cast<String,dynamic>()??{};final loc=(r['request_private_locations'] as List? ?? const []).cast<Map>();return ListView(padding:const EdgeInsets.all(20),children:[Text(translatedName(c,Localizations.localeOf(context).languageCode),style:Theme.of(context).textTheme.headlineMedium),const SizedBox(height:14),Card(child:Padding(padding:const EdgeInsets.all(16),child:Text((r['description']??'').toString(),style:Theme.of(context).textTheme.bodyLarge))),const SizedBox(height:10),if(loc.isNotEmpty)Card(child:ListTile(leading:const Icon(Icons.location_on_outlined,color:AppColors.blue),title:Text('${loc.first['street']} ${loc.first['street_number']??''}'),subtitle:Text((loc.first['city']??'').toString()))),const SizedBox(height:10),Card(child:ListTile(leading:const Icon(Icons.radar_rounded,color:AppColors.blue),title:Text('${s.t('radius')}: ${r['search_radius_km']} km'),subtitle:Text('${s.t('status')}: ${r['status']}'))),const SizedBox(height:22),if(r['status']=='draft')SizedBox(height:54,child:FilledButton(onPressed:busy?null:()async{setState(()=>busy=true);try{await repo.publishRequest(widget.requestId);if(context.mounted)context.go('/request/${widget.requestId}/searching');}finally{if(mounted)setState(()=>busy=false);}},child:Text(s.t('publishRequest'))))else SizedBox(height:54,child:FilledButton(onPressed:()=>context.go('/request/${widget.requestId}/offers'),child:Text(s.t('offers'))))]);}));}}
+
+class _RequestSummaryScreenState
+    extends ConsumerState<RequestSummaryScreen> {
+  late Future<Map<String, dynamic>> future;
+  bool busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    future = ref.read(marketplaceRepositoryProvider).request(widget.requestId);
+  }
+
+  void reload() {
+    if (!mounted) return;
+    setState(() {
+      future = ref.read(marketplaceRepositoryProvider).request(widget.requestId);
+    });
+  }
+
+  List<Map<String, dynamic>> _relationAsList(dynamic raw) {
+    if (raw is Map) {
+      return [Map<String, dynamic>.from(raw)];
+    }
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((x) => Map<String, dynamic>.from(x))
+          .toList();
+    }
+    return const [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final repo = ref.read(marketplaceRepositoryProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: strings.t('back'),
+          onPressed: () {
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: Text(strings.t('viewRequest')),
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError || snap.data == null) {
+            return Center(
+              child: FilledButton.icon(
+                onPressed: reload,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(strings.t('retry')),
+              ),
+            );
+          }
+
+          final r = snap.data!;
+          final categoryRaw = r['service_categories'];
+          final category = categoryRaw is Map
+              ? Map<String, dynamic>.from(categoryRaw)
+              : <String, dynamic>{};
+          final locations = _relationAsList(r['request_private_locations']);
+          final location = locations.isEmpty ? null : locations.first;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+            children: [
+              Text(
+                translatedName(
+                  category,
+                  Localizations.localeOf(context).languageCode,
+                ),
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+              const SizedBox(height: 14),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    (r['description'] ?? '').toString(),
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                ),
+              ),
+              if (location != null) ...[
+                const SizedBox(height: 10),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.location_on_outlined,
+                      color: AppColors.blue,
+                    ),
+                    title: Text(
+                      '${location['street'] ?? ''} ${location['street_number'] ?? ''}'
+                          .trim(),
+                    ),
+                    subtitle: Text((location['city'] ?? '').toString()),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Card(
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.radar_rounded,
+                    color: AppColors.blue,
+                  ),
+                  title: Text(
+                    '${strings.t('radius')}: ${r['search_radius_km'] ?? '-'} km',
+                  ),
+                  subtitle: Text(
+                    '${strings.t('status')}: ${r['status'] ?? '-'}',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              if (r['status'] == 'draft')
+                SizedBox(
+                  height: 54,
+                  child: FilledButton(
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            setState(() => busy = true);
+                            try {
+                              await repo.publishRequest(widget.requestId);
+                              if (context.mounted) {
+                                context.go(
+                                  '/request/${widget.requestId}/searching',
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => busy = false);
+                            }
+                          },
+                    child: Text(strings.t('publishRequest')),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 54,
+                  child: FilledButton(
+                    onPressed: () =>
+                        context.go('/request/${widget.requestId}/offers'),
+                    child: Text(strings.t('offers')),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/home'),
+                icon: const Icon(Icons.home_rounded),
+                label: Text(strings.t('backToPanel')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
