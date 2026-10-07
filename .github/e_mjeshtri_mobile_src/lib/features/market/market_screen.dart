@@ -35,6 +35,119 @@ String _marketOrderStatusLabel(String value) {
   }
 }
 
+Future<void> showMarketReportDialog(
+  BuildContext context,
+  MarketRepository repo, {
+  required String entityType,
+  required String entityId,
+  required String title,
+}) async {
+  final details = TextEditingController();
+  String reason = 'Informacion i gabuar';
+
+  final payload = await showDialog<Map<String, String>>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (dialogContext, setLocal) => AlertDialog(
+        title: Text(title),
+        content: SizedBox(
+          width: 430,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: reason,
+                decoration: const InputDecoration(
+                  labelText: 'Arsyeja',
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Informacion i gabuar',
+                    child: Text('Informacion i gabuar'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Produkt i papërshtatshëm',
+                    child: Text('Produkt i papërshtatshëm'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Mashtrim ose keqpërdorim',
+                    child: Text('Mashtrim ose keqpërdorim'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Përmbajtje e dyshimtë',
+                    child: Text('Përmbajtje e dyshimtë'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Tjetër',
+                    child: Text('Tjetër'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setLocal(() => reason = value);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: details,
+                minLines: 3,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Shpjegim (opsional)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              {
+                'reason': reason,
+                'details': details.text.trim(),
+              },
+            ),
+            child: const Text('Dërgo raportimin'),
+          ),
+        ],
+      ),
+    ),
+  );
+  details.dispose();
+
+  if (payload == null) return;
+
+  try {
+    await repo.reportMarketEntity(
+      entityType: entityType,
+      entityId: entityId,
+      reason: payload['reason'] ?? 'Tjetër',
+      details: payload['details'],
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Raportimi u dërgua dhe do të shqyrtohet nga Admini.',
+          ),
+        ),
+      );
+    }
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Raportimi nuk u dërgua. Provo përsëri.'),
+        ),
+      );
+    }
+  }
+}
+
 String _marketPaymentMethodLabel(String value) {
   switch (value) {
     case 'cash_on_delivery':
@@ -1386,6 +1499,31 @@ class _MarketProductScreenState extends ConsumerState<MarketProductScreen> {
               _favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
               color: _favorite ? AppColors.danger : null,
             ),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Më shumë',
+            onSelected: (value) async {
+              if (value != 'report') return;
+              await showMarketReportDialog(
+                context,
+                repo,
+                entityType: 'product',
+                entityId: widget.productId,
+                title: 'Raporto produktin',
+              );
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined),
+                    SizedBox(width: 8),
+                    Text('Raporto produktin'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
