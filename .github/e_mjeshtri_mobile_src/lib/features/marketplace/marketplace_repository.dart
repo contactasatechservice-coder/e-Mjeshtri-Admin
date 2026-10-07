@@ -277,14 +277,16 @@ class MarketplaceRepository {
   }
 
   Future<List<Map<String,dynamic>>> providerReviews(String providerId) async {
-    final rows = await client
-        .from('reviews')
-        .select('id,rating,comment,created_at,status')
-        .eq('provider_id', providerId)
-        .eq('status', 'published')
-        .order('created_at', ascending: false)
-        .limit(6);
-    return List<Map<String,dynamic>>.from(rows);
+    final raw = await client.rpc(
+      'provider_public_reviews',
+      params: {'p_provider_id': providerId},
+    );
+    if (raw is! List) return const <Map<String,dynamic>>[];
+    return raw
+        .whereType<Map>()
+        .map((x) => Map<String,dynamic>.from(x))
+        .take(6)
+        .toList();
   }
 
   Future<bool> isFavorite(String providerId) async {
