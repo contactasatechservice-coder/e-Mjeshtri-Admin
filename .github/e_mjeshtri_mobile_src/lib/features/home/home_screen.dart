@@ -716,10 +716,10 @@ class _CompactEmptyRebook extends StatelessWidget {
             color: AppColors.blue.withValues(alpha: .08),
           ),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.history_rounded, color: AppColors.blue),
-            SizedBox(width: 10),
+            const Icon(Icons.history_rounded, color: AppColors.blue),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 AppStrings.of(context).t('rebookEmpty'),
