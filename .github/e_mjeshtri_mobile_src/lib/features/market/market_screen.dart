@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -111,6 +113,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   String? _categoryId;
   late Future<List<Map<String, dynamic>>> _categories;
   late Future<List<Map<String, dynamic>>> _products;
+  late Future<List<Map<String, dynamic>>> _banners;
   int _cartCount = 0;
 
   @override
@@ -128,6 +131,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
   void _reloadAll() {
     final repo = ref.read(marketRepositoryProvider);
     _categories = repo.categories(widget.audience);
+    _banners = repo.banners(widget.audience);
     _products = repo.catalog(
       audience: widget.audience,
       query: _search.text,
@@ -202,7 +206,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
         child: RefreshIndicator(
           onRefresh: () async {
             _reloadAll();
-            await Future.wait<dynamic>([_categories, _products]);
+            await Future.wait<dynamic>([_categories, _products, _banners]);
           },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -423,7 +427,20 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
-                  child: _MarketHeroBanner(isProvider: isProvider),
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _banners,
+                    builder: (context, snap) {
+                      final banners =
+                          snap.data ?? const <Map<String, dynamic>>[];
+                      if (banners.isEmpty) {
+                        return _MarketHeroBanner(isProvider: isProvider);
+                      }
+                      return _MarketBannerCarousel(
+                        banners: banners,
+                        isProvider: isProvider,
+                      );
+                    },
+                  ),
                 ),
               ),
               SliverToBoxAdapter(
@@ -714,6 +731,206 @@ class _MarketHeaderButton extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _MarketBannerCarousel extends ConsumerStatefulWidget {
+  const _MarketBannerCarousel({
+    required this.banners,
+    required this.isProvider,
+  });
+
+  final List<Map<String, dynamic>> banners;
+  final bool isProvider;
+
+  @override
+  ConsumerState<_MarketBannerCarousel> createState() =>
+      _MarketBannerCarouselState();
+}
+
+class _MarketBannerCarouselState
+    extends ConsumerState<_MarketBannerCarousel> {
+  late final PageController _controller;
+  Timer? _timer;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarketBannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.banners.length != widget.banners.length) {
+      _index = 0;
+      _timer?.cancel();
+      _schedule();
+    }
+  }
+
+  void _schedule() {
+    if (widget.banners.length <= 1) return;
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_controller.hasClients) return;
+      final next = (_index + 1) % widget.banners.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openTarget(String? raw) async {
+    final value = raw?.trim() ?? '';
+    if (value.isEmpty) return;
+    final uri = Uri.tryParse(value);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 156,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.banners.length,
+            onPageChanged: (value) => setState(() => _index = value),
+            itemBuilder: (context, index) {
+              final banner = widget.banners[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index == widget.banners.length - 1 ? 0 : 0,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _openTarget(
+                      banner['target_url']?.toString(),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        FutureBuilder<String?>(
+                          future: ref
+                              .read(marketRepositoryProvider)
+                              .signedBannerUrl(
+                                banner['image_path']?.toString(),
+                              ),
+                          builder: (context, snap) {
+                            final url = snap.data;
+                            if (url == null) {
+                              return _MarketHeroBanner(
+                                isProvider: widget.isProvider,
+                              );
+                            }
+                            return Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _MarketHeroBanner(
+                                isProvider: widget.isProvider,
+                              ),
+                            );
+                          },
+                        ),
+                        if ((banner['title'] ?? '')
+                            .toString()
+                            .trim()
+                            .isNotEmpty)
+                          Positioned(
+                            left: 16,
+                            right: 16,
+                            bottom: 14,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 9,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: .48),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    banner['title'].toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  if ((banner['subtitle'] ?? '')
+                                      .toString()
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      banner['subtitle'].toString(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: .86,
+                                        ),
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        if (widget.banners.length > 1) ...[
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              widget.banners.length,
+              (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: i == _index ? 18 : 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  color: i == _index
+                      ? AppColors.blue
+                      : AppColors.muted.withValues(alpha: .28),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _MarketHeroBanner extends StatelessWidget {
