@@ -14,6 +14,7 @@ on:
       - '.github/e_mjeshtri_provider_shell_v1_5.dart'
       - '.github/patch_provider_portal_v1_8.py'
       - '.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/auth/widgets/auth_scaffold.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/home/home_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/home/home_repository.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/market/market_screen.dart'
@@ -32,6 +33,7 @@ on:
       - '.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart'
+      - '.github/e_mjeshtri_mobile_src/lib/features/orders/orders_screen.dart'
       - '.github/e_mjeshtri_mobile_src/lib/features/subscriptions/subscription_screen.dart'
       - 'assets/assets/branding/e_mjeshtri_logo.png'
       - '.github/workflows/build-e-mjeshtri-apk.yml'
@@ -84,6 +86,7 @@ jobs:
           cp ../../.github/e_mjeshtri_splash_v1_4_3.dart lib/features/auth/splash_screen.dart
           cp ../../.github/e_mjeshtri_provider_shell_v1_5.dart lib/features/provider_portal/shell.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/auth/auth_repository.dart lib/features/auth/auth_repository.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/auth/widgets/auth_scaffold.dart lib/features/auth/widgets/auth_scaffold.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/core/localization/app_strings.dart lib/core/localization/app_strings.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/home/home_screen.dart lib/features/home/home_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/home/home_repository.dart lib/features/home/home_repository.dart
@@ -95,6 +98,7 @@ jobs:
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/marketplace/marketplace_repository.dart lib/features/marketplace/marketplace_repository.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/onboarding/onboarding_screen.dart lib/features/onboarding/onboarding_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/requests/request_flow.dart lib/features/requests/request_flow.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/orders/orders_screen.dart lib/features/orders/orders_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/subscriptions/subscription_screen.dart lib/features/subscriptions/subscription_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/settings/settings_screens.dart lib/features/settings/settings_screens.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/profile/profile_screen.dart lib/features/profile/profile_screen.dart
@@ -144,7 +148,7 @@ jobs:
           lines=pubspec.read_text().splitlines()
           for i,line in enumerate(lines):
               if line.startswith('version:'):
-                  lines[i]='version: 1.8.0+46'
+                  lines[i]='version: 1.8.1+47'
                   break
           pubspec.write_text('\n'.join(lines)+'\n')
           ps=pubspec.read_text()
@@ -153,6 +157,11 @@ jobs:
                   ps=ps.replace('\n  geolocator:', '\n  geocoding: ^4.0.0\n  geolocator:', 1)
               else:
                   raise SystemExit('Could not add geocoding dependency')
+          if '\n  url_launcher:' not in ps:
+              if '\n  geolocator:' in ps:
+                  ps=ps.replace('\n  geolocator:', '\n  url_launcher: ^6.3.2\n  geolocator:', 1)
+              else:
+                  raise SystemExit('Could not add url_launcher dependency')
           asset_line='    - assets/category_cards/'
           if asset_line not in ps:
               marker='    - assets/branding/e_mjeshtri_logo.png'
@@ -167,7 +176,7 @@ jobs:
           for i,line in enumerate(lines):
               if 'currentVersion' in line and '=' in line:
                   prefix=line.split('currentVersion',1)[0]
-                  lines[i]=prefix+"currentVersion = '1.8.0';"
+                  lines[i]=prefix+"currentVersion = '1.8.1';"
                   break
           config.write_text('\n'.join(lines)+'\n')
 
@@ -175,9 +184,9 @@ jobs:
           if strings.exists():
               t=strings.read_text()
               for old in ('Version 1.0.0','Version 1.3.0','Version 1.4.3','Version 1.4.4','Version 1.4.5','Version 1.7.0'):
-                  t=t.replace(old,'Version 1.8.0')
+                  t=t.replace(old,'Version 1.8.1')
               for old in ('Versione 1.0.0','Versione 1.3.0','Versione 1.4.3','Versione 1.4.4','Versione 1.4.5','Versione 1.7.0'):
-                  t=t.replace(old,'Versione 1.8.0')
+                  t=t.replace(old,'Versione 1.8.1')
               strings.write_text(t)
 
           citizen_profile=Path('lib/features/profile/profile_screen.dart')
@@ -283,6 +292,11 @@ jobs:
           grep -Fq "distance_km" "$APP/lib/features/home/home_repository.dart"
           grep -Fq "requestMode" "$APP/lib/features/requests/request_flow.dart"
           grep -Fq "requestMode: state.uri.queryParameters['request'] == '1'" "$APP/lib/app.dart"
+          grep -Fq "activityRequests" "$APP/lib/features/marketplace/marketplace_repository.dart"
+          grep -Fq "Kërkesat & Punët" "$APP/lib/core/localization/app_strings.dart"
+          grep -Fq "viewOffers" "$APP/lib/features/orders/orders_screen.dart"
+          grep -Fq "context.go('/role')" "$APP/lib/features/auth/widgets/auth_scaffold.dart"
+          grep -Fq "url_launcher: ^6.3.2" "$APP/pubspec.yaml"
           grep -Fq "supportMessagesStream" "$APP/lib/features/settings/settings_screens.dart"
           grep -Fq "path:'/profile/subscription'" "$APP/lib/app.dart"
 
@@ -296,6 +310,10 @@ jobs:
           grep -Fq "Abonimi i Mjeshtrit" "$APP/lib/features/provider_portal/profile.dart"
           grep -Fq "saveWeeklyAvailability" "$APP/lib/features/provider_portal/provider_repository.dart"
           grep -Fq "uploadProviderBrandImage" "$APP/lib/features/provider_portal/provider_repository.dart"
+          grep -Fq "provider_subscription_overview" "$APP/lib/features/provider_portal/provider_repository.dart"
+          grep -Fq "signedDocumentUrl" "$APP/lib/features/provider_portal/provider_repository.dart"
+          grep -Fq "Zëvendëso" "$APP/lib/features/provider_portal/profile.dart"
+          grep -Fq "Të dhënat merren direkt nga abonimi i aprovuar" "$APP/lib/features/provider_portal/profile.dart"
           grep -Fq "requestsStream" "$APP/lib/features/provider_portal/provider_repository.dart"
           grep -Fq "I disponueshëm për kërkesa të menjëhershme" "$APP/lib/features/provider_portal/profile.dart"
           grep -Fq "Pamja e profilit" "$APP/lib/features/provider_portal/profile.dart"
@@ -322,8 +340,8 @@ jobs:
           grep -Fq "'app_role': role" "$APP/lib/features/auth/auth_repository.dart"
           grep -Fq "placemarkFromCoordinates" "$APP/lib/features/settings/settings_screens.dart"
           grep -Fq "geocoding: ^4.0.0" "$APP/pubspec.yaml"
-          grep -Fq "version: 1.8.0+46" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.8.0'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "version: 1.8.1+47" "$APP/pubspec.yaml"
+          grep -Fq "currentVersion = '1.8.1'" "$APP/lib/core/config/app_config.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           test -f "$APP/assets/category_cards/panel_diellore.webp"
@@ -352,15 +370,15 @@ jobs:
       - name: Prepare artifact
         shell: bash
         run: |
-          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.8.0.apk
-          sha256sum e-Mjeshtri-Unified-v1.8.0.apk > e-Mjeshtri-Unified-v1.8.0.apk.sha256
+          cp .build/e_mjeshtri/build/app/outputs/flutter-apk/app-release.apk e-Mjeshtri-Unified-v1.8.1.apk
+          sha256sum e-Mjeshtri-Unified-v1.8.1.apk > e-Mjeshtri-Unified-v1.8.1.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: e-Mjeshtri-Unified-v1.8.0-Android
+          name: e-Mjeshtri-Unified-v1.8.1-Android
           path: |
-            e-Mjeshtri-Unified-v1.8.0.apk
-            e-Mjeshtri-Unified-v1.8.0.apk.sha256
+            e-Mjeshtri-Unified-v1.8.1.apk
+            e-Mjeshtri-Unified-v1.8.1.apk.sha256
           if-no-files-found: error
           retention-days: 30
