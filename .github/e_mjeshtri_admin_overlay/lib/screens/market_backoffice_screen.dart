@@ -1,3 +1,6 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -68,6 +71,387 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
     if (text.contains('23505')) return 'Kjo vlerë ekziston tashmë.';
     if (text.contains('23514')) return 'Të dhënat nuk plotësojnë rregullat e sistemit.';
     return 'Veprimi dështoi. Provo përsëri.';
+  }
+
+  Future<html.File?> _pickBannerFile() async {
+    final input = html.FileUploadInputElement()
+      ..accept = 'image/jpeg,image/png,image/webp'
+      ..multiple = false;
+    input.click();
+    await input.onChange.first;
+    if (input.files == null || input.files!.isEmpty) return null;
+    return input.files!.first;
+  }
+
+  Future<Uint8List> _readBannerFile(html.File file) async {
+    final reader = html.FileReader();
+    reader.readAsArrayBuffer(file);
+    await reader.onLoad.first;
+    final result = reader.result;
+    if (result is ByteBuffer) return result.asUint8List();
+    if (result is Uint8List) return result;
+    throw StateError('Fotoja nuk mund të lexohet.');
+  }
+
+  Future<String> _uploadBannerFile(html.File file) async {
+    if (file.size > 12 * 1024 * 1024) {
+      throw StateError('Reklama nuk mund të jetë më e madhe se 12 MB.');
+    }
+    final bytes = await _readBannerFile(file);
+    final parts = file.name.split('.');
+    final ext = parts.length > 1 ? parts.last.toLowerCase() : 'jpg';
+    final safeExt = {'jpg','jpeg','png','webp'}.contains(ext) ? ext : 'jpg';
+    final path = 'admin/' +
+        DateTime.now().microsecondsSinceEpoch.toString() +
+        '.' +
+        safeExt;
+    await _client.storage.from('market-banners').uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: file.type.isEmpty ? 'image/jpeg' : file.type,
+            upsert: false,
+          ),
+        );
+    return path;
+  }
+
+  Future<void> _createBanner() async {
+    final title = TextEditingController();
+    final subtitle = TextEditingController();
+    final target = TextEditingController();
+    final sort = TextEditingController(text: '0');
+    String audience = 'both';
+    html.File? image;
+
+    final payload = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) => AlertDialog(
+          title: const Text('Shto reklamë e-Market'),
+          content: SizedBox(
+            width: 540,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6F8FC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE4EAF2)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.image_outlined,
+                          size: 34,
+                          color: Color(0xFF125C9E),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          image?.name ?? 'Zgjidh foton e reklamës',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final picked = await _pickBannerFile();
+                            if (picked != null) setLocal(() => image = picked);
+                          },
+                          icon: const Icon(Icons.upload_rounded),
+                          label: const Text('Ngarko foto'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: title,
+                    decoration: const InputDecoration(
+                      labelText: 'Titulli (opsional)',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: subtitle,
+                    decoration: const InputDecoration(
+                      labelText: 'Nën-titulli (opsional)',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: audience,
+                    decoration: const InputDecoration(
+                      labelText: 'Kujt i shfaqet',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'citizen',
+                        child: Text('Qytetarëve'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'provider',
+                        child: Text('Mjeshtrave'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'both',
+                        child: Text('Të dyve'),
+                      ),
+                    ],
+                    onChanged: (v) => setLocal(() => audience = v ?? 'both'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: target,
+                    decoration: const InputDecoration(
+                      labelText: 'Linku kur klikohet (opsional)',
+                      hintText: 'https://...',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: sort,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Renditja',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Nëse ka më shumë se një reklamë aktive, aplikacioni i kalon automatikisht njëra pas tjetrës.',
+                    style: TextStyle(color: Colors.black54, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Anulo'),
+            ),
+            FilledButton(
+              onPressed: image == null
+                  ? null
+                  : () => Navigator.pop(context, {
+                        'file': image,
+                        'title': title.text.trim(),
+                        'subtitle': subtitle.text.trim(),
+                        'audience': audience,
+                        'target_url': target.text.trim(),
+                        'sort_order': int.tryParse(sort.text.trim()) ?? 0,
+                      }),
+              child: const Text('Shto reklamën'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    title.dispose();
+    subtitle.dispose();
+    target.dispose();
+    sort.dispose();
+    if (payload == null) return;
+
+    setState(() => _busy = true);
+    String? uploadedPath;
+    try {
+      uploadedPath = await _uploadBannerFile(payload['file'] as html.File);
+      await _client.rpc(
+        'admin_market_backoffice_action',
+        params: {
+          'p_entity': 'banner',
+          'p_id': null,
+          'p_action': 'create',
+          'p_payload': {
+            'image_path': uploadedPath,
+            'title': payload['title'],
+            'subtitle': payload['subtitle'],
+            'audience': payload['audience'],
+            'target_url': payload['target_url'],
+            'sort_order': payload['sort_order'],
+            'is_active': true,
+          },
+        },
+      );
+      if (mounted) setState(_reload);
+    } catch (e) {
+      if (uploadedPath != null) {
+        try {
+          await _client.storage
+              .from('market-banners')
+              .remove([uploadedPath]);
+        } catch (_) {}
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteBanner(Map<String, dynamic> banner) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hiq reklamën?'),
+        content: const Text(
+          'Reklama do të hiqet nga e-Market dhe nuk do t’u shfaqet më përdoruesve.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hiq'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    setState(() => _busy = true);
+    try {
+      final path = banner['image_path']?.toString();
+      if (path != null && path.isNotEmpty) {
+        await _client.storage.from('market-banners').remove([path]);
+      }
+      await _client.rpc(
+        'admin_market_backoffice_action',
+        params: {
+          'p_entity': 'banner',
+          'p_id': banner['id'],
+          'p_action': 'delete',
+          'p_payload': <String, dynamic>{},
+        },
+      );
+      if (mounted) setState(_reload);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendly(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _bannersTab(List<Map<String, dynamic>> rows) {
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 36),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: _busy ? null : _createBanner,
+            icon: const Icon(Icons.add_photo_alternate_rounded),
+            label: const Text('Shto reklamë'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (rows.isEmpty)
+          const _EmptyBackoffice('Nuk ka ende reklama e-Market.')
+        else
+          ...rows.map((r) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE4EAF2)),
+                ),
+                child: Row(
+                  children: [
+                    FutureBuilder<String>(
+                      future: _client.storage
+                          .from('market-banners')
+                          .createSignedUrl(
+                            r['image_path'].toString(),
+                            900,
+                          ),
+                      builder: (context, snap) => Container(
+                        width: 150,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4F6FA),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: snap.hasData
+                            ? Image.network(
+                                snap.data!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.image_not_supported_outlined,
+                                ),
+                              )
+                            : const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            (r['title'] ?? 'Reklamë e-Market').toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Audienca: ' +
+                                (r['audience'] ?? 'both').toString() +
+                                ' • Renditja: ' +
+                                (r['sort_order'] ?? 0).toString(),
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: r['is_active'] == true,
+                      onChanged: _busy
+                          ? null
+                          : (_) => _action(
+                                'banner',
+                                r['id'].toString(),
+                                'toggle',
+                              ),
+                    ),
+                    IconButton(
+                      tooltip: 'Hiq reklamën',
+                      onPressed: _busy ? null : () => _deleteBanner(r),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+      ],
+    );
   }
 
   Future<void> _createCategory() async {
@@ -327,7 +711,7 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
         final data = snap.data!;
         final vendors = _rows(data, 'vendors');
         return DefaultTabController(
-          length: 6,
+          length: 7,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -339,7 +723,7 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
                       children: [
                         Text('e-Market • Menaxhim i plotë', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
                         SizedBox(height: 4),
-                        Text('Kategori, marka, promocione, kthime, komisione dhe abonime.', style: TextStyle(color: Colors.black54)),
+                        Text('Reklama, kategori, marka, promocione, kthime, komisione dhe abonime.', style: TextStyle(color: Colors.black54)),
                       ],
                     ),
                   ),
@@ -354,6 +738,7 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
               const TabBar(
                 isScrollable: true,
                 tabs: [
+                  Tab(text: 'Reklama'),
                   Tab(text: 'Kategori'),
                   Tab(text: 'Marka'),
                   Tab(text: 'Promocione'),
@@ -366,6 +751,7 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
               Expanded(
                 child: TabBarView(
                   children: [
+                    _bannersTab(_rows(data, 'banners')),
                     _simpleCrudTab(
                       context,
                       rows: _rows(data, 'categories'),
