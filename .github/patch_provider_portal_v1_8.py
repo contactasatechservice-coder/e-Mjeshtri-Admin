@@ -40,14 +40,45 @@ insert = r'''
   }
 
   Future<Map<String,dynamic>?> activeSubscription(String providerId) async {
-    final row = await client
-        .from('provider_subscriptions')
-        .select()
-        .eq('provider_id', providerId)
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    return row == null ? null : Map<String,dynamic>.from(row);
+    final raw = await client.rpc(
+      'provider_subscription_overview',
+      params: {'p_provider_id': providerId},
+    );
+    final overview = raw is Map
+        ? Map<String,dynamic>.from(raw)
+        : <String,dynamic>{};
+    final currentRaw = overview['current_subscription'];
+    if (currentRaw is! Map) return null;
+    final current = Map<String,dynamic>.from(currentRaw);
+
+    Map<String,dynamic>? plan;
+    final rawPlans = overview['plans'];
+    if (rawPlans is List) {
+      for (final item in rawPlans) {
+        if (item is! Map) continue;
+        final candidate = Map<String,dynamic>.from(item);
+        if ((candidate['code'] ?? '').toString() ==
+            (current['plan_code'] ?? '').toString()) {
+          plan = candidate;
+          break;
+        }
+      }
+    }
+
+    final blueRaw = overview['blue_tick'];
+    final blue = blueRaw is Map
+        ? Map<String,dynamic>.from(blueRaw)
+        : <String,dynamic>{};
+
+    return {
+      ...current,
+      'plan_name': plan?['name'],
+      'plan_price_amount': plan?['price_amount'],
+      'plan_blue_tick_included': plan?['blue_tick_included'] == true,
+      'blue_tick_active': blue['active'] == true,
+      'blue_tick_expires_at': blue['expires_at'],
+      'blue_tick_source': blue['source'],
+    };
   }
 
   Future<void> saveWeeklyAvailability(
@@ -71,6 +102,10 @@ insert = r'''
   Future<String?> providerImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     return client.storage.from('provider-media').createSignedUrl(path, 3600);
+  }
+
+  Future<String> signedDocumentUrl(String path) {
+    return client.storage.from('provider-documents').createSignedUrl(path, 3600);
   }
 
   Future<String> uploadProviderBrandImage(
@@ -320,6 +355,8 @@ jobs.write_text(s)
 
 # Profile redesign: one subscription entry, brand imagery, weekly availability page.
 s = profile.read_text()
+if "package:url_launcher/url_launcher.dart" not in s:
+    s = s.replace("import 'package:image_picker/image_picker.dart';\n", "import 'package:image_picker/image_picker.dart';\nimport 'package:url_launcher/url_launcher.dart';\n")
 s = s.replace("import '../subscriptions/subscription_screen.dart' as subscription_ui;\n", "")
 new_profile = r'''class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key, required this.providerId});
@@ -713,49 +750,549 @@ class _TimeChip extends StatelessWidget {
 '''
 s = replace_between(s, 'class AvailabilityScreen', 'class DocumentsScreen', new_availability)
 
-new_sub = r'''class SubscriptionScreen extends StatelessWidget {
+new_documents = r'''class DocumentsScreen extends StatefulWidget {
+  const DocumentsScreen({super.key, required this.providerId});
+  final String providerId;
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  late Future<List<Map<String,dynamic>>> future;
+  bool uploading = false;
+
+  static const slots = <(String,String,String)>[
+    ('id_card','Kartë ID','Dokumenti bazë i verifikimit'),
+    ('license','Licencë / Certifikatë','Licencë profesionale ose certifikatë'),
+    ('business','Dokument biznesi / NIPT','Për biznes ose kompani'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.documents(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.documents(widget.providerId));
+    await future;
+  }
+
+  Map<String,dynamic>? latestFor(
+    List<Map<String,dynamic>> rows,
+    String type,
+  ) {
+    for (final row in rows) {
+      if ((row['document_type'] ?? '').toString() == type) return row;
+    }
+    return null;
+  }
+
+  Future<void> uploadType(String type) async {
+    if (uploading) return;
+    final picked = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf','jpg','jpeg','png'],
+    );
+    if (picked == null || !mounted) return;
+    setState(() => uploading = true);
+    try {
+      await providerRepo.uploadDocument(widget.providerId, type, picked);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dokumenti u dërgua për kontroll nga administratori.'),
+          ),
+        );
+      }
+      await reload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => uploading = false);
+    }
+  }
+
+  Future<void> openDocument(Map<String,dynamic> doc) async {
+    final path = (doc['storage_path'] ?? '').toString();
+    if (path.isEmpty) return;
+    try {
+      final url = await providerRepo.signedDocumentUrl(path);
+      if (!mounted) return;
+      final lower = path.toLowerCase();
+      if (lower.endsWith('.pdf')) {
+        final ok = await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Dokumenti nuk u hap dot.')),
+          );
+        }
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _DocumentPreviewScreen(
+            url: url,
+            title: _docTitle((doc['document_type'] ?? '').toString()),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  String _docTitle(String type) => switch (type) {
+    'id_card' => 'Kartë ID',
+    'license' => 'Licencë / Certifikatë',
+    'business' => 'Dokument biznesi / NIPT',
+    _ => 'Dokument',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final t = T.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(t('documents')),
+        backgroundColor: Colors.transparent,
+      ),
+      body: FutureBuilder<List<Map<String,dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              children: [
+                softCard(
+                  color: const Color(0xFFFFF7E7),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.warning,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Mund ta hapësh çdo dokument për ta parë dhe mund ta zëvendësosh. Dokumenti i aprovuar mbetet aktiv derisa administratori të kontrollojë versionin e ri.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                for (final slot in slots)
+                  _DocumentSlotCard(
+                    title: slot.$2,
+                    subtitle: slot.$3,
+                    doc: latestFor(rows, slot.$1),
+                    busy: uploading,
+                    onOpen: (doc) => openDocument(doc),
+                    onUpload: () => uploadType(slot.$1),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DocumentSlotCard extends StatelessWidget {
+  const _DocumentSlotCard({
+    required this.title,
+    required this.subtitle,
+    required this.doc,
+    required this.busy,
+    required this.onOpen,
+    required this.onUpload,
+  });
+
+  final String title;
+  final String subtitle;
+  final Map<String,dynamic>? doc;
+  final bool busy;
+  final ValueChanged<Map<String,dynamic>> onOpen;
+  final VoidCallback onUpload;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (doc?['status'] ?? 'missing').toString();
+    final color = status == 'approved'
+        ? AppColors.success
+        : status == 'rejected'
+            ? AppColors.danger
+            : status == 'pending'
+                ? AppColors.warning
+                : AppColors.muted;
+    final statusText = switch (status) {
+      'approved' => 'Aprovuar',
+      'rejected' => 'Refuzuar',
+      'pending' => 'Në pritje',
+      _ => 'Mungon',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: Material(
+        color: Colors.white,
+        elevation: 1,
+        shadowColor: const Color(0x10000000),
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: .07),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: AppColors.navy,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (doc != null)
+                          OutlinedButton.icon(
+                            onPressed: () => onOpen(doc!),
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: const Text('Shiko'),
+                          ),
+                        FilledButton.tonalIcon(
+                          onPressed: busy ? null : onUpload,
+                          icon: Icon(
+                            doc == null
+                                ? Icons.upload_file_rounded
+                                : Icons.sync_rounded,
+                          ),
+                          label: Text(
+                            doc == null ? 'Ngarko' : 'Zëvendëso',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DocumentPreviewScreen extends StatelessWidget {
+  const _DocumentPreviewScreen({
+    required this.url,
+    required this.title,
+  });
+
+  final String url;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(title)),
+    backgroundColor: Colors.black,
+    body: SafeArea(
+      child: Center(
+        child: InteractiveViewer(
+          minScale: .8,
+          maxScale: 5,
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Dokumenti nuk u shfaq dot.',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+'''
+s = replace_between(s, 'class DocumentsScreen', 'class PortfolioScreen', new_documents)
+
+new_sub = r'''class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key, required this.providerId});
   final String providerId;
+
+  @override
+  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
+}
+
+class _SubscriptionScreenState extends State<SubscriptionScreen> {
+  late Future<Map<String,dynamic>?> future;
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.activeSubscription(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.activeSubscription(widget.providerId));
+    await future;
+  }
+
+  String cycleLabel(String value) => switch (value) {
+    'monthly' => 'Mujor',
+    'yearly' => 'Vjetor',
+    _ => value,
+  };
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Abonimi i Mjeshtrit'), backgroundColor: Colors.transparent),
+      appBar: AppBar(
+        title: const Text('Abonimi i Mjeshtrit'),
+        backgroundColor: Colors.transparent,
+      ),
       body: FutureBuilder<Map<String,dynamic>?>(
-        future: providerRepo.activeSubscription(providerId),
+        future: future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          if (snap.hasError) {
+            return Center(
+              child: FilledButton.icon(
+                onPressed: reload,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Provo përsëri'),
+              ),
+            );
+          }
+
           final x = snap.data;
-          if (x == null) return Padding(padding: const EdgeInsets.all(20), child: softCard(child: const Column(children: [Icon(Icons.workspace_premium_outlined, size: 42, color: AppColors.navy), SizedBox(height: 12), Text('Nuk ka abonim aktiv.', style: TextStyle(fontWeight: FontWeight.w800))])));
+          if (x == null) {
+            return RefreshIndicator(
+              onRefresh: reload,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  const SizedBox(height: 80),
+                  softCard(
+                    child: const Column(
+                      children: [
+                        Icon(
+                          Icons.workspace_premium_outlined,
+                          size: 42,
+                          color: AppColors.navy,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'Nuk ka abonim aktiv.',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           final status = (x['status'] ?? '').toString();
-          final cycle = (x['billing_cycle'] ?? x['plan_code'] ?? '').toString();
-          final price = (x['price_amount'] ?? x['monthly_price'] ?? 0).toString();
+          final cycle =
+              (x['billing_cycle'] ?? x['plan_code'] ?? '').toString();
+          final planName = (x['plan_name'] ?? '').toString().trim();
+          final priceValue =
+              (x['price_amount'] ?? x['plan_price_amount'] ?? x['monthly_price'] ?? 0);
+          final price = priceValue is num
+              ? priceValue.toDouble()
+              : double.tryParse(priceValue.toString()) ?? 0;
           final renewRaw = x['renews_at'] ?? x['ends_at'];
-          final renew = renewRaw == null ? null : DateTime.tryParse(renewRaw.toString())?.toLocal();
-          return ListView(padding: const EdgeInsets.all(20), children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0A4B95), Color(0xFF176FD0)]), borderRadius: BorderRadius.circular(26)),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 34),
-                const SizedBox(height: 16),
-                Text(cycle.isEmpty ? 'ABONIM' : cycle.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 7),
-                Text(status == 'active' ? 'Aktiv' : status, style: TextStyle(color: Colors.white.withValues(alpha: .85), fontWeight: FontWeight.w800)),
-                const SizedBox(height: 18),
-                Text(price + ' ' + (x['currency'] ?? 'ALL').toString(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
-              ]),
+          final renew = renewRaw == null
+              ? null
+              : DateTime.tryParse(renewRaw.toString())?.toLocal();
+          final blueActive = x['blue_tick_active'] == true;
+          final effective = x['effective_active'] == true;
+
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(22),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0A4B95), Color(0xFF176FD0)],
+                    ),
+                    borderRadius: BorderRadius.circular(26),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.workspace_premium_rounded,
+                        color: Colors.white,
+                        size: 34,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        planName.isEmpty
+                            ? 'Abonim ${cycleLabel(cycle)}'
+                            : planName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        effective ? 'Aktiv' : status,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: .88),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        '${price.toStringAsFixed(0)} ${(x['currency'] ?? 'ALL')}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.sync_rounded,
+                        color: AppColors.success,
+                        size: 19,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Të dhënat merren direkt nga abonimi i aprovuar në panelin e Adminit.',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                softCard(
+                  child: Column(
+                    children: [
+                      _SubscriptionInfo(
+                        label: 'Statusi',
+                        value: effective ? 'Aktiv' : status,
+                      ),
+                      const Divider(height: 24),
+                      _SubscriptionInfo(
+                        label: 'Plani',
+                        value: planName.isEmpty ? cycleLabel(cycle) : planName,
+                      ),
+                      const Divider(height: 24),
+                      _SubscriptionInfo(
+                        label: 'Cikli',
+                        value: cycleLabel(cycle),
+                      ),
+                      const Divider(height: 24),
+                      _SubscriptionInfo(
+                        label: 'Vlen deri',
+                        value: renew == null
+                            ? '-'
+                            : '${renew.day.toString().padLeft(2,'0')}/${renew.month.toString().padLeft(2,'0')}/${renew.year}',
+                      ),
+                      const Divider(height: 24),
+                      _SubscriptionInfo(
+                        label: 'Tick blu',
+                        value: blueActive ? 'Aktiv' : 'Jo aktiv',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            softCard(child: Column(children: [
-              _SubscriptionInfo(label: 'Statusi', value: status == 'active' ? 'Aktiv' : status),
-              const Divider(height: 24),
-              _SubscriptionInfo(label: 'Cikli', value: cycle.isEmpty ? '-' : cycle),
-              const Divider(height: 24),
-              _SubscriptionInfo(label: 'Vlen deri', value: renew == null ? '-' : renew.day.toString().padLeft(2,'0') + '/' + renew.month.toString().padLeft(2,'0') + '/' + renew.year.toString()),
-              const Divider(height: 24),
-              _SubscriptionInfo(label: 'Tick blu', value: x['blue_tick_included'] == true ? 'Përfshirë' : 'Jo i përfshirë'),
-            ])),
-          ]);
+          );
         },
       ),
     );
@@ -763,11 +1300,32 @@ new_sub = r'''class SubscriptionScreen extends StatelessWidget {
 }
 
 class _SubscriptionInfo extends StatelessWidget {
-  const _SubscriptionInfo({required this.label, required this.value});
+  const _SubscriptionInfo({
+    required this.label,
+    required this.value,
+  });
+
   final String label;
   final String value;
+
   @override
-  Widget build(BuildContext context) => Row(children: [Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)), Text(value, style: const TextStyle(fontWeight: FontWeight.w800))]);
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+      Flexible(
+        child: Text(
+          value,
+          textAlign: TextAlign.end,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
 }
 '''
 idx = s.index('class SubscriptionScreen')
