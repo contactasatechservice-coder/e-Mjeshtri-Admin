@@ -1319,6 +1319,442 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
     );
   }
 
+  Widget _reviewModerationList(
+    List<Map<String, dynamic>> rows,
+    String entity,
+  ) {
+    if (rows.isEmpty) {
+      return const _EmptyBackoffice('Nuk ka vlerësime.');
+    }
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 36),
+      children: rows.map((r) {
+        final status = (r['status'] ?? '').toString();
+        final target = entity == 'product_review'
+            ? (r['product_name'] ?? '').toString()
+            : (r['vendor_name'] ?? '').toString();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 9),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE4EAF2)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                color: Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      target +
+                          ' • ' +
+                          (r['rating'] ?? 0).toString() +
+                          '/5',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      (r['buyer_name'] ?? 'Klient').toString() +
+                          ' • ' +
+                          _marketManagementStatusLabel(status),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if ((r['comment'] ?? '')
+                        .toString()
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text((r['comment'] ?? '').toString()),
+                    ],
+                  ],
+                ),
+              ),
+              Wrap(
+                spacing: 4,
+                children: [
+                  if (status != 'published')
+                    IconButton(
+                      tooltip: 'Publiko',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                entity,
+                                r['id'].toString(),
+                                'publish',
+                              ),
+                      icon: const Icon(Icons.visibility_outlined),
+                    ),
+                  if (status == 'published')
+                    IconButton(
+                      tooltip: 'Fshih',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                entity,
+                                r['id'].toString(),
+                                'hide',
+                              ),
+                      icon:
+                          const Icon(Icons.visibility_off_outlined),
+                    ),
+                  if (status != 'removed')
+                    IconButton(
+                      tooltip: 'Hiq',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                entity,
+                                r['id'].toString(),
+                                'remove',
+                              ),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _reportsManagementList(
+    List<Map<String, dynamic>> rows,
+  ) {
+    if (rows.isEmpty) {
+      return const _EmptyBackoffice('Nuk ka raportime e-Market.');
+    }
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 36),
+      children: rows.map((r) {
+        final status = (r['status'] ?? '').toString();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 9),
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE4EAF2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.flag_outlined,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (r['entity_type'] ?? '').toString() +
+                          ' • ' +
+                          (r['reason'] ?? '').toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      (r['reporter_name'] ?? 'Përdorues')
+                              .toString() +
+                          ' • ' +
+                          _marketManagementStatusLabel(status),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if ((r['details'] ?? '')
+                        .toString()
+                        .trim()
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text((r['details'] ?? '').toString()),
+                    ],
+                  ],
+                ),
+              ),
+              Wrap(
+                spacing: 4,
+                children: [
+                  if (status == 'open')
+                    IconButton(
+                      tooltip: 'Në shqyrtim',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'report',
+                                r['id'].toString(),
+                                'reviewing',
+                              ),
+                      icon: const Icon(
+                        Icons.manage_search_rounded,
+                      ),
+                    ),
+                  if (status != 'resolved')
+                    IconButton(
+                      tooltip: 'Zgjidh',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'report',
+                                r['id'].toString(),
+                                'resolve',
+                              ),
+                      icon: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF168C5A),
+                      ),
+                    ),
+                  if (status != 'resolved' &&
+                      status != 'dismissed')
+                    IconButton(
+                      tooltip: 'Mbyll pa veprim',
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'report',
+                                r['id'].toString(),
+                                'dismiss',
+                              ),
+                      icon: const Icon(Icons.cancel_outlined),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _moderationManagementTab(
+    Map<String, dynamic> data,
+  ) {
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(
+                icon: Icon(Icons.inventory_2_outlined),
+                text: 'Vlerësime produktesh',
+              ),
+              Tab(
+                icon: Icon(Icons.storefront_outlined),
+                text: 'Vlerësime dyqanesh',
+              ),
+              Tab(
+                icon: Icon(Icons.flag_outlined),
+                text: 'Raportime',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _reviewModerationList(
+                  _rows(data, 'product_reviews'),
+                  'product_review',
+                ),
+                _reviewModerationList(
+                  _rows(data, 'vendor_reviews'),
+                  'vendor_review',
+                ),
+                _reportsManagementList(
+                  _rows(data, 'reports'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _analyticsManagementTab(
+    Map<String, dynamic> data,
+  ) {
+    final analytics = Map<String, dynamic>.from(
+      (data['analytics'] as Map?) ?? const {},
+    );
+    final topProducts = List<Map<String, dynamic>>.from(
+      (analytics['top_products'] as List?) ?? const [],
+    );
+    final topCategories = List<Map<String, dynamic>>.from(
+      (analytics['top_categories'] as List?) ?? const [],
+    );
+    final audit = _rows(data, 'audit');
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 36),
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth < 720
+                ? (constraints.maxWidth - 10) / 2
+                : (constraints.maxWidth - 30) / 4;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _ManagementKpi(
+                  width: width,
+                  label: 'Produkte aktive',
+                  value: analytics['products_active'],
+                  icon: Icons.inventory_2_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Në aprovim',
+                  value: analytics['products_pending'],
+                  icon: Icons.hourglass_top_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Korrigjime',
+                  value: analytics['products_correction'],
+                  icon: Icons.edit_note_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Biznese aktive',
+                  value: analytics['vendors_approved'],
+                  icon: Icons.storefront_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Porosi',
+                  value: analytics['orders_total'],
+                  icon: Icons.shopping_bag_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Xhiro bruto',
+                  value:
+                      (analytics['gross_sales'] ?? 0).toString() +
+                          ' ALL',
+                  icon: Icons.payments_outlined,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Raportime hapur',
+                  value: analytics['reports_open'],
+                  icon: Icons.flag_rounded,
+                ),
+                _ManagementKpi(
+                  width: width,
+                  label: 'Stok i ulët',
+                  value: analytics['products_low_stock'],
+                  icon: Icons.warning_amber_rounded,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 18),
+        _ManagementPanel(
+          title: 'Produktet më të shitura',
+          child: topProducts.isEmpty
+              ? const Text('Nuk ka ende të dhëna shitjesh.')
+              : Column(
+                  children: topProducts.map((p) {
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(
+                        Icons.trending_up_rounded,
+                      ),
+                      title: Text(
+                        (p['product_name'] ?? '').toString(),
+                      ),
+                      trailing: Text(
+                        (p['units'] ?? 0).toString() + ' copë',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        const SizedBox(height: 12),
+        _ManagementPanel(
+          title: 'Kategoritë më të shitura',
+          child: topCategories.isEmpty
+              ? const Text('Nuk ka ende të dhëna shitjesh.')
+              : Column(
+                  children: topCategories.map((p) {
+                    return ListTile(
+                      dense: true,
+                      leading:
+                          const Icon(Icons.category_outlined),
+                      title:
+                          Text((p['name_sq'] ?? '').toString()),
+                      trailing: Text(
+                        (p['units'] ?? 0).toString() + ' copë',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+        const SizedBox(height: 12),
+        _ManagementPanel(
+          title: 'Regjistri i veprimeve e-Market',
+          child: audit.isEmpty
+              ? const Text(
+                  'Nuk ka ende veprime të regjistruara.',
+                )
+              : Column(
+                  children: audit.take(40).map((a) {
+                    return ListTile(
+                      dense: true,
+                      leading:
+                          const Icon(Icons.history_rounded),
+                      title: Text(
+                        (a['action'] ?? '').toString() +
+                            ' • ' +
+                            (a['entity_type'] ?? '').toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      subtitle: Text(
+                        (a['actor_name'] ??
+                                'Administrator')
+                            .toString(),
+                      ),
+                    );
+                  }).toList(),
+                ),
+        ),
+      ],
+    );
+  }
+
   Future<String?> _noteDialog(String title) {
     final controller = TextEditingController();
     return showDialog<String>(
