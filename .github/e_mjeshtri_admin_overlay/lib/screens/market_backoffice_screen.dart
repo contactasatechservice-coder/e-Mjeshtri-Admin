@@ -701,6 +701,301 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
     }
   }
 
+  Future<void> _requestProductCorrection(
+    Map<String, dynamic> product,
+  ) async {
+    final note = await _noteDialog(
+      'Kërko korrigjim • ' + (product['name'] ?? '').toString(),
+    );
+    if (note == null || note.trim().isEmpty) return;
+    await _adminAction(
+      'product',
+      product['id'].toString(),
+      'request_correction',
+      note: note,
+    );
+  }
+
+  Future<void> _rejectManagedProduct(
+    Map<String, dynamic> product,
+  ) async {
+    final note = await _noteDialog(
+      'Refuzo produktin • ' + (product['name'] ?? '').toString(),
+    );
+    if (note == null || note.trim().isEmpty) return;
+    await _adminAction(
+      'product',
+      product['id'].toString(),
+      'reject',
+      note: note,
+    );
+  }
+
+  Widget _productsManagementTab(
+    List<Map<String, dynamic>> rows,
+  ) {
+    final filtered = rows.where((p) {
+      final status = (p['status'] ?? '').toString();
+      if (_productFilter == 'all') return true;
+      if (_productFilter == 'featured') return p['is_featured'] == true;
+      if (_productFilter == 'low_stock') {
+        final stock = (p['stock_quantity'] as num?)?.toInt() ?? 0;
+        final reserved = (p['reserved_quantity'] as num?)?.toInt() ?? 0;
+        final threshold =
+            (p['low_stock_threshold'] as num?)?.toInt() ?? 0;
+        return stock - reserved <= threshold;
+      }
+      return status == _productFilter;
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 36),
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _ManagementFilterChip(
+              label: 'Të gjitha',
+              selected: _productFilter == 'all',
+              onTap: () => setState(() => _productFilter = 'all'),
+            ),
+            _ManagementFilterChip(
+              label: 'Në pritje',
+              selected: _productFilter == 'pending_review',
+              onTap: () =>
+                  setState(() => _productFilter = 'pending_review'),
+            ),
+            _ManagementFilterChip(
+              label: 'Kërkon korrigjim',
+              selected: _productFilter == 'needs_correction',
+              onTap: () =>
+                  setState(() => _productFilter = 'needs_correction'),
+            ),
+            _ManagementFilterChip(
+              label: 'Aktive',
+              selected: _productFilter == 'active',
+              onTap: () => setState(() => _productFilter = 'active'),
+            ),
+            _ManagementFilterChip(
+              label: 'Rekomanduara',
+              selected: _productFilter == 'featured',
+              onTap: () => setState(() => _productFilter = 'featured'),
+            ),
+            _ManagementFilterChip(
+              label: 'Stok i ulët',
+              selected: _productFilter == 'low_stock',
+              onTap: () =>
+                  setState(() => _productFilter = 'low_stock'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (filtered.isEmpty)
+          const _EmptyBackoffice('Nuk ka produkte në këtë filtër.')
+        else
+          ...filtered.map((p) {
+            final status = (p['status'] ?? '').toString();
+            final audience = (p['audience'] ?? 'both').toString();
+            final stock = (p['stock_quantity'] as num?)?.toInt() ?? 0;
+            final reserved =
+                (p['reserved_quantity'] as num?)?.toInt() ?? 0;
+            final available = stock - reserved;
+            final threshold =
+                (p['low_stock_threshold'] as num?)?.toInt() ?? 0;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: const Color(0xFFE4EAF2),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF3FC),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2_outlined,
+                      color: Color(0xFF125C9E),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (p['name'] ?? '').toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                            if (p['is_featured'] == true)
+                              const Icon(
+                                Icons.auto_awesome_rounded,
+                                color: Color(0xFF125C9E),
+                                size: 18,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          (p['vendor_name'] ?? '').toString() +
+                              ' • ' +
+                              (p['category_name'] ?? '').toString(),
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            _ManagementTag(
+                              icon: Icons.info_outline_rounded,
+                              label: _marketManagementStatusLabel(status),
+                              color: _marketManagementStatusColor(status),
+                            ),
+                            _ManagementTag(
+                              icon: audience == 'citizen'
+                                  ? Icons.person_outline_rounded
+                                  : audience == 'provider'
+                                      ? Icons.handyman_outlined
+                                      : Icons.groups_2_outlined,
+                              label: audience == 'citizen'
+                                  ? 'Qytetar'
+                                  : audience == 'provider'
+                                      ? 'Mjeshtër'
+                                      : 'Të dy',
+                              color: const Color(0xFF125C9E),
+                            ),
+                            _ManagementTag(
+                              icon: Icons.payments_outlined,
+                              label:
+                                  (p['retail_price'] ?? 0).toString() +
+                                      ' ' +
+                                      (p['currency'] ?? 'ALL').toString(),
+                              color: const Color(0xFF168C5A),
+                            ),
+                            _ManagementTag(
+                              icon: Icons.inventory_outlined,
+                              label: 'Stok: ' + available.toString(),
+                              color: available <= threshold
+                                  ? const Color(0xFFC2410C)
+                                  : const Color(0xFF667085),
+                            ),
+                          ],
+                        ),
+                        if ((p['rejection_reason'] ?? '')
+                            .toString()
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            (p['rejection_reason'] ?? '').toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF9A3412),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (status == 'pending_review')
+                        FilledButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _adminAction(
+                                    'product',
+                                    p['id'].toString(),
+                                    'approve',
+                                  ),
+                          child: const Text('Aprovo'),
+                        ),
+                      if (status == 'pending_review')
+                        OutlinedButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _requestProductCorrection(p),
+                          child: const Text('Kërko korrigjim'),
+                        ),
+                      if (status == 'pending_review')
+                        OutlinedButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _rejectManagedProduct(p),
+                          child: const Text('Refuzo'),
+                        ),
+                      if (status == 'active')
+                        OutlinedButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _adminAction(
+                                    'product',
+                                    p['id'].toString(),
+                                    p['is_featured'] == true
+                                        ? 'unfeature'
+                                        : 'feature',
+                                  ),
+                          icon: Icon(
+                            p['is_featured'] == true
+                                ? Icons.star_rounded
+                                : Icons.star_border_rounded,
+                            size: 17,
+                          ),
+                          label: Text(
+                            p['is_featured'] == true
+                                ? 'Hiq rekomandimin'
+                                : 'Rekomando',
+                          ),
+                        ),
+                      if (status == 'active')
+                        IconButton(
+                          tooltip: 'Çaktivizo',
+                          onPressed: _busy
+                              ? null
+                              : () => _adminAction(
+                                    'product',
+                                    p['id'].toString(),
+                                    'deactivate',
+                                  ),
+                          icon: const Icon(
+                            Icons.pause_circle_outline_rounded,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
   Future<String?> _noteDialog(String title) {
     final controller = TextEditingController();
     return showDialog<String>(
