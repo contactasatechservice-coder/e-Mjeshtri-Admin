@@ -242,13 +242,35 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
     switch (widget.moduleKey) {
       case 'verifications':
         if (item.kind == 'document' && item.status == 'pending') {
-          actions.addAll(const [
-            _Action('approve_document', 'Aprovo dokumentin',
-                Icons.check_circle_rounded),
+          final isCredential =
+              (item.data['document_type'] ?? '').toString() == 'license';
+          final hasCustomCatalogValue =
+              item.data['school_is_custom'] == true ||
+              item.data['program_is_custom'] == true;
+          actions.add(
             _Action(
-                'reject_document', 'Refuzo dokumentin', Icons.cancel_rounded,
-                destructive: true),
-          ]);
+              'approve_document',
+              isCredential ? 'Aprovo kualifikimin' : 'Aprovo dokumentin',
+              Icons.check_circle_rounded,
+            ),
+          );
+          if (isCredential && hasCustomCatalogValue) {
+            actions.add(
+              const _Action(
+                'approve_credential_catalog',
+                'Aprovo + shto në listën zyrtare',
+                Icons.library_add_check_rounded,
+              ),
+            );
+          }
+          actions.add(
+            _Action(
+              'reject_document',
+              isCredential ? 'Refuzo kualifikimin' : 'Refuzo dokumentin',
+              Icons.cancel_rounded,
+              destructive: true,
+            ),
+          );
         } else if (item.kind == 'provider' && item.status == 'pending') {
           actions.addAll(const [
             _Action(
@@ -620,6 +642,30 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
           message: 'Je i sigurt që dëshiron të vazhdosh?',
         );
     if (!confirmed) return;
+
+    final isProfessionalCredential =
+        widget.moduleKey == 'verifications' &&
+        item.kind == 'document' &&
+        (item.data['document_type'] ?? '').toString() == 'license';
+
+    if (isProfessionalCredential &&
+        {'approve_document', 'approve_credential_catalog', 'reject_document'}
+            .contains(action.key)) {
+      await _runRemote(
+        () => AdminModulesRepository.instance.reviewProfessionalCredential(
+          item.id,
+          approve: action.key != 'reject_document',
+          addToCatalog: action.key == 'approve_credential_catalog',
+          reason: payload['reason']?.toString(),
+        ),
+        success: action.key == 'reject_document'
+            ? 'Kualifikimi u refuzua.'
+            : action.key == 'approve_credential_catalog'
+                ? 'Kualifikimi u aprovua dhe të dhënat e reja u shtuan në listë.'
+                : 'Kualifikimi u aprovua dhe tani shfaqet te profili i Mjeshtrit.',
+      );
+      return;
+    }
 
     await _runRemote(
       () => AdminModulesRepository.instance.action(
