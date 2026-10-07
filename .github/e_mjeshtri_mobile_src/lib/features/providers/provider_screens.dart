@@ -1149,7 +1149,7 @@ class _ReviewCard extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              clientName.characters.first.toUpperCase(),
+              clientName.substring(0, 1).toUpperCase(),
               style: const TextStyle(
                 color: AppColors.blue,
                 fontWeight: FontWeight.w900,
