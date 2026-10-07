@@ -1045,71 +1045,144 @@ class _MarketSellerProductsState extends State<MarketSellerProducts> {
               final reserved =
                   (p['reserved_quantity'] as num?)?.toInt() ?? 0;
               final stock = (p['stock_quantity'] as num?)?.toInt() ?? 0;
-              return Card(
-                elevation: 0,
+              final audience = (p['audience'] ?? 'both').toString();
+              final audienceLabel = audience == 'citizen'
+                  ? 'Qytetar'
+                  : audience == 'provider'
+                      ? 'Mjeshtër'
+                      : 'Të dy';
+              final status = (p['status'] ?? '').toString();
+              return Container(
                 margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.inventory_2_outlined),
-                  ),
-                  title: Text(
-                    (p['name'] ?? '').toString(),
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text(
-                    (category['name_sq'] ?? '').toString() +
-                        ' • ' +
-                        (p['retail_price'] ?? 0).toString() +
-                        ' ' +
-                        (p['currency'] ?? 'ALL').toString() +
-                        ' • stok i lirë ' +
-                        (stock - reserved).toString(),
-                  ),
-                  trailing: Wrap(
-                    spacing: 4,
-                    children: [
-                      Chip(label: Text((p['status'] ?? '').toString())),
-                      IconButton(
-                        tooltip: 'Fotot e produktit',
-                        onPressed: () async {
-                          await showDialog<void>(
-                            context: context,
-                            builder: (_) => MarketProductMediaDialog(
-                              vendorId: widget.vendorId,
-                              productId: p['id'].toString(),
-                              productName: (p['name'] ?? '').toString(),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE5EAF1)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x08172235),
+                      blurRadius: 14,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF3FC),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Icon(
+                        Icons.inventory_2_outlined,
+                        color: Color(0xFF125C9E),
+                      ),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            (p['name'] ?? '').toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
                             ),
-                          );
-                          if (mounted) setState(_reload);
-                        },
-                        icon: const Icon(Icons.photo_library_outlined),
-                      ),
-                      IconButton(
-                        tooltip: 'Ndrysho stokun',
-                        onPressed: () => _editStock(p),
-                        icon: const Icon(Icons.inventory_rounded),
-                      ),
-                      PopupMenuButton<String>(
-                        onSelected: (value) async {
-                          await _repo.setProductState(
-                            p['id'].toString(),
-                            value,
-                          );
-                          if (mounted) setState(_reload);
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(
-                            value: 'inactive',
-                            child: Text('Çaktivizo'),
                           ),
-                          PopupMenuItem(
-                            value: 'archived',
-                            child: Text('Arkivo'),
+                          const SizedBox(height: 4),
+                          Text(
+                            (category['name_sq'] ?? '').toString() +
+                                ' • ' +
+                                (p['retail_price'] ?? 0).toString() +
+                                ' ' +
+                                (p['currency'] ?? 'ALL').toString() +
+                                ' • stok i lirë ' +
+                                (stock - reserved).toString(),
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 7,
+                            runSpacing: 7,
+                            children: [
+                              _SellerTag(
+                                label: audienceLabel,
+                                icon: audience == 'citizen'
+                                    ? Icons.person_outline_rounded
+                                    : audience == 'provider'
+                                        ? Icons.handyman_outlined
+                                        : Icons.groups_2_outlined,
+                                color: const Color(0xFF125C9E),
+                              ),
+                              _SellerTag(
+                                label: status,
+                                icon: status == 'active'
+                                    ? Icons.check_circle_outline_rounded
+                                    : status == 'pending_review'
+                                        ? Icons.hourglass_top_rounded
+                                        : Icons.info_outline_rounded,
+                                color: status == 'active'
+                                    ? const Color(0xFF168C5A)
+                                    : const Color(0xFFB7791F),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 10),
+                    Wrap(
+                      spacing: 2,
+                      children: [
+                        IconButton(
+                          tooltip: 'Fotot e produktit',
+                          onPressed: () async {
+                            await showDialog<void>(
+                              context: context,
+                              builder: (_) => MarketProductMediaDialog(
+                                vendorId: widget.vendorId,
+                                productId: p['id'].toString(),
+                                productName: (p['name'] ?? '').toString(),
+                              ),
+                            );
+                            if (mounted) setState(_reload);
+                          },
+                          icon: const Icon(Icons.photo_library_outlined),
+                        ),
+                        IconButton(
+                          tooltip: 'Ndrysho stokun',
+                          onPressed: () => _editStock(p),
+                          icon: const Icon(Icons.inventory_rounded),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (value) async {
+                            await _repo.setProductState(
+                              p['id'].toString(),
+                              value,
+                            );
+                            if (mounted) setState(_reload);
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'inactive',
+                              child: Text('Çaktivizo'),
+                            ),
+                            PopupMenuItem(
+                              value: 'archived',
+                              child: Text('Arkivo'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             }).toList(),
