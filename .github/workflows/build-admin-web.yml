@@ -78,9 +78,18 @@ jobs:
 
       - name: Publish static build into main
         run: |
+          set -euo pipefail
           rm -rf /tmp/site
           mkdir -p /tmp/site
           cp -a /tmp/e_mjeshtri_admin/app/build/web/. /tmp/site/
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Publish on top of the newest main without rebasing generated files.
+          git fetch origin main
+          git reset --hard origin/main
+
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             ! -name '.github' \
@@ -95,13 +104,11 @@ jobs:
             ]
           }
           JSON
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add -A
           if git diff --cached --quiet; then
             echo "No build changes to publish"
           else
             git commit -m "Publish fully functional e-Mjeshtri Admin [skip ci]"
-            git pull --rebase origin main
-            git push origin main
+            git push origin HEAD:main
           fi
