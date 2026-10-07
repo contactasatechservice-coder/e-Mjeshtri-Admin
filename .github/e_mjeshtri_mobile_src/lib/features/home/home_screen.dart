@@ -283,25 +283,25 @@ class HomeScreen extends ConsumerWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(14),
                           onTap: () => context.push('/profile/addresses'),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.location_on_rounded,
                                   size: 18,
                                   color: AppColors.blue,
                                 ),
-                                SizedBox(width: 5),
+                                const SizedBox(width: 5),
                                 Flexible(
                                   child: Text(
-                                    'Vendndodhja ime',
-                                    style: TextStyle(
+                                    s.t('myLocation'),
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
-                                Icon(
+                                const Icon(
                                   Icons.keyboard_arrow_down_rounded,
                                   size: 18,
                                 ),
@@ -329,7 +329,7 @@ class HomeScreen extends ConsumerWidget {
                     onTap: () => context.push('/search'),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded, color: AppColors.blue),
-                      hintText: 'Kërko shërbime, mjeshtra, kategori...',
+                      hintText: s.t('homeSearchHint'),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -338,9 +338,9 @@ class HomeScreen extends ConsumerWidget {
                     child: FilledButton.icon(
                       onPressed: () => context.push('/categories?request=1'),
                       icon: const Icon(Icons.add_task_rounded),
-                      label: const Text(
-                        'Krijo kërkesë',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                      label: Text(
+                        s.t('createRequest'),
+                        style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.blue,
@@ -615,9 +615,9 @@ class _ProviderCard extends StatelessWidget {
                                     .withValues(alpha: .10),
                                 borderRadius: BorderRadius.circular(999),
                               ),
-                              child: const Text(
-                                'I disponueshëm',
-                                style: TextStyle(
+                              child: Text(
+                                AppStrings.of(context).t('availableNow'),
+                                style: const TextStyle(
                                   color: AppColors.success,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w900,
@@ -642,7 +642,7 @@ class _ProviderCard extends StatelessWidget {
                                 Flexible(
                                   child: Text(
                                     ratingCount == 0
-                                        ? 'Pa vlerësime ende'
+                                        ? AppStrings.of(context).t('noRatingsYet')
                                         : '${ratingAvg.toStringAsFixed(1)} ($ratingCount)',
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -722,8 +722,8 @@ class _CompactEmptyRebook extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Rezervimet e mëparshme do të shfaqen këtu.',
-                style: TextStyle(
+                AppStrings.of(context).t('rebookEmpty'),
+                style: const TextStyle(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w600,
                 ),
