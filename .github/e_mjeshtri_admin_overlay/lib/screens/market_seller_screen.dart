@@ -66,12 +66,9 @@ class _MarketSellerLoginScreenState extends State<MarketSellerLoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(
-                        height: 74,
-                        child: Image.asset(
-                          'assets/branding/e_mjeshtri_logo.png',
-                          fit: BoxFit.contain,
-                        ),
+                      const _SellerMarketBrand(
+                        compact: false,
+                        centered: true,
                       ),
                       const SizedBox(height: 18),
                       const Text(
@@ -787,17 +784,10 @@ class _SellerNavigation extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 26, 20, 20),
-            child: Container(
-              height: 70,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Image.asset(
-                'assets/branding/e_mjeshtri_logo.png',
-                fit: BoxFit.contain,
-              ),
+            child: const _SellerMarketBrand(
+              compact: true,
+              centered: true,
+              darkSurface: true,
             ),
           ),
           const Text(
@@ -1283,26 +1273,45 @@ class _AddMarketProductDialogState extends State<_AddMarketProductDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _audience,
-                  decoration: const InputDecoration(
-                    labelText: 'Kujt i shfaqet',
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Kujt i shfaqet produkti',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'citizen',
-                      child: Text('Vetëm Qytetarëve'),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _AudienceChoice(
+                        icon: Icons.person_outline_rounded,
+                        label: 'Qytetar',
+                        selected: _audience == 'citizen',
+                        onTap: () => setState(() => _audience = 'citizen'),
+                      ),
                     ),
-                    DropdownMenuItem(
-                      value: 'provider',
-                      child: Text('Vetëm Mjeshtrave'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _AudienceChoice(
+                        icon: Icons.handyman_outlined,
+                        label: 'Mjeshtër',
+                        selected: _audience == 'provider',
+                        onTap: () => setState(() => _audience = 'provider'),
+                      ),
                     ),
-                    DropdownMenuItem(
-                      value: 'both',
-                      child: Text('Qytetar + Mjeshtër'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _AudienceChoice(
+                        icon: Icons.groups_2_outlined,
+                        label: 'Të dy',
+                        selected: _audience == 'both',
+                        onTap: () => setState(() => _audience = 'both'),
+                      ),
                     ),
                   ],
-                  onChanged: (v) => setState(() => _audience = v ?? 'both'),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
