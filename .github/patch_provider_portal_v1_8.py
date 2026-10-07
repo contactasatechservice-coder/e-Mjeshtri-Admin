@@ -7,6 +7,7 @@ home = root / 'lib/features/provider_portal/home.dart'
 requests = root / 'lib/features/provider_portal/requests.dart'
 jobs = root / 'lib/features/provider_portal/jobs.dart'
 profile = root / 'lib/features/provider_portal/profile.dart'
+messages = root / 'lib/features/provider_portal/messages.dart'
 shell = root / 'lib/features/provider_portal/shell.dart'
 
 
@@ -124,25 +125,439 @@ insert = r'''
       fileOptions: FileOptions(upsert: false, contentType: mime),
     );
     if (banner) {
-      await client.from('provider_media').delete().eq('provider_id', providerId).eq('caption', 'Banner');
-      await client.from('provider_media').insert({
-        'provider_id': providerId,
-        'storage_path': path,
-        'media_type': 'image',
-        'caption': 'Banner',
-        'sort_order': -10,
-      });
+      await client.from('provider_media')
+          .delete()
+          .eq('provider_id', providerId)
+          .eq('caption', 'Banner');
       await updateProvider(providerId, {'banner_path': path});
     } else {
       await updateProvider(providerId, {'logo_path': path});
     }
     return path;
   }
+
+  Future<void> deleteProviderBrandImage(
+    String providerId, {
+    required bool banner,
+    required String? storagePath,
+  }) async {
+    final path = storagePath?.trim() ?? '';
+    if (path.isNotEmpty) {
+      try {
+        await client.storage.from('provider-media').remove([path]);
+      } catch (_) {}
+    }
+    await updateProvider(
+      providerId,
+      {banner ? 'banner_path' : 'logo_path': null},
+    );
+    if (banner) {
+      await client.from('provider_media')
+          .delete()
+          .eq('provider_id', providerId)
+          .eq('caption', 'Banner');
+    }
+  }
+
+  Future<void> deletePortfolioImage(
+    String providerId,
+    String mediaId,
+    String storagePath,
+  ) async {
+    await client.from('provider_media')
+        .delete()
+        .eq('id', mediaId)
+        .eq('provider_id', providerId);
+    if (storagePath.trim().isNotEmpty) {
+      try {
+        await client.storage.from('provider-media').remove([storagePath]);
+      } catch (_) {}
+    }
+  }
+
+  Future<List<Map<String,dynamic>>> reviews(String providerId) async {
+    final rows = await client
+        .from('reviews')
+        .select('id,rating,comment,status,created_at,updated_at,order_id')
+        .eq('provider_id', providerId)
+        .eq('status', 'published')
+        .order('created_at', ascending: false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
 '''
 marker = '\n  Future<List<Map<String,dynamic>>> notifications() async {'
 if 'requestsStream()' not in s:
     s = s.replace(marker, '\n' + insert + marker)
+
+# Provider chat visibility and deletion.
+s = s.replace(
+"""  Future<List<Map<String,dynamic>>> conversations(String providerId) async {
+    final rows = await client.from('conversations').select().eq('provider_id',providerId).order('updated_at',ascending:false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+""",
+"""  Future<List<Map<String,dynamic>>> conversations(String providerId) async {
+    final rows = await client
+        .from('conversations')
+        .select()
+        .eq('provider_id', providerId)
+        .isFilter('provider_deleted_at', null)
+        .order('updated_at', ascending: false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+
+  Future<void> hideConversation(String conversationId) async {
+    await client.rpc(
+      'hide_my_provider_conversation',
+      params: {'p_conversation_id': conversationId},
+    );
+  }
+"""
+)
+
 repo.write_text(s)
+
+new_messages = r'''import 'package:flutter/material.dart';
+import 'core.dart';
+import 'provider_repository.dart';
+
+class MessagesScreen extends StatefulWidget {
+  const MessagesScreen({super.key, required this.providerId});
+  final String providerId;
+
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  late Future<List<Map<String, dynamic>>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.conversations(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.conversations(widget.providerId));
+    await future;
+  }
+
+  Future<void> deleteChat(Map<String,dynamic> row) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Fshi bisedën'),
+        content: const Text(
+          'Biseda do të hiqet nga lista jote. Nëse klienti dërgon një mesazh të ri, ajo do të shfaqet përsëri.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Fshi'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await providerRepo.hideConversation(row['id'].toString());
+    if (mounted) reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = T.of(context);
+    return SafeArea(
+      bottom: false,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+              children: [
+                Text(
+                  t('messages'),
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 18),
+                if (snapshot.connectionState != ConnectionState.done)
+                  const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (rows.isEmpty)
+                  softCard(
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.forum_outlined,
+                          size: 38,
+                          color: AppColors.navy,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          t('noMessages'),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...rows.map(
+                    (c) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Material(
+                        color: Colors.white,
+                        elevation: 1.3,
+                        shadowColor: const Color(0x12000000),
+                        borderRadius: BorderRadius.circular(22),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            16, 8, 4, 8,
+                          ),
+                          leading: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.navy.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.person_rounded,
+                              color: AppColors.navy,
+                            ),
+                          ),
+                          title: Text(
+                            t('client'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: Text(
+                            c['order_id'] != null
+                                ? '#${c['order_id'].toString().substring(0, 8)}'
+                                : t('chat'),
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'delete') deleteChat(c);
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.danger,
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Fshi bisedën',
+                                      style: TextStyle(
+                                        color: AppColors.danger,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  conversationId: c['id'].toString(),
+                                  title: t('client'),
+                                ),
+                              ),
+                            );
+                            if (mounted) reload();
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({
+    super.key,
+    required this.conversationId,
+    required this.title,
+  });
+
+  final String conversationId;
+  final String title;
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final text = TextEditingController();
+  bool sending = false;
+
+  @override
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
+  Future<void> send() async {
+    final v = text.text.trim();
+    if (v.isEmpty) return;
+    setState(() => sending = true);
+    try {
+      await providerRepo.sendMessage(widget.conversationId, v);
+      text.clear();
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
+  }
+
+  Future<void> deleteChat() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Fshi bisedën'),
+        content: const Text(
+          'Biseda do të hiqet nga lista jote. Mesazhet nuk fshihen nga llogaria e klientit.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Fshi'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await providerRepo.hideConversation(widget.conversationId);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = T.of(context);
+    final uid = providerRepo.client.auth.currentUser?.id;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            tooltip: 'Fshi bisedën',
+            onPressed: deleteChat,
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.danger,
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: providerRepo.messages(widget.conversationId),
+              builder: (context, snapshot) {
+                final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+                return ListView.builder(
+                  reverse: true,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: rows.length,
+                  itemBuilder: (context, i) {
+                    final m = rows[rows.length - 1 - i];
+                    final mine = m['sender_user_id'] == uid;
+                    return Align(
+                      alignment: mine
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        constraints: BoxConstraints(
+                          maxWidth:
+                              MediaQuery.of(context).size.width * .76,
+                        ),
+                        decoration: BoxDecoration(
+                          color: mine ? AppColors.navy : Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Text(
+                          (m['body'] ?? '').toString(),
+                          style: TextStyle(
+                            color: mine ? Colors.white : AppColors.ink,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: text,
+                      minLines: 1,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: t('typeMessage'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: sending ? null : send,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                    ),
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+'''
+messages.write_text(new_messages)
 
 # Premium provider home with realtime refresh and compact layout.
 s = home.read_text()
@@ -406,6 +821,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               _Menu(icon: Icons.schedule_rounded, title: t('availability'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AvailabilityScreen(providerId: widget.providerId))).then((_) => reload())),
               _Menu(icon: Icons.verified_user_rounded, title: t('documents'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DocumentsScreen(providerId: widget.providerId)))),
               _Menu(icon: Icons.photo_library_rounded, title: t('portfolio'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PortfolioScreen(providerId: widget.providerId)))),
+              _Menu(icon: Icons.star_rounded, title: 'Vlerësimet', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProviderReviewsScreen(providerId: widget.providerId)))),
               _Menu(icon: Icons.account_balance_wallet_rounded, title: t('finances'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FinancesScreen(providerId: widget.providerId)))),
               FutureBuilder<Map<String,dynamic>?>(
                 future: subscriptionFuture,
@@ -547,6 +963,47 @@ class _EditProviderScreenState extends State<EditProviderScreen> {
     }
   }
 
+  Future<void> removeBrand(bool banner) async {
+    final current = banner ? bannerPath : logoPath;
+    if (current == null || current!.trim().isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(banner ? 'Fshi bannerin' : 'Fshi foton e profilit'),
+        content: Text(
+          banner
+              ? 'Banneri do të hiqet nga profili i Mjeshtrit.'
+              : 'Fotoja e profilit do të hiqet.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Fshi'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await providerRepo.deleteProviderBrandImage(
+      widget.providerId,
+      banner: banner,
+      storagePath: current,
+    );
+    if (mounted) {
+      setState(() {
+        if (banner) {
+          bannerPath = null;
+        } else {
+          logoPath = null;
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = T.of(context);
@@ -563,8 +1020,28 @@ class _EditProviderScreenState extends State<EditProviderScreen> {
             child: Stack(children: [
               Positioned.fill(child: FutureBuilder<String?>(future: providerRepo.providerImageUrl(bannerPath), builder: (context, s) => ClipRRect(borderRadius: BorderRadius.circular(24), child: s.data == null ? const SizedBox() : Image.network(s.data!, fit: BoxFit.cover)))),
               Positioned(right: 10, top: 10, child: FilledButton.tonalIcon(onPressed: uploadingBanner ? null : () => pickBrand(true), icon: uploadingBanner ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.wallpaper_rounded), label: const Text('Banner'))),
+              if (bannerPath != null && bannerPath!.trim().isNotEmpty)
+                Positioned(
+                  right: 10,
+                  top: 58,
+                  child: IconButton.filledTonal(
+                    tooltip: 'Fshi bannerin',
+                    onPressed: uploadingBanner ? null : () => removeBrand(true),
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                  ),
+                ),
               Positioned(left: 14, bottom: 14, child: FutureBuilder<String?>(future: providerRepo.providerImageUrl(logoPath), builder: (context, s) => Container(width: 72, height: 72, clipBehavior: Clip.antiAlias, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: Colors.white, width: 3)), child: s.data == null ? const Icon(Icons.handyman_rounded, color: AppColors.navy) : Image.network(s.data!, fit: BoxFit.cover)))),
               Positioned(left: 94, bottom: 18, child: OutlinedButton.icon(onPressed: uploadingLogo ? null : () => pickBrand(false), icon: uploadingLogo ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.add_a_photo_rounded), label: const Text('Foto profili'))),
+              if (logoPath != null && logoPath!.trim().isNotEmpty)
+                Positioned(
+                  right: 10,
+                  bottom: 14,
+                  child: IconButton.filledTonal(
+                    tooltip: 'Fshi foton e profilit',
+                    onPressed: uploadingLogo ? null : () => removeBrand(false),
+                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                  ),
+                ),
             ]),
           ),
           const SizedBox(height: 18),
@@ -1330,6 +1807,328 @@ class _SubscriptionInfo extends StatelessWidget {
 '''
 idx = s.index('class SubscriptionScreen')
 s = s[:idx] + new_sub + '\n'
+
+new_portfolio_reviews = r'''class PortfolioScreen extends StatefulWidget {
+  const PortfolioScreen({super.key, required this.providerId});
+  final String providerId;
+
+  @override
+  State<PortfolioScreen> createState() => _PortfolioScreenState();
+}
+
+class _PortfolioScreenState extends State<PortfolioScreen> {
+  late Future<List<Map<String, dynamic>>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.portfolio(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.portfolio(widget.providerId));
+    await future;
+  }
+
+  Future<void> deletePhoto(Map<String,dynamic> row) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Fshi foton'),
+        content: const Text('Kjo foto do të hiqet nga portofoli i punëve.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Anulo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Fshi'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await providerRepo.deletePortfolioImage(
+      widget.providerId,
+      row['id'].toString(),
+      (row['storage_path'] ?? '').toString(),
+    );
+    if (mounted) reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(T.of(context)('portfolio')),
+        backgroundColor: Colors.transparent,
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _pick,
+        backgroundColor: AppColors.navy,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_a_photo_rounded),
+        label: Text(T.of(context)('uploadPhoto')),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          if (rows.isEmpty) {
+            return const Center(
+              child: Text('Nuk ka ende foto pune.'),
+            );
+          }
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemCount: rows.length,
+            itemBuilder: (context, i) {
+              final row = rows[i];
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  FutureBuilder<String>(
+                    future: providerRepo.signedProviderMedia(
+                      row['storage_path'].toString(),
+                    ),
+                    builder: (context, urlSnapshot) => ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: urlSnapshot.hasData
+                          ? Image.network(
+                              urlSnapshot.data!,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              color: Colors.white,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 7,
+                    top: 7,
+                    child: IconButton.filled(
+                      tooltip: 'Fshi',
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            Colors.black.withValues(alpha: .55),
+                      ),
+                      onPressed: () => deletePhoto(row),
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _pick() async {
+    final x = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 82,
+    );
+    if (x == null) return;
+    await providerRepo.uploadPortfolioImage(widget.providerId, x);
+    await reload();
+  }
+}
+
+class ProviderReviewsScreen extends StatefulWidget {
+  const ProviderReviewsScreen({super.key, required this.providerId});
+  final String providerId;
+
+  @override
+  State<ProviderReviewsScreen> createState() => _ProviderReviewsScreenState();
+}
+
+class _ProviderReviewsScreenState extends State<ProviderReviewsScreen> {
+  late Future<List<Map<String,dynamic>>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.reviews(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.reviews(widget.providerId));
+    await future;
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Vlerësimet'),
+      backgroundColor: Colors.transparent,
+    ),
+    body: FutureBuilder<List<Map<String,dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        }
+        if (rows.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              children: [
+                const SizedBox(height: 80),
+                softCard(
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.star_outline_rounded,
+                        size: 42,
+                        color: AppColors.navy,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Nuk ka ende vlerësime nga klientët.',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final avg = rows.fold<double>(
+              0,
+              (sum, row) =>
+                  sum + ((row['rating'] as num?)?.toDouble() ?? 0),
+            ) /
+            rows.length;
+
+        return RefreshIndicator(
+          onRefresh: reload,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 30),
+            children: [
+              softCard(
+                color: const Color(0xFFFFF8E3),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      color: AppColors.warning,
+                      size: 34,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${avg.toStringAsFixed(1)} / 5',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${rows.length} vlerësime',
+                      style: const TextStyle(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final row in rows)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: softCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            ...List.generate(
+                              5,
+                              (i) => Icon(
+                                i < ((row['rating'] as num?)?.toInt() ?? 0)
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
+                                color: AppColors.warning,
+                                size: 21,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              DateTime.tryParse(
+                                        (row['created_at'] ?? '').toString(),
+                                      ) ==
+                                      null
+                                  ? ''
+                                  : () {
+                                      final d = DateTime.parse(
+                                        row['created_at'].toString(),
+                                      ).toLocal();
+                                      return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+                                    }(),
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if ((row['comment'] ?? '')
+                            .toString()
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 9),
+                          Text(
+                            row['comment'].toString(),
+                            style: const TextStyle(height: 1.4),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+'''
+s = replace_between(
+  s,
+  'class PortfolioScreen',
+  'class FinancesScreen',
+  new_portfolio_reviews,
+)
+
 profile.write_text(s)
 
 # Faster bottom-nav feedback.
