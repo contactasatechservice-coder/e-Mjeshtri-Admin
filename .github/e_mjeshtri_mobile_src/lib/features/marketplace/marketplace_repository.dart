@@ -202,6 +202,21 @@ class MarketplaceRepository {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  Future<List<Map<String, dynamic>>> activityRequests() async {
+    final rows = await client
+        .from('service_requests')
+        .select(
+          'id,description,status,urgency,scheduled_for,city,created_at,'
+          'budget_min,budget_max,currency,'
+          'service_categories(id,slug,service_category_translations(language_code,name)),'
+          'offers(id,total_amount,currency,status,is_current,created_at,'
+          'providers(id,display_name,is_verified,blue_tick_expires_at,rating_avg,city))',
+        )
+        .eq('client_id', uid)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   Future<List<Map<String, dynamic>>> offers(String requestId) async {
     final rows = await client.from('offers').select('*,providers(id,display_name,logo_path,is_verified,blue_tick_expires_at,rating_avg,rating_count,city,bio)').eq('request_id', requestId).eq('is_current', true).order('total_amount');
     return List<Map<String, dynamic>>.from(rows);
