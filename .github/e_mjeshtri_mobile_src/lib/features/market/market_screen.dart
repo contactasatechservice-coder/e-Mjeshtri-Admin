@@ -870,34 +870,72 @@ class _MarketBannerCarousel extends ConsumerStatefulWidget {
 }
 
 class _MarketBannerCarouselState
-    extends ConsumerState<_MarketBannerCarousel> {
-  late final PageController _controller;
+    extends ConsumerState<_MarketBannerCarousel>
+    with WidgetsBindingObserver {
+  PageController? _controller;
   Timer? _timer;
-  int _index = 0;
+  int _logicalIndex = 0;
+  int _physicalPage = 0;
+  bool _appActive = true;
+
+  bool get _hasMultiple => widget.banners.length > 1;
 
   @override
   void initState() {
     super.initState();
-    _controller = PageController();
-    _schedule();
+    WidgetsBinding.instance.addObserver(this);
+    _configureController();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoPlay());
   }
 
   @override
   void didUpdateWidget(covariant _MarketBannerCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.banners.length != widget.banners.length) {
-      _index = 0;
-      _timer?.cancel();
-      _schedule();
+    if (oldWidget.banners.length != widget.banners.length ||
+        !_sameBannerIds(oldWidget.banners, widget.banners)) {
+      _stopAutoPlay();
+      _controller?.dispose();
+      _logicalIndex = 0;
+      _configureController();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startAutoPlay());
     }
   }
 
-  void _schedule() {
-    if (widget.banners.length <= 1) return;
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted || !_controller.hasClients) return;
-      final next = (_index + 1) % widget.banners.length;
-      _controller.animateToPage(
+  bool _sameBannerIds(
+    List<Map<String, dynamic>> a,
+    List<Map<String, dynamic>> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i]['id']?.toString() != b[i]['id']?.toString()) return false;
+    }
+    return true;
+  }
+
+  void _configureController() {
+    if (_hasMultiple) {
+      const base = 10000;
+      _physicalPage = base - (base % widget.banners.length);
+      _controller = PageController(initialPage: _physicalPage);
+    } else {
+      _physicalPage = 0;
+      _controller = PageController(initialPage: 0);
+    }
+  }
+
+  void _startAutoPlay() {
+    _stopAutoPlay();
+    if (!_hasMultiple || !_appActive) return;
+
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_appActive) return;
+      final controller = _controller;
+      if (controller == null || !controller.hasClients) return;
+
+      final current = controller.page?.round() ?? _physicalPage;
+      final next = current + 1;
+
+      controller.animateToPage(
         next,
         duration: const Duration(milliseconds: 520),
         curve: Curves.easeInOutCubic,
@@ -905,10 +943,43 @@ class _MarketBannerCarouselState
     });
   }
 
+  void _stopAutoPlay() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void _restartAutoPlaySoon() {
+    if (!_hasMultiple) return;
+    _stopAutoPlay();
+    _timer = Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      _startAutoPlay();
+      final controller = _controller;
+      if (controller == null || !controller.hasClients) return;
+      final current = controller.page?.round() ?? _physicalPage;
+      controller.animateToPage(
+        current + 1,
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+      );
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appActive = state == AppLifecycleState.resumed;
+    if (_appActive) {
+      _startAutoPlay();
+    } else {
+      _stopAutoPlay();
+    }
+  }
+
   @override
   void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _stopAutoPlay();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -922,21 +993,38 @@ class _MarketBannerCarouselState
 
   @override
   Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null) {
+      return _MarketHeroBanner(isProvider: widget.isProvider);
+    }
+
     return Column(
       children: [
         SizedBox(
           height: 156,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: widget.banners.length,
-            onPageChanged: (value) => setState(() => _index = value),
-            itemBuilder: (context, index) {
-              final banner = widget.banners[index];
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index == widget.banners.length - 1 ? 0 : 0,
-                ),
-                child: Material(
+          child: NotificationListener<ScrollEndNotification>(
+            onNotification: (notification) {
+              if (_hasMultiple) _restartAutoPlaySoon();
+              return false;
+            },
+            child: PageView.builder(
+              controller: controller,
+              physics: _hasMultiple
+                  ? const PageScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              itemCount: _hasMultiple ? null : 1,
+              onPageChanged: (page) {
+                _physicalPage = page;
+                final nextLogical = page % widget.banners.length;
+                if (nextLogical != _logicalIndex && mounted) {
+                  setState(() => _logicalIndex = nextLogical);
+                }
+              },
+              itemBuilder: (context, page) {
+                final index = page % widget.banners.length;
+                final banner = widget.banners[index];
+
+                return Material(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                   clipBehavior: Clip.antiAlias,
@@ -955,7 +1043,7 @@ class _MarketBannerCarouselState
                               ),
                           builder: (context, snap) {
                             final url = snap.data;
-                            if (url == null) {
+                            if (url == null || url.isEmpty) {
                               return _MarketHeroBanner(
                                 isProvider: widget.isProvider,
                               );
@@ -963,6 +1051,23 @@ class _MarketBannerCarouselState
                             return Image.network(
                               url,
                               fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                              filterQuality: FilterQuality.medium,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  color: const Color(0xFFF3F6FA),
+                                  alignment: Alignment.center,
+                                  child: const SizedBox(
+                                    width: 26,
+                                    height: 26,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                    ),
+                                  ),
+                                );
+                              },
                               errorBuilder: (_, __, ___) =>
                                   _MarketHeroBanner(
                                 isProvider: widget.isProvider,
@@ -1024,27 +1129,29 @@ class _MarketBannerCarouselState
                       ],
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
-        if (widget.banners.length > 1) ...[
+        if (_hasMultiple) ...[
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.banners.length,
-              (i) => AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: i == _index ? 18 : 6,
-                height: 6,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: i == _index
-                      ? AppColors.blue
-                      : AppColors.muted.withValues(alpha: .28),
-                  borderRadius: BorderRadius.circular(99),
+          IgnorePointer(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.banners.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: i == _logicalIndex ? 18 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: i == _logicalIndex
+                        ? AppColors.blue
+                        : AppColors.muted.withValues(alpha: .28),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
             ),
