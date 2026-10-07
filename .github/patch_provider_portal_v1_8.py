@@ -2136,3 +2136,1109 @@ s = shell.read_text()
 s = s.replace('duration: const Duration(milliseconds: 180)', 'duration: const Duration(milliseconds: 90)')
 s = s.replace('onTap: () => setState(() => index = i),', 'onTap: () { if (index != i) setState(() => index = i); },')
 shell.write_text(s)
+
+
+# PROFESSIONAL CREDENTIALS V1.9
+repo_text = repo.read_text()
+credential_repo_insert = r'''
+  Future<List<Map<String,dynamic>>> professionalDocuments(String providerId) async {
+    final rows = await client
+        .from('provider_documents')
+        .select('*,vocational_schools(name,city),study_programs(name)')
+        .eq('provider_id', providerId)
+        .order('created_at', ascending: false);
+    return List<Map<String,dynamic>>.from(rows);
+  }
+
+  Future<Map<String,dynamic>> professionalCredentialCatalog() async {
+    final results = await Future.wait<dynamic>([
+      client
+          .from('vocational_schools')
+          .select('id,name,city,institution_type')
+          .eq('is_active', true)
+          .order('city')
+          .order('name'),
+      client
+          .from('study_programs')
+          .select('id,name,category')
+          .eq('is_active', true)
+          .order('name'),
+      client
+          .from('school_programs')
+          .select('school_id,program_id,duration_label,credential_awarded')
+          .eq('is_active', true),
+    ]);
+    return {
+      'schools': List<Map<String,dynamic>>.from(results[0] as List),
+      'programs': List<Map<String,dynamic>>.from(results[1] as List),
+      'school_programs': List<Map<String,dynamic>>.from(results[2] as List),
+    };
+  }
+
+  Future<void> uploadProfessionalCredential(
+    String providerId,
+    dynamic file, {
+    String? schoolId,
+    required String studyCity,
+    String? customSchoolName,
+    String? programId,
+    String? customProgramName,
+    required String credentialType,
+    String? credentialName,
+    int? graduationYear,
+    String? credentialNumber,
+    DateTime? issueDate,
+    DateTime? expiresAt,
+  }) async {
+    final approved = await client
+        .from('provider_documents')
+        .select('id')
+        .eq('provider_id', providerId)
+        .eq('document_type', 'license')
+        .eq('status', 'approved')
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    final originalName = file.name.toString();
+    final safeName = originalName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final lower = safeName.toLowerCase();
+    final contentType = lower.endsWith('.pdf')
+        ? 'application/pdf'
+        : lower.endsWith('.png')
+            ? 'image/png'
+            : 'image/jpeg';
+    final path = providerId +
+        '/credentials/' +
+        DateTime.now().millisecondsSinceEpoch.toString() +
+        '_' +
+        safeName;
+    final bytes = await file.readAsBytes();
+    var uploaded = false;
+    try {
+      await client.storage.from('provider-documents').uploadBinary(
+        path,
+        bytes,
+        fileOptions: FileOptions(upsert: false, contentType: contentType),
+      );
+      uploaded = true;
+      String? dateOnly(DateTime? value) {
+        if (value == null) return null;
+        return value.year.toString().padLeft(4, '0') +
+            '-' +
+            value.month.toString().padLeft(2, '0') +
+            '-' +
+            value.day.toString().padLeft(2, '0');
+      }
+
+      await client.from('provider_documents').insert({
+        'provider_id': providerId,
+        'document_type': 'license',
+        'storage_path': path,
+        'status': 'pending',
+        'credential_type': credentialType.trim(),
+        'credential_name': credentialName?.trim().isEmpty == true
+            ? null
+            : credentialName?.trim(),
+        'school_id': schoolId,
+        'custom_school_name': customSchoolName?.trim().isEmpty == true
+            ? null
+            : customSchoolName?.trim(),
+        'study_city': studyCity.trim(),
+        'program_id': programId,
+        'custom_program_name': customProgramName?.trim().isEmpty == true
+            ? null
+            : customProgramName?.trim(),
+        'graduation_year': graduationYear,
+        'credential_number': credentialNumber?.trim().isEmpty == true
+            ? null
+            : credentialNumber?.trim(),
+        'issue_date': dateOnly(issueDate),
+        'expires_at': expiresAt?.toUtc().toIso8601String(),
+        'replaces_document_id': approved?['id'],
+      });
+    } catch (_) {
+      if (uploaded) {
+        try {
+          await client.storage.from('provider-documents').remove([path]);
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  }
+'''
+marker = '\n  Future<List<Map<String,dynamic>>> notifications() async {'
+if 'professionalCredentialCatalog()' not in repo_text:
+    repo_text = repo_text.replace(marker, '\n' + credential_repo_insert + marker)
+repo.write_text(repo_text)
+
+profile_text = profile.read_text()
+new_documents_v19 = r'''class DocumentsScreen extends StatefulWidget {
+  const DocumentsScreen({super.key, required this.providerId});
+  final String providerId;
+  @override
+  State<DocumentsScreen> createState() => _DocumentsScreenState();
+}
+
+class _DocumentsScreenState extends State<DocumentsScreen> {
+  late Future<List<Map<String,dynamic>>> future;
+  bool uploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    future = providerRepo.professionalDocuments(widget.providerId);
+  }
+
+  Future<void> reload() async {
+    setState(() => future = providerRepo.professionalDocuments(widget.providerId));
+    await future;
+  }
+
+  Map<String,dynamic>? latestFor(
+    List<Map<String,dynamic>> rows,
+    String type, {
+    String? status,
+  }) {
+    for (final row in rows) {
+      if ((row['document_type'] ?? '').toString() == type &&
+          (status == null || (row['status'] ?? '').toString() == status)) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  Future<void> uploadType(String type) async {
+    if (uploading) return;
+    final picked = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf','jpg','jpeg','png'],
+    );
+    if (picked == null || !mounted) return;
+    setState(() => uploading = true);
+    try {
+      await providerRepo.uploadDocument(widget.providerId, type, picked);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dokumenti u dërgua për kontroll nga administratori.'),
+          ),
+        );
+      }
+      await reload();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => uploading = false);
+    }
+  }
+
+  Future<void> openCredentialForm() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfessionalCredentialFormScreen(
+          providerId: widget.providerId,
+        ),
+      ),
+    );
+    if (saved == true && mounted) await reload();
+  }
+
+  Future<void> openDocument(Map<String,dynamic> doc) async {
+    final path = (doc['storage_path'] ?? '').toString();
+    if (path.isEmpty) return;
+    try {
+      final url = await providerRepo.signedDocumentUrl(path);
+      if (!mounted) return;
+      final lower = path.toLowerCase();
+      if (lower.endsWith('.pdf')) {
+        final ok = await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Dokumenti nuk u hap dot.')),
+          );
+        }
+        return;
+      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _DocumentPreviewScreen(
+            url: url,
+            title: _docTitle((doc['document_type'] ?? '').toString()),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  String _docTitle(String type) => switch (type) {
+    'id_card' => 'Kartë ID',
+    'license' => 'Licencë / Certifikatë',
+    'business' => 'Dokument biznesi / NIPT',
+    _ => 'Dokument',
+  };
+
+  String? _credentialSummary(Map<String,dynamic>? doc) {
+    if (doc == null) return null;
+    final schoolRel = doc['vocational_schools'];
+    final programRel = doc['study_programs'];
+    final school = schoolRel is Map
+        ? (schoolRel['name'] ?? '').toString()
+        : (doc['custom_school_name'] ?? '').toString();
+    final program = programRel is Map
+        ? (programRel['name'] ?? '').toString()
+        : (doc['custom_program_name'] ?? '').toString();
+    final city = (doc['study_city'] ?? '').toString();
+    final parts = [program, school, city].where((x) => x.trim().isNotEmpty).toList();
+    return parts.isEmpty ? null : parts.join(' • ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = T.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(t('documents')),
+        backgroundColor: Colors.transparent,
+      ),
+      body: FutureBuilder<List<Map<String,dynamic>>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+          final rows = snapshot.data ?? const <Map<String,dynamic>>[];
+          final latestLicense = latestFor(rows, 'license');
+          final approvedLicense = latestFor(rows, 'license', status: 'approved');
+          final pendingLicense = latestFor(rows, 'license', status: 'pending');
+
+          return RefreshIndicator(
+            onRefresh: reload,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
+              children: [
+                softCard(
+                  color: const Color(0xFFFFF7E7),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        color: AppColors.warning,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Licenca ose certifikata lidhet me shkollën, qytetin dhe programin e studimit. Nëse diçka mungon në listë, zgjidh “Tjetër” dhe shkruaje manualisht. Kualifikimi shfaqet te qytetarët vetëm pasi aprovohet nga administratori.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _DocumentSlotCard(
+                  title: 'Kartë ID',
+                  subtitle: 'Dokumenti bazë i verifikimit',
+                  doc: latestFor(rows, 'id_card'),
+                  busy: uploading,
+                  onOpen: (doc) => openDocument(doc),
+                  onUpload: () => uploadType('id_card'),
+                ),
+                _DocumentSlotCard(
+                  title: 'Licencë / Certifikatë',
+                  subtitle: 'Kualifikim profesional, shkollë dhe program studimi',
+                  doc: pendingLicense ?? latestLicense,
+                  detail: _credentialSummary(pendingLicense ?? latestLicense),
+                  approvedStillActive:
+                      pendingLicense != null && approvedLicense != null,
+                  busy: uploading,
+                  onOpen: (doc) => openDocument(doc),
+                  onUpload: openCredentialForm,
+                ),
+                _DocumentSlotCard(
+                  title: 'Dokument biznesi / NIPT',
+                  subtitle: 'Për biznes ose kompani',
+                  doc: latestFor(rows, 'business'),
+                  busy: uploading,
+                  onOpen: (doc) => openDocument(doc),
+                  onUpload: () => uploadType('business'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ProfessionalCredentialFormScreen extends StatefulWidget {
+  const ProfessionalCredentialFormScreen({
+    super.key,
+    required this.providerId,
+  });
+  final String providerId;
+
+  @override
+  State<ProfessionalCredentialFormScreen> createState() =>
+      _ProfessionalCredentialFormScreenState();
+}
+
+class _ProfessionalCredentialFormScreenState
+    extends State<ProfessionalCredentialFormScreen> {
+  bool loading = true;
+  bool saving = false;
+  Map<String,dynamic> catalog = const {};
+  String? cityValue;
+  String? schoolId;
+  String? programId;
+  String credentialType = 'Certifikatë profesionale';
+  bool customCity = false;
+  bool customSchool = false;
+  bool customProgram = false;
+  bool customCredentialType = false;
+  dynamic pickedFile;
+  DateTime? issueDate;
+  DateTime? expiryDate;
+
+  final cityController = TextEditingController();
+  final schoolController = TextEditingController();
+  final programController = TextEditingController();
+  final credentialTypeController = TextEditingController();
+  final credentialNameController = TextEditingController();
+  final graduationYearController = TextEditingController();
+  final credentialNumberController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    cityController.dispose();
+    schoolController.dispose();
+    programController.dispose();
+    credentialTypeController.dispose();
+    credentialNameController.dispose();
+    graduationYearController.dispose();
+    credentialNumberController.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    try {
+      final data = await providerRepo.professionalCredentialCatalog();
+      if (mounted) setState(() => catalog = data);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  List<Map<String,dynamic>> get schools =>
+      List<Map<String,dynamic>>.from(catalog['schools'] as List? ?? const []);
+  List<Map<String,dynamic>> get programs =>
+      List<Map<String,dynamic>>.from(catalog['programs'] as List? ?? const []);
+  List<Map<String,dynamic>> get links =>
+      List<Map<String,dynamic>>.from(catalog['school_programs'] as List? ?? const []);
+
+  List<String> get cities {
+    final values = schools
+        .map((x) => (x['city'] ?? '').toString())
+        .where((x) => x.trim().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return values;
+  }
+
+  List<Map<String,dynamic>> get filteredSchools {
+    if (customCity || cityValue == null) return const [];
+    return schools.where((x) => (x['city'] ?? '').toString() == cityValue).toList();
+  }
+
+  List<Map<String,dynamic>> get filteredPrograms {
+    if (schoolId == null) return programs;
+    final ids = links
+        .where((x) => (x['school_id'] ?? '').toString() == schoolId)
+        .map((x) => (x['program_id'] ?? '').toString())
+        .toSet();
+    if (ids.isEmpty) return programs;
+    return programs.where((x) => ids.contains((x['id'] ?? '').toString())).toList();
+  }
+
+  String dateLabel(DateTime? value) {
+    if (value == null) return 'Nuk është vendosur';
+    return value.day.toString().padLeft(2,'0') +
+        '/' +
+        value.month.toString().padLeft(2,'0') +
+        '/' +
+        value.year.toString();
+  }
+
+  Future<void> pickDocument() async {
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf','jpg','jpeg','png'],
+    );
+    if (file == null) return;
+    final length = file.lengthSync() ?? await file.length();
+    const maxBytes = 8 * 1024 * 1024;
+    if (length == null || length <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dokumenti nuk u lexua dot.')),
+        );
+      }
+      return;
+    }
+    if (length > maxBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Dokumenti duhet të jetë më i vogël se 8 MB.')),
+        );
+      }
+      return;
+    }
+    if (mounted) setState(() => pickedFile = file);
+  }
+
+  Future<void> chooseDate(bool expiry) async {
+    final now = DateTime.now();
+    final value = await showDatePicker(
+      context: context,
+      initialDate: expiry ? (expiryDate ?? now) : (issueDate ?? now),
+      firstDate: DateTime(1950),
+      lastDate: DateTime(now.year + 20),
+    );
+    if (value == null || !mounted) return;
+    setState(() {
+      if (expiry) {
+        expiryDate = value;
+      } else {
+        issueDate = value;
+      }
+    });
+  }
+
+  Future<void> save() async {
+    final city = customCity ? cityController.text.trim() : (cityValue ?? '').trim();
+    final customSchoolName = customSchool ? schoolController.text.trim() : '';
+    final customProgramName = customProgram ? programController.text.trim() : '';
+    final type = customCredentialType
+        ? credentialTypeController.text.trim()
+        : credentialType.trim();
+    final year = int.tryParse(graduationYearController.text.trim());
+
+    if (city.isEmpty ||
+        (!customSchool && schoolId == null) ||
+        (customSchool && customSchoolName.isEmpty) ||
+        (!customProgram && programId == null) ||
+        (customProgram && customProgramName.isEmpty) ||
+        type.isEmpty ||
+        year == null ||
+        pickedFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Plotëso qytetin, shkollën, programin, llojin e dokumentit, vitin dhe ngarko dokumentin.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => saving = true);
+    try {
+      await providerRepo.uploadProfessionalCredential(
+        widget.providerId,
+        pickedFile,
+        schoolId: customSchool ? null : schoolId,
+        studyCity: city,
+        customSchoolName: customSchool ? customSchoolName : null,
+        programId: customProgram ? null : programId,
+        customProgramName: customProgram ? customProgramName : null,
+        credentialType: type,
+        credentialName: credentialNameController.text,
+        graduationYear: year,
+        credentialNumber: credentialNumberController.text,
+        issueDate: issueDate,
+        expiresAt: expiryDate,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kualifikimi u dërgua për verifikim nga administratori.'),
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Shto kualifikim profesional'),
+        backgroundColor: Colors.transparent,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        children: [
+          softCard(
+            color: const Color(0xFFEAF3FF),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.verified_user_outlined, color: AppColors.navy),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Këto të dhëna nuk shfaqen si të verifikuara derisa administratori të kontrollojë dokumentin.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: customCity ? '__other__' : cityValue,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Qyteti ku ke studiuar'),
+            items: [
+              ...cities.map((x) => DropdownMenuItem(value: x, child: Text(x))),
+              const DropdownMenuItem(value: '__other__', child: Text('Tjetër')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                customCity = value == '__other__';
+                cityValue = customCity ? null : value;
+                schoolId = null;
+                customSchool = false;
+                programId = null;
+                customProgram = false;
+              });
+            },
+          ),
+          if (customCity) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: cityController,
+              decoration: const InputDecoration(labelText: 'Shkruaj qytetin'),
+            ),
+          ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: customSchool ? '__other__' : schoolId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Shkolla / Qendra'),
+            items: [
+              ...filteredSchools.map(
+                (x) => DropdownMenuItem(
+                  value: x['id'].toString(),
+                  child: Text((x['name'] ?? '').toString(), overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const DropdownMenuItem(value: '__other__', child: Text('Tjetër')),
+            ],
+            onChanged: cityValue == null && !customCity
+                ? null
+                : (value) {
+                    setState(() {
+                      customSchool = value == '__other__';
+                      schoolId = customSchool ? null : value;
+                      programId = null;
+                      customProgram = false;
+                    });
+                  },
+          ),
+          if (customSchool) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: schoolController,
+              decoration: const InputDecoration(labelText: 'Shkruaj emrin e shkollës / qendrës'),
+            ),
+          ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: customProgram ? '__other__' : programId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Programi i studimit / Zanati'),
+            items: [
+              ...filteredPrograms.map(
+                (x) => DropdownMenuItem(
+                  value: x['id'].toString(),
+                  child: Text((x['name'] ?? '').toString(), overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const DropdownMenuItem(value: '__other__', child: Text('Tjetër')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                customProgram = value == '__other__';
+                programId = customProgram ? null : value;
+              });
+            },
+          ),
+          if (customProgram) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: programController,
+              decoration: const InputDecoration(labelText: 'Shkruaj programin / zanatin'),
+            ),
+          ],
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: customCredentialType ? '__other__' : credentialType,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Dokumenti që ke marrë'),
+            items: const [
+              DropdownMenuItem(value: 'Certifikatë profesionale', child: Text('Certifikatë profesionale')),
+              DropdownMenuItem(value: 'Diplomë profesionale', child: Text('Diplomë profesionale')),
+              DropdownMenuItem(value: 'Licencë profesionale', child: Text('Licencë profesionale')),
+              DropdownMenuItem(value: 'Certifikatë kursi', child: Text('Certifikatë kursi')),
+              DropdownMenuItem(value: 'Kualifikim pas të mesmes', child: Text('Kualifikim pas të mesmes')),
+              DropdownMenuItem(value: '__other__', child: Text('Tjetër')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                customCredentialType = value == '__other__';
+                if (!customCredentialType) credentialType = value;
+              });
+            },
+          ),
+          if (customCredentialType) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: credentialTypeController,
+              decoration: const InputDecoration(labelText: 'Shkruaj llojin e dokumentit'),
+            ),
+          ],
+          const SizedBox(height: 10),
+          TextField(
+            controller: credentialNameController,
+            decoration: const InputDecoration(
+              labelText: 'Emri i diplomës / certifikatës (opsionale)',
+              hintText: 'P.sh. Certifikatë Profesionale Niveli III',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: graduationYearController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Viti i përfundimit'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: credentialNumberController,
+                  decoration: const InputDecoration(labelText: 'Nr. dokumentit'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => chooseDate(false),
+                  icon: const Icon(Icons.event_rounded),
+                  label: Text('Lëshuar: ' + dateLabel(issueDate)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => chooseDate(true),
+                  icon: const Icon(Icons.event_busy_rounded),
+                  label: Text('Skadon: ' + dateLabel(expiryDate)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: pickDocument,
+            icon: const Icon(Icons.upload_file_rounded),
+            label: Text(
+              pickedFile == null
+                  ? 'Ngarko diplomën / certifikatën'
+                  : pickedFile.name.toString(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 54,
+            child: FilledButton.icon(
+              onPressed: saving ? null : save,
+              icon: saving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: Text(saving ? 'Po dërgohet...' : 'Dërgo për verifikim'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentSlotCard extends StatelessWidget {
+  const _DocumentSlotCard({
+    required this.title,
+    required this.subtitle,
+    required this.doc,
+    required this.busy,
+    required this.onOpen,
+    required this.onUpload,
+    this.detail,
+    this.approvedStillActive = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final Map<String,dynamic>? doc;
+  final bool busy;
+  final ValueChanged<Map<String,dynamic>> onOpen;
+  final VoidCallback onUpload;
+  final String? detail;
+  final bool approvedStillActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = (doc?['status'] ?? 'missing').toString();
+    final color = status == 'approved'
+        ? AppColors.success
+        : status == 'rejected'
+            ? AppColors.danger
+            : status == 'pending'
+                ? AppColors.warning
+                : AppColors.muted;
+    final statusText = switch (status) {
+      'approved' => 'Aprovuar',
+      'rejected' => 'Refuzuar',
+      'pending' => 'Në verifikim',
+      'replaced' => 'Zëvendësuar',
+      _ => 'Mungon',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 11),
+      child: Material(
+        color: Colors.white,
+        elevation: 1,
+        shadowColor: const Color(0x10000000),
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.all(15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.navy.withValues(alpha: .07),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.description_outlined,
+                  color: AppColors.navy,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                    if (detail != null && detail!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        detail!,
+                        style: const TextStyle(
+                          color: AppColors.navy,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      statusText,
+                      style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                    ),
+                    if (approvedStillActive) ...[
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Kualifikimi i aprovuar më parë mbetet aktiv derisa të kontrollohet ky version.',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (doc != null)
+                          OutlinedButton.icon(
+                            onPressed: () => onOpen(doc!),
+                            icon: const Icon(Icons.visibility_outlined),
+                            label: const Text('Shiko'),
+                          ),
+                        FilledButton.tonalIcon(
+                          onPressed: busy ? null : onUpload,
+                          icon: Icon(
+                            doc == null
+                                ? Icons.upload_file_rounded
+                                : Icons.sync_rounded,
+                          ),
+                          label: Text(doc == null ? 'Ngarko' : 'Shto / Zëvendëso'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DocumentPreviewScreen extends StatelessWidget {
+  const _DocumentPreviewScreen({
+    required this.url,
+    required this.title,
+  });
+
+  final String url;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(title)),
+    backgroundColor: Colors.black,
+    body: SafeArea(
+      child: Center(
+        child: InteractiveViewer(
+          minScale: .8,
+          maxScale: 5,
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Dokumenti nuk u shfaq dot.',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+'''
+profile_text = replace_between(
+  profile_text,
+  'class DocumentsScreen',
+  'class PortfolioScreen',
+  new_documents_v19,
+)
+profile.write_text(profile_text)
+
+marketplace = root / 'lib/features/marketplace/marketplace_repository.dart'
+market_text = marketplace.read_text()
+if 'verifiedCredentials(String providerId)' not in market_text:
+    verified_method = r'''
+  Future<List<Map<String,dynamic>>> verifiedCredentials(String providerId) async {
+    final raw = await client.rpc(
+      'provider_verified_credentials',
+      params: {'p_provider_id': providerId},
+    );
+    if (raw is! List) return const <Map<String,dynamic>>[];
+    return raw
+        .whereType<Map>()
+        .map((x) => Map<String,dynamic>.from(x))
+        .toList();
+  }
+
+'''
+    market_text = market_text.replace(
+      '  Future<bool> isFavorite(String providerId) async {',
+      verified_method + '  Future<bool> isFavorite(String providerId) async {',
+      1,
+    )
+marketplace.write_text(market_text)
+
+public_profile = root / 'lib/features/providers/provider_screens.dart'
+public_text = public_profile.read_text()
+credential_ui = r'''
+              FutureBuilder<List<Map<String,dynamic>>>(
+                future: repo.verifiedCredentials(widget.providerId),
+                builder: (context, credentialSnap) {
+                  final credentials =
+                      credentialSnap.data ?? const <Map<String,dynamic>>[];
+                  if (credentials.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Arsim & Kualifikime',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 10),
+                      ...credentials.map((credential) {
+                        final program =
+                            (credential['program_name'] ?? '').toString();
+                        final school =
+                            (credential['school_name'] ?? '').toString();
+                        final city = (credential['city'] ?? '').toString();
+                        final type =
+                            (credential['credential_type'] ?? 'Kualifikim profesional').toString();
+                        final year = credential['graduation_year'];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 9),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: .06),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: AppColors.success.withValues(alpha: .18),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.workspace_premium_rounded,
+                                  color: AppColors.success,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Kualifikim profesional i verifikuar',
+                                        style: TextStyle(
+                                          color: AppColors.success,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      if (program.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          program,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                      ],
+                                      if (school.isNotEmpty || city.isNotEmpty)
+                                        Text(
+                                          [school, city]
+                                              .where((x) => x.isNotEmpty)
+                                              .join(' • '),
+                                          style: const TextStyle(
+                                            color: AppColors.muted,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        year == null
+                                            ? type
+                                            : type + ' • ' + year.toString(),
+                                        style: const TextStyle(
+                                          color: AppColors.muted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 14),
+                    ],
+                  );
+                },
+              ),
+'''
+services_marker = """              const SizedBox(height: 24),
+              Text(
+                strings.t('services'),"""
+if 'Kualifikim profesional i verifikuar' not in public_text:
+    public_text = public_text.replace(
+      services_marker,
+      credential_ui + services_marker,
+      1,
+    )
+public_profile.write_text(public_text)
