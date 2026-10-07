@@ -652,15 +652,37 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   late Future<Map<String, dynamic>> future;
+  StreamSubscription<Map<String, dynamic>?>? statusSubscription;
+  String? observedStatus;
   bool busy = false;
 
   @override
   void initState() {
     super.initState();
-    future = ref.read(marketplaceRepositoryProvider).order(widget.orderId);
+    final repo = ref.read(marketplaceRepositoryProvider);
+    future = repo.order(widget.orderId);
+    statusSubscription = repo.orderStatusStream(widget.orderId).listen((row) {
+      final nextStatus = row?['status']?.toString();
+      if (!mounted || nextStatus == null) return;
+      if (observedStatus == null) {
+        observedStatus = nextStatus;
+        return;
+      }
+      if (nextStatus != observedStatus) {
+        observedStatus = nextStatus;
+        reload();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    statusSubscription?.cancel();
+    super.dispose();
   }
 
   void reload() {
+    if (!mounted) return;
     setState(() {
       future = ref.read(marketplaceRepositoryProvider).order(widget.orderId);
     });
@@ -695,7 +717,21 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final s = AppStrings.of(context);
     final repo = ref.read(marketplaceRepositoryProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(s.t('orderDetails'))),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: s.t('back'),
+          onPressed: () {
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: Text(s.t('orderDetails')),
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: future,
         builder: (context, snap) {
@@ -703,7 +739,39 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: FilledButton(onPressed: reload, child: Text(s.t('retry'))));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      size: 44,
+                      color: AppColors.danger,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      s.t('orderLoadFailed'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: reload,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text(s.t('retry')),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () => context.go('/home'),
+                      icon: const Icon(Icons.home_rounded),
+                      label: Text(s.t('backToPanel')),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           final o = snap.data!;
           final p = (o['providers'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -812,8 +880,107 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 const SizedBox(height: 14),
                 _PriceChangeCard(change: pending.first, onDone: reload),
               ],
+              if (status == 'completion_pending') ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.orange.withValues(alpha: .22),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.task_alt_rounded,
+                            color: AppColors.orange,
+                          ),
+                          SizedBox(width: 9),
+                          Expanded(
+                            child: Text(
+                              'Mjeshtri e ka shënuar punën si të përfunduar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Kontrollo punën dhe konfirmoje vetëm pasi të jesh i kënaqur me përfundimin.',
+                        style: TextStyle(color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: FilledButton.icon(
+                          onPressed: busy
+                              ? null
+                              : () async {
+                                  setState(() => busy = true);
+                                  try {
+                                    await repo.confirmCompletion(widget.orderId);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Puna u konfirmua si e përfunduar.'),
+                                        ),
+                                      );
+                                    }
+                                    reload();
+                                  } finally {
+                                    if (mounted) setState(() => busy = false);
+                                  }
+                                },
+                          icon: const Icon(Icons.verified_rounded),
+                          label: const Text('Konfirmo përfundimin'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (status == 'completed') ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.success,
+                      ),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Kjo punë është përfunduar dhe konfirmuar.',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               _actionArea(context, status, p, repo, warrantyList),
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/home'),
+                icon: const Icon(Icons.home_rounded),
+                label: Text(s.t('backToPanel')),
+              ),
             ],
           );
         },
@@ -853,24 +1020,6 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           onPressed: () => context.push('/orders/${widget.orderId}/tracking'),
           icon: const Icon(Icons.navigation_rounded),
           label: Text(s.t('liveTracking')),
-        ),
-      );
-    }
-    if (status == 'completion_pending') {
-      buttons.add(
-        FilledButton(
-          onPressed: busy
-              ? null
-              : () async {
-                  setState(() => busy = true);
-                  try {
-                    await repo.confirmCompletion(widget.orderId);
-                    reload();
-                  } finally {
-                    if (mounted) setState(() => busy = false);
-                  }
-                },
-          child: Text(s.t('confirmCompletion')),
         ),
       );
     }
