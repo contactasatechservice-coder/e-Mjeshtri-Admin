@@ -779,7 +779,15 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           final status = (o['status'] ?? '').toString();
           final changes = (o['order_price_changes'] as List? ?? const []).cast<Map>();
           final pending = changes.where((x) => x['status'] == 'pending').toList();
-          final warrantyList = (o['warranties'] as List? ?? const []).cast<Map>();
+          final warrantyRaw = o['warranties'];
+          final warrantyList = warrantyRaw is Map
+              ? <Map>[Map<String, dynamic>.from(warrantyRaw)]
+              : warrantyRaw is List
+                  ? warrantyRaw
+                      .whereType<Map>()
+                      .map((x) => Map<String, dynamic>.from(x))
+                      .toList()
+                  : <Map>[];
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
@@ -1346,4 +1354,81 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 class ReviewScreen extends ConsumerStatefulWidget {const ReviewScreen({super.key,required this.orderId,required this.providerId});final String orderId,providerId;@override ConsumerState<ReviewScreen> createState()=>_ReviewScreenState();}
 class _ReviewScreenState extends ConsumerState<ReviewScreen>{int rating=5;final comment=TextEditingController();bool busy=false;@override void dispose(){comment.dispose();super.dispose();}@override Widget build(BuildContext context){final s=AppStrings.of(context);return Scaffold(appBar:AppBar(title:Text(s.t('review'))),body:ListView(padding:const EdgeInsets.all(20),children:[Text(s.t('rating'),style:Theme.of(context).textTheme.titleLarge),const SizedBox(height:12),Row(mainAxisAlignment:MainAxisAlignment.center,children:List.generate(5,(i)=>IconButton(onPressed:()=>setState(()=>rating=i+1),icon:Icon(i<rating?Icons.star_rounded:Icons.star_border_rounded,color:AppColors.orange,size:38)))),const SizedBox(height:18),TextField(controller:comment,maxLines:5,decoration:InputDecoration(labelText:s.t('comment'))),const SizedBox(height:22),SizedBox(height:54,child:FilledButton(onPressed:busy?null:()async{setState(()=>busy=true);try{await ref.read(marketplaceRepositoryProvider).createReview(orderId:widget.orderId,providerId:widget.providerId,rating:rating,comment:comment.text);if(context.mounted)context.pop();}finally{if(mounted)setState(()=>busy=false);}},child:Text(s.t('submitReview'))))]));}}
 
-class WarrantyScreen extends ConsumerWidget {const WarrantyScreen({super.key,required this.orderId});final String orderId;@override Widget build(BuildContext context,WidgetRef ref){final s=AppStrings.of(context);return Scaffold(appBar:AppBar(title:Text(s.t('warranty'))),body:FutureBuilder<Map<String,dynamic>>(future:ref.read(marketplaceRepositoryProvider).order(orderId),builder:(context,snap){if(snap.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());final w=((snap.data?['warranties'] as List?)??const[]).cast<Map>();if(w.isEmpty)return EmptyState(icon:Icons.verified_user_outlined,title:s.t('noWarranty'));final x=w.first;return Padding(padding:const EdgeInsets.all(20),child:Card(child:Padding(padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[const Icon(Icons.verified_user_rounded,color:AppColors.success,size:44),const SizedBox(height:14),Text(s.t('warrantyValid'),style:Theme.of(context).textTheme.titleLarge),const SizedBox(height:8),Text('${DateFormat('dd/MM/yyyy').format(DateTime.parse(x['starts_at'].toString()).toLocal())} – ${DateFormat('dd/MM/yyyy').format(DateTime.parse(x['expires_at'].toString()).toLocal())}'),if((x['terms']??'').toString().isNotEmpty)...[const SizedBox(height:12),Text(x['terms'].toString())],const SizedBox(height:18),OutlinedButton.icon(onPressed:()=>context.push('/support/new?orderId=$orderId'),icon:const Icon(Icons.report_problem_outlined),label:Text(s.t('reportProblem')))]))));}));}}
+class WarrantyScreen extends ConsumerWidget {
+  const WarrantyScreen({super.key, required this.orderId});
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = AppStrings.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(strings.t('warranty'))),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: ref.read(marketplaceRepositoryProvider).order(orderId),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError || snap.data == null) {
+            return Center(
+              child: Text(strings.t('errorGeneric')),
+            );
+          }
+          final raw = snap.data!['warranties'];
+          final Map<String, dynamic>? warranty = raw is Map
+              ? Map<String, dynamic>.from(raw)
+              : raw is List && raw.whereType<Map>().isNotEmpty
+                  ? Map<String, dynamic>.from(raw.whereType<Map>().first)
+                  : null;
+          if (warranty == null) {
+            return EmptyState(
+              icon: Icons.verified_user_outlined,
+              title: strings.t('noWarranty'),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.verified_user_rounded,
+                      color: AppColors.success,
+                      size: 44,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      strings.t('warrantyValid'),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${DateFormat('dd/MM/yyyy').format(DateTime.parse(warranty['starts_at'].toString()).toLocal())} – '
+                      '${DateFormat('dd/MM/yyyy').format(DateTime.parse(warranty['expires_at'].toString()).toLocal())}',
+                    ),
+                    if ((warranty['terms'] ?? '').toString().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(warranty['terms'].toString()),
+                    ],
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          context.push('/support/new?orderId=$orderId'),
+                      icon: const Icon(Icons.report_problem_outlined),
+                      label: Text(strings.t('reportProblem')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
