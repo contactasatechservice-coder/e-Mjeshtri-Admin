@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/localization/locale_controller.dart';
 import '../../../core/storage/local_preferences.dart';
@@ -24,7 +25,14 @@ class AuthScaffold extends ConsumerWidget {
                 children: [
                   if (showBack)
                     IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+                        if (navigator.canPop()) {
+                          navigator.pop();
+                        } else {
+                          context.go('/role');
+                        }
+                      },
                       icon: const Icon(Icons.arrow_back_rounded),
                     )
                   else
