@@ -51,10 +51,21 @@ class HomeScreen extends ConsumerWidget {
 
   String? _categoryPhoto(Map<String, dynamic> item, String language) {
     final slug = (item['slug'] ?? '').toString().toLowerCase();
-    if (slug == 'internet_tv_smart_home') {
-      return 'assets/category_cards/internet_tv_smart.webp';
-    }
-    return null;
+    return switch (slug) {
+      'plumbing' =>
+        'https://images.pexels.com/photos/29226620/pexels-photo-29226620/free-photo-of-professional-plumber-installing-a-radiator-pipe.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      'electrical' =>
+        'https://images.pexels.com/photos/5691590/pexels-photo-5691590.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      'heating_ac' =>
+        'https://images.pexels.com/photos/16592625/pexels-photo-16592625/free-photo-of-air-conditioner-in-a-house.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      'appliance_repair' =>
+        'https://images.pexels.com/photos/34734504/pexels-photo-34734504/free-photo-of-technician-repairing-home-appliance-indoors.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      'internet_tv_smart_home' =>
+        'https://images.pexels.com/photos/4218546/pexels-photo-4218546.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      'painting' =>
+        'https://images.pexels.com/photos/5493655/pexels-photo-5493655.jpeg?auto=compress&dpr=1&h=750&w=1260',
+      _ => null,
+    };
   }
 
   Color _categoryAccent(Map<String, dynamic> item, String language) {
@@ -102,10 +113,13 @@ class HomeScreen extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 if (photo != null)
-                  Image.asset(
+                  Image.network(
                     photo,
                     fit: BoxFit.cover,
                     filterQuality: FilterQuality.high,
+                    errorBuilder: (_, __, ___) => ColoredBox(
+                      color: accent.withValues(alpha: .10),
+                    ),
                   )
                 else
                   DecoratedBox(
