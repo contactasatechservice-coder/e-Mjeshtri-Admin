@@ -1792,89 +1792,311 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
             ),
           );
         }
+
         final data = snap.data!;
         final vendors = _rows(data, 'vendors');
+        final products = _rows(data, 'products');
+        final orders = _rows(data, 'orders');
+        final promotions = _rows(data, 'promotions');
+        final subscriptions = _rows(data, 'subscriptions');
+        final commissions = _rows(data, 'commissions');
+
         return DefaultTabController(
-          length: 7,
+          length: 8,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('e-Market • Menaxhim i plotë', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900)),
-                        SizedBox(height: 4),
-                        Text('Reklama, kategori, marka, promocione, kthime, komisione dhe abonime.', style: TextStyle(color: Colors.black54)),
-                      ],
+              Container(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'e-Market • Menaxhim i Plotë',
+                            style: TextStyle(
+                              fontSize: 27,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Kontrolli qendror i përmbajtjes, produkteve, bizneseve, porosive, marketingut, financave dhe moderimit.',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Rifresko',
-                    onPressed: _busy ? null : () => setState(_reload),
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ],
+                    IconButton.filledTonal(
+                      tooltip: 'Rifresko',
+                      onPressed: _busy ? null : () => setState(_reload),
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 18),
               const TabBar(
                 isScrollable: true,
                 tabs: [
-                  Tab(text: 'Reklama'),
-                  Tab(text: 'Kategori'),
-                  Tab(text: 'Marka'),
-                  Tab(text: 'Promocione'),
-                  Tab(text: 'Kthime'),
-                  Tab(text: 'Komisione'),
-                  Tab(text: 'Abonime'),
+                  Tab(
+                    icon: Icon(Icons.dashboard_customize_outlined),
+                    text: 'Përmbajtja',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.inventory_2_outlined),
+                    text: 'Produktet',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.storefront_outlined),
+                    text: 'Bizneset',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.shopping_bag_outlined),
+                    text: 'Porositë',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.campaign_outlined),
+                    text: 'Marketing',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.account_balance_wallet_outlined),
+                    text: 'Financa',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.shield_outlined),
+                    text: 'Moderim',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.query_stats_outlined),
+                    text: 'Analitika',
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
               Expanded(
                 child: TabBarView(
                   children: [
-                    _bannersTab(_rows(data, 'banners')),
-                    _simpleCrudTab(
-                      context,
-                      rows: _rows(data, 'categories'),
-                      addLabel: 'Shto kategori',
-                      onAdd: _createCategory,
-                      title: (r) => (r['name_sq'] ?? '').toString(),
-                      subtitle: (r) => (r['audience'] ?? '').toString() + ' • ' + (r['product_count'] ?? 0).toString() + ' produkte',
-                      trailing: (r) => Switch(
-                        value: r['is_active'] == true,
-                        onChanged: _busy ? null : (_) => _action('category', r['id'].toString(), 'toggle'),
+                    DefaultTabController(
+                      length: 3,
+                      child: Column(
+                        children: [
+                          const TabBar(
+                            isScrollable: true,
+                            tabs: [
+                              Tab(
+                                icon: Icon(Icons.campaign_outlined),
+                                text: 'Reklama',
+                              ),
+                              Tab(
+                                icon: Icon(Icons.category_outlined),
+                                text: 'Kategori',
+                              ),
+                              Tab(
+                                icon: Icon(Icons.sell_outlined),
+                                text: 'Marka',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _bannersTab(_rows(data, 'banners')),
+                                _simpleCrudTab(
+                                  context,
+                                  rows: _rows(data, 'categories'),
+                                  addLabel: 'Shto kategori',
+                                  onAdd: _createCategory,
+                                  title: (r) =>
+                                      (r['name_sq'] ?? '').toString(),
+                                  subtitle: (r) =>
+                                      (r['audience'] ?? '').toString() +
+                                      ' • ' +
+                                      (r['product_count'] ?? 0).toString() +
+                                      ' produkte',
+                                  trailing: (r) => Switch(
+                                    value: r['is_active'] == true,
+                                    onChanged: _busy
+                                        ? null
+                                        : (_) => _action(
+                                              'category',
+                                              r['id'].toString(),
+                                              'toggle',
+                                            ),
+                                  ),
+                                ),
+                                _simpleCrudTab(
+                                  context,
+                                  rows: _rows(data, 'brands'),
+                                  addLabel: 'Shto markë',
+                                  onAdd: _createBrand,
+                                  title: (r) =>
+                                      (r['name'] ?? '').toString(),
+                                  subtitle: (r) =>
+                                      (r['product_count'] ?? 0).toString() +
+                                      ' produkte',
+                                  trailing: (r) => Switch(
+                                    value: r['is_active'] == true,
+                                    onChanged: _busy
+                                        ? null
+                                        : (_) => _action(
+                                              'brand',
+                                              r['id'].toString(),
+                                              'toggle',
+                                            ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    _simpleCrudTab(
-                      context,
-                      rows: _rows(data, 'brands'),
-                      addLabel: 'Shto markë',
-                      onAdd: _createBrand,
-                      title: (r) => (r['name'] ?? '').toString(),
-                      subtitle: (r) => (r['product_count'] ?? 0).toString() + ' produkte',
-                      trailing: (r) => Switch(
-                        value: r['is_active'] == true,
-                        onChanged: _busy ? null : (_) => _action('brand', r['id'].toString(), 'toggle'),
+                    _productsManagementTab(products),
+                    _vendorsManagementTab(vendors),
+                    _ordersManagementTab(
+                      orders,
+                      _rows(data, 'returns'),
+                    ),
+                    DefaultTabController(
+                      length: 2,
+                      child: Column(
+                        children: [
+                          const TabBar(
+                            isScrollable: true,
+                            tabs: [
+                              Tab(
+                                icon: Icon(Icons.local_offer_outlined),
+                                text: 'Promocione',
+                              ),
+                              Tab(
+                                icon: Icon(Icons.auto_awesome_outlined),
+                                text: 'Rekomanduara',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _simpleCrudTab(
+                                  context,
+                                  rows: promotions,
+                                  addLabel: 'Shto promocion',
+                                  onAdd: () => _createPromotion(vendors),
+                                  title: (r) =>
+                                      (r['name'] ?? '').toString(),
+                                  subtitle: (r) =>
+                                      (r['vendor_name'] ?? 'Global')
+                                              .toString() +
+                                      ' • ' +
+                                      (r['value'] ?? 0).toString(),
+                                  trailing: (r) => Switch(
+                                    value: r['is_active'] == true,
+                                    onChanged: _busy
+                                        ? null
+                                        : (_) => _action(
+                                              'promotion',
+                                              r['id'].toString(),
+                                              'toggle',
+                                            ),
+                                  ),
+                                ),
+                                ListView(
+                                  padding:
+                                      const EdgeInsets.only(bottom: 36),
+                                  children: [
+                                    if (!products.any(
+                                      (p) => p['is_featured'] == true,
+                                    ))
+                                      const _EmptyBackoffice(
+                                        'Nuk ka produkte të rekomanduara.',
+                                      )
+                                    else
+                                      ...products
+                                          .where(
+                                            (p) =>
+                                                p['is_featured'] == true,
+                                          )
+                                          .map(
+                                            (p) => ListTile(
+                                              leading: const Icon(
+                                                Icons.auto_awesome_rounded,
+                                                color: Color(0xFF125C9E),
+                                              ),
+                                              title: Text(
+                                                (p['name'] ?? '')
+                                                    .toString(),
+                                                style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w900,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                (p['vendor_name'] ?? '')
+                                                        .toString() +
+                                                    ' • ' +
+                                                    (p['category_name'] ?? '')
+                                                        .toString(),
+                                              ),
+                                              trailing: OutlinedButton(
+                                                onPressed: _busy
+                                                    ? null
+                                                    : () => _adminAction(
+                                                          'product',
+                                                          p['id'].toString(),
+                                                          'unfeature',
+                                                        ),
+                                                child: const Text('Hiq'),
+                                              ),
+                                            ),
+                                          ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    _simpleCrudTab(
-                      context,
-                      rows: _rows(data, 'promotions'),
-                      addLabel: 'Shto promocion',
-                      onAdd: () => _createPromotion(vendors),
-                      title: (r) => (r['name'] ?? '').toString(),
-                      subtitle: (r) => ((r['vendor_name'] ?? 'Global').toString()) + ' • ' + (r['value'] ?? 0).toString(),
-                      trailing: (r) => Switch(
-                        value: r['is_active'] == true,
-                        onChanged: _busy ? null : (_) => _action('promotion', r['id'].toString(), 'toggle'),
+                    DefaultTabController(
+                      length: 2,
+                      child: Column(
+                        children: [
+                          const TabBar(
+                            isScrollable: true,
+                            tabs: [
+                              Tab(
+                                icon: Icon(
+                                  Icons.workspace_premium_outlined,
+                                ),
+                                text: 'Abonime',
+                              ),
+                              Tab(
+                                icon: Icon(Icons.percent_rounded),
+                                text: 'Komisione',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _subscriptionsTab(
+                                  subscriptions,
+                                  vendors,
+                                ),
+                                _commissionsTab(commissions),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    _returnsTab(_rows(data, 'returns')),
-                    _commissionsTab(_rows(data, 'commissions')),
-                    _subscriptionsTab(_rows(data, 'subscriptions'), vendors),
+                    _moderationManagementTab(data),
+                    _analyticsManagementTab(data),
                   ],
                 ),
               ),
