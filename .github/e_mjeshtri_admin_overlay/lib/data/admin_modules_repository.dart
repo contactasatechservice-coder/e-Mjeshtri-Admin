@@ -59,6 +59,32 @@ class AdminModulesRepository {
     );
   }
 
+  Future<Map<String, dynamic>> editSubscription(
+    String subscriptionId, {
+    required String planCode,
+    required String status,
+    required DateTime? renewsAt,
+    required bool blueTickActive,
+    required String note,
+  }) async {
+    final raw = await _client.rpc(
+      'admin_edit_subscription',
+      params: {
+        'p_subscription_id': subscriptionId,
+        'p_payload': {
+          'plan_code': planCode,
+          'status': status,
+          'renews_at': renewsAt?.toUtc().toIso8601String(),
+          'blue_tick_active': blueTickActive,
+          'note': note,
+        },
+      },
+    );
+    return raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> supportThread(String ticketId) async {
     final raw = await _client.rpc(
       'admin_support_thread',
