@@ -220,52 +220,66 @@ class _ProviderProfileScreenState
                                   const <String, dynamic>{};
                               final completedJobs =
                                   stats['completed_jobs'] ?? 0;
-                              return SizedBox(
-                                height: 86,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  children: [
-                                    _MetricCard(
-                                      icon: Icons.star_rounded,
-                                      iconColor: AppColors.orange,
-                                      value: rating,
-                                      label: '$ratingCount vlerësim',
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final width =
+                                      (constraints.maxWidth - 8) / 2;
+                                  final cards = <Widget>[
+                                    SizedBox(
+                                      width: width,
+                                      child: _MetricCard(
+                                        icon: Icons.star_rounded,
+                                        iconColor: AppColors.orange,
+                                        value: rating,
+                                        label: '$ratingCount vlerësim',
+                                      ),
                                     ),
-                                    const SizedBox(width: 10),
-                                    _MetricCard(
-                                      icon: Icons.work_rounded,
-                                      iconColor: AppColors.success,
-                                      value: '$completedJobs',
-                                      label: 'Punë të kryera',
+                                    SizedBox(
+                                      width: width,
+                                      child: _MetricCard(
+                                        icon: Icons.work_rounded,
+                                        iconColor: AppColors.success,
+                                        value: '$completedJobs',
+                                        label: 'Punë të kryera',
+                                      ),
                                     ),
-                                    if (yearsExperience != null) ...[
-                                      const SizedBox(width: 10),
-                                      _MetricCard(
-                                        icon: Icons.workspace_premium_rounded,
-                                        iconColor: AppColors.blue,
-                                        value: '$yearsExperience',
-                                        label: 'Vite përvojë',
+                                    if (yearsExperience != null)
+                                      SizedBox(
+                                        width: width,
+                                        child: _MetricCard(
+                                          icon: Icons.workspace_premium_rounded,
+                                          iconColor: AppColors.blue,
+                                          value: '$yearsExperience',
+                                          label: 'Vite përvojë',
+                                        ),
+                                      )
+                                    else if (acceptsAsap)
+                                      SizedBox(
+                                        width: width,
+                                        child: const _MetricCard(
+                                          icon: Icons.bolt_rounded,
+                                          iconColor: AppColors.blue,
+                                          value: 'Aktiv',
+                                          label: 'Kërkesa të shpejta',
+                                        ),
                                       ),
-                                    ] else if (acceptsAsap) ...[
-                                      const SizedBox(width: 10),
-                                      const _MetricCard(
-                                        icon: Icons.bolt_rounded,
-                                        iconColor: AppColors.blue,
-                                        value: 'Aktiv',
-                                        label: 'Kërkesa të shpejta',
+                                    if (city.isNotEmpty)
+                                      SizedBox(
+                                        width: width,
+                                        child: _MetricCard(
+                                          icon: Icons.location_on_rounded,
+                                          iconColor: AppColors.danger,
+                                          value: city,
+                                          label: 'Zona e shërbimit',
+                                        ),
                                       ),
-                                    ],
-                                    if (city.isNotEmpty) ...[
-                                      const SizedBox(width: 10),
-                                      _MetricCard(
-                                        icon: Icons.location_on_rounded,
-                                        iconColor: AppColors.danger,
-                                        value: city,
-                                        label: 'Zona e shërbimit',
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                  ];
+                                  return Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: cards,
+                                  );
+                                },
                               );
                             },
                           ),
@@ -301,26 +315,23 @@ class _ProviderProfileScreenState
                               if (credentials.isEmpty) {
                                 return const SizedBox.shrink();
                               }
-                              return _SectionCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const _SectionHeader(
-                                      icon: Icons.school_rounded,
-                                      title: 'Arsim & Kualifikime',
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ...credentials.map(
-                                      (credential) => Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 10),
-                                        child: _CredentialCard(
-                                          credential: credential,
-                                        ),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _SectionHeader(
+                                    icon: Icons.school_rounded,
+                                    title: 'Arsim & Kualifikime',
+                                  ),
+                                  const SizedBox(height: 6),
+                                  ...credentials.map(
+                                    (credential) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: _CredentialCard(
+                                        credential: credential,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               );
                             },
                           ),
@@ -536,8 +547,9 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bannerHeight = hasBanner ? 176.0 : 104.0;
-    final heroHeight = hasBanner ? 292.0 : 220.0;
+    const topGap = 68.0;
+    final bannerHeight = hasBanner ? 210.0 : 118.0;
+    final heroHeight = topGap + bannerHeight + 116.0;
 
     return SizedBox(
       height: heroHeight,
@@ -548,7 +560,7 @@ class _ProfileHero extends StatelessWidget {
             Positioned(
               left: 18,
               right: 18,
-              top: 0,
+              top: topGap,
               child: SizedBox(
                 height: bannerHeight,
                 child: ProviderMediaTile(
@@ -562,7 +574,7 @@ class _ProfileHero extends StatelessWidget {
             Positioned(
               left: 18,
               right: 18,
-              top: 0,
+              top: topGap,
               child: Container(
                 height: bannerHeight,
                 decoration: BoxDecoration(
@@ -578,7 +590,7 @@ class _ProfileHero extends StatelessWidget {
             ),
           Positioned(
             left: 30,
-            top: bannerHeight - 48,
+            top: topGap + bannerHeight - 50,
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
@@ -597,7 +609,7 @@ class _ProfileHero extends StatelessWidget {
           Positioned(
             left: 150,
             right: 24,
-            top: bannerHeight - 34,
+            top: topGap + bannerHeight - 35,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -747,8 +759,9 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 132,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 70),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(17),
@@ -763,7 +776,7 @@ class _MetricCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 26),
+            Icon(icon, color: iconColor, size: 22),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
@@ -777,7 +790,7 @@ class _MetricCard extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.ink,
                       fontWeight: FontWeight.w900,
-                      fontSize: 17,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -787,7 +800,7 @@ class _MetricCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: AppColors.muted,
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       height: 1.05,
                     ),
                   ),
@@ -885,7 +898,7 @@ class _CredentialCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: AppColors.success.withValues(alpha: .055),
         borderRadius: BorderRadius.circular(18),
@@ -897,8 +910,8 @@ class _CredentialCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: AppColors.blue.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(14),
@@ -906,10 +919,10 @@ class _CredentialCard extends StatelessWidget {
             child: const Icon(
               Icons.school_rounded,
               color: AppColors.blue,
-              size: 26,
+              size: 22,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,14 +941,14 @@ class _CredentialCard extends StatelessWidget {
                         style: TextStyle(
                           color: AppColors.success,
                           fontWeight: FontWeight.w900,
-                          fontSize: 12.5,
+                          fontSize: 11.5,
                         ),
                       ),
                     ),
                   ],
                 ),
                 if (program.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     program,
                     style: const TextStyle(
@@ -952,7 +965,7 @@ class _CredentialCard extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.muted,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 12.5,
                     ),
                   ),
                 ],
@@ -967,7 +980,7 @@ class _CredentialCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .8),
                     borderRadius: BorderRadius.circular(9),
@@ -986,7 +999,7 @@ class _CredentialCard extends StatelessWidget {
                         style: TextStyle(
                           color: AppColors.muted,
                           fontWeight: FontWeight.w800,
-                          fontSize: 9.5,
+                          fontSize: 9,
                         ),
                       ),
                     ],
@@ -1105,6 +1118,10 @@ class _ReviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final rating = (review['rating'] as num?)?.toInt() ?? 0;
     final comment = (review['comment'] ?? '').toString().trim();
+    final clientName =
+        (review['client_name'] ?? 'Klient').toString().trim().isEmpty
+            ? 'Klient'
+            : (review['client_name'] ?? 'Klient').toString().trim();
     final rawDate = (review['created_at'] ?? '').toString();
     final date = DateTime.tryParse(rawDate)?.toLocal();
     final dateLabel = date == null
@@ -1131,9 +1148,9 @@ class _ReviewCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Text(
-              'K',
-              style: TextStyle(
+            child: Text(
+              clientName.characters.first.toUpperCase(),
+              style: const TextStyle(
                 color: AppColors.blue,
                 fontWeight: FontWeight.w900,
                 fontSize: 18,
@@ -1145,6 +1162,15 @@ class _ReviewCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  clientName,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 3),
                 Row(
                   children: List.generate(
                     5,
