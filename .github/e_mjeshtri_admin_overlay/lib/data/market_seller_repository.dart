@@ -179,6 +179,19 @@ class MarketSellerRepository {
     });
   }
 
+  Future<void> submitProductForReview({
+    required String vendorId,
+    required String productId,
+  }) async {
+    await client.rpc(
+      'market_vendor_submit_product',
+      params: {
+        'p_vendor_id': vendorId,
+        'p_product_id': productId,
+      },
+    );
+  }
+
   Future<void> setProductState(String productId, String state) async {
     if (!const {'draft', 'inactive', 'archived'}.contains(state)) {
       throw ArgumentError('Status i pavlefshëm.');
