@@ -102,6 +102,7 @@ jobs:
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/subscriptions/subscription_screen.dart lib/features/subscriptions/subscription_screen.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/settings/settings_screens.dart lib/features/settings/settings_screens.dart
           cp ../../.github/e_mjeshtri_mobile_src/lib/features/profile/profile_screen.dart lib/features/profile/profile_screen.dart
+          cp ../../.github/e_mjeshtri_mobile_src/lib/features/messages/messages_screen.dart lib/features/messages/messages_screen.dart
           cp ../../assets/assets/branding/e_mjeshtri_logo.png assets/branding/e_mjeshtri_logo.png
 
           python3 ../../.github/patch_provider_portal_v1_8.py
