@@ -44,6 +44,7 @@ class ProviderProfileScreen extends ConsumerStatefulWidget {
 class _ProviderProfileScreenState
     extends ConsumerState<ProviderProfileScreen> {
   bool? favorite;
+  String _selectedTab = 'services';
   late Future<Map<String, dynamic>> _profileFuture;
   late Future<List<Map<String, dynamic>>> _credentialsFuture;
   late Future<Map<String, dynamic>> _statsFuture;
@@ -79,6 +80,18 @@ class _ProviderProfileScreenState
     ]);
   }
 
+  Future<void> _toggleFavorite() async {
+    if (favorite == null) return;
+    final repo = ref.read(marketplaceRepositoryProvider);
+    final next = !favorite!;
+    setState(() => favorite = next);
+    try {
+      await repo.setFavorite(widget.providerId, next);
+    } catch (_) {
+      if (mounted) setState(() => favorite = !next);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = AppStrings.of(context);
@@ -87,38 +100,6 @@ class _ProviderProfileScreenState
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leadingWidth: 68,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 18),
-          child: _TopCircleButton(
-            icon: Icons.arrow_back_ios_new_rounded,
-            onTap: () => context.pop(),
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 18),
-            child: _TopCircleButton(
-              icon: favorite == true
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-              color: favorite == true ? AppColors.danger : AppColors.ink,
-              onTap: favorite == null
-                  ? null
-                  : () async {
-                      final next = !favorite!;
-                      setState(() => favorite = next);
-                      await repo.setFavorite(widget.providerId, next);
-                    },
-            ),
-          ),
-        ],
-      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _profileFuture,
         builder: (context, snap) {
@@ -151,7 +132,6 @@ class _ProviderProfileScreenState
           final ratingCount = provider['rating_count'] ?? 0;
           final yearsExperience = provider['years_experience'];
           final acceptsAsap = provider['accepts_asap'] == true;
-          final screenWidth = MediaQuery.of(context).size.width;
 
           String primaryProfession = 'Mjeshtër';
           if (categories.isNotEmpty) {
@@ -180,10 +160,13 @@ class _ProviderProfileScreenState
                       profession: primaryProfession,
                       rating: rating,
                       ratingCount: ratingCount,
-                      screenWidth: screenWidth,
+                      favorite: favorite == true,
+                      favoriteEnabled: favorite != null,
+                      onBack: () => context.pop(),
+                      onFavorite: _toggleFavorite,
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+                      padding: const EdgeInsets.fromLTRB(18, 2, 18, 28),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -212,7 +195,7 @@ class _ProviderProfileScreenState
                               );
                             },
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           FutureBuilder<Map<String, dynamic>>(
                             future: _statsFuture,
                             builder: (context, statSnap) {
@@ -283,208 +266,29 @@ class _ProviderProfileScreenState
                               );
                             },
                           ),
-                          if (bio.isNotEmpty) ...[
-                            const SizedBox(height: 18),
-                            _SectionCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const _SectionHeader(
-                                    icon: Icons.person_rounded,
-                                    title: 'Rreth meje',
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    bio,
-                                    style: const TextStyle(
-                                      color: AppColors.ink,
-                                      height: 1.45,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ],
+                          const SizedBox(height: 18),
+                          _ProfileTabMenu(
+                            selected: _selectedTab,
+                            onSelected: (value) {
+                              setState(() => _selectedTab = value);
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 220),
+                            switchInCurve: Curves.easeOut,
+                            switchOutCurve: Curves.easeIn,
+                            child: KeyedSubtree(
+                              key: ValueKey(_selectedTab),
+                              child: _buildSelectedTab(
+                                context: context,
+                                language: language,
+                                strings: strings,
+                                categories: categories,
+                                media: media,
+                                bio: bio,
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 18),
-                          FutureBuilder<List<Map<String, dynamic>>>(
-                            future: _credentialsFuture,
-                            builder: (context, credentialSnap) {
-                              final credentials = credentialSnap.data ??
-                                  const <Map<String, dynamic>>[];
-                              if (credentials.isEmpty) {
-                                return const SizedBox.shrink();
-                              }
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const _SectionHeader(
-                                    icon: Icons.school_rounded,
-                                    title: 'Arsim & Kualifikime',
-                                  ),
-                                  const SizedBox(height: 6),
-                                  ...credentials.map(
-                                    (credential) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: _CredentialCard(
-                                        credential: credential,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 18),
-                          _SectionCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _SectionHeader(
-                                  icon: Icons.build_rounded,
-                                  title: strings.t('services'),
-                                ),
-                                const SizedBox(height: 12),
-                                if (categories.isEmpty)
-                                  const _CompactEmptyState(
-                                    icon: Icons.home_repair_service_outlined,
-                                    text: 'Nuk ka shtuar ende shërbime.',
-                                  )
-                                else
-                                  LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final cardWidth =
-                                          (constraints.maxWidth - 10) / 2;
-                                      return Wrap(
-                                        spacing: 10,
-                                        runSpacing: 10,
-                                        children: categories.map((pc) {
-                                          final category =
-                                              (pc['service_categories'] as Map?)
-                                                      ?.cast<String, dynamic>() ??
-                                                  {};
-                                          final name =
-                                              translatedName(category, language);
-                                          final description =
-                                              _translatedDescription(
-                                            category,
-                                            language,
-                                          );
-                                          return SizedBox(
-                                            width: cardWidth,
-                                            child: _ServiceCard(
-                                              name: name,
-                                              description: description,
-                                              icon: _serviceIcon(
-                                                (category['slug'] ?? '')
-                                                    .toString(),
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          _SectionCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _SectionHeader(
-                                  icon: Icons.photo_library_rounded,
-                                  title: strings.t('portfolio'),
-                                  trailing: media.isNotEmpty
-                                      ? 'Shiko të gjitha'
-                                      : null,
-                                ),
-                                const SizedBox(height: 12),
-                                if (media.isEmpty)
-                                  const _CompactEmptyState(
-                                    icon: Icons.photo_library_outlined,
-                                    text: 'Nuk ka publikuar ende punime.',
-                                  )
-                                else
-                                  SizedBox(
-                                    height: 126,
-                                    child: ListView.separated(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: media.length,
-                                      separatorBuilder: (_, __) =>
-                                          const SizedBox(width: 10),
-                                      itemBuilder: (_, i) {
-                                        final item = media[i];
-                                        final type =
-                                            (item['media_type'] ?? 'image')
-                                                .toString();
-                                        final path =
-                                            (item['storage_path'] ?? '')
-                                                .toString();
-                                        return type == 'image' &&
-                                                path.isNotEmpty
-                                            ? ProviderMediaTile(
-                                                path: path,
-                                                width: 164,
-                                                height: 126,
-                                              )
-                                            : Container(
-                                                width: 164,
-                                                height: 126,
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.blue
-                                                      .withValues(alpha: .06),
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
-                                                ),
-                                                child: const Icon(
-                                                  Icons
-                                                      .play_circle_outline_rounded,
-                                                  color: AppColors.blue,
-                                                  size: 42,
-                                                ),
-                                              );
-                                      },
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          FutureBuilder<List<Map<String, dynamic>>>(
-                            future: _reviewsFuture,
-                            builder: (context, reviewSnap) {
-                              final reviews = reviewSnap.data ??
-                                  const <Map<String, dynamic>>[];
-                              return _SectionCard(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const _SectionHeader(
-                                      icon: Icons.star_rounded,
-                                      title: 'Vlerësimet',
-                                    ),
-                                    const SizedBox(height: 12),
-                                    if (reviews.isEmpty)
-                                      const _CompactEmptyState(
-                                        icon: Icons.reviews_outlined,
-                                        text: 'Nuk ka ende vlerësime.',
-                                      )
-                                    else
-                                      ...reviews.take(3).map(
-                                            (review) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 10),
-                                              child: _ReviewCard(
-                                                review: review,
-                                              ),
-                                            ),
-                                          ),
-                                  ],
-                                ),
-                              );
-                            },
                           ),
                         ],
                       ),
@@ -520,6 +324,165 @@ class _ProviderProfileScreenState
       ),
     );
   }
+
+  Widget _buildSelectedTab({
+    required BuildContext context,
+    required String language,
+    required AppStrings strings,
+    required List<Map> categories,
+    required List<Map> media,
+    required String bio,
+  }) {
+    switch (_selectedTab) {
+      case 'about':
+        return _MiniTabPanel(
+          child: bio.isEmpty
+              ? const _CompactEmptyState(
+                  icon: Icons.person_outline_rounded,
+                  text: 'Mjeshtri nuk ka shtuar ende një përshkrim.',
+                )
+              : Text(
+                  bio,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    height: 1.45,
+                    fontSize: 15,
+                  ),
+                ),
+        );
+
+      case 'education':
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _credentialsFuture,
+          builder: (context, credentialSnap) {
+            final credentials =
+                credentialSnap.data ?? const <Map<String, dynamic>>[];
+            return _MiniTabPanel(
+              padding: const EdgeInsets.all(12),
+              child: credentials.isEmpty
+                  ? const _CompactEmptyState(
+                      icon: Icons.school_outlined,
+                      text: 'Nuk ka kualifikime të verifikuara.',
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < credentials.length; i++) ...[
+                          _CredentialCard(credential: credentials[i]),
+                          if (i != credentials.length - 1)
+                            const SizedBox(height: 8),
+                        ],
+                      ],
+                    ),
+            );
+          },
+        );
+
+      case 'portfolio':
+        return _MiniTabPanel(
+          child: media.isEmpty
+              ? const _CompactEmptyState(
+                  icon: Icons.photo_library_outlined,
+                  text: 'Nuk ka publikuar ende punime.',
+                )
+              : SizedBox(
+                  height: 138,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: media.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (_, i) {
+                      final item = media[i];
+                      final type = (item['media_type'] ?? 'image').toString();
+                      final path = (item['storage_path'] ?? '').toString();
+                      return type == 'image' && path.isNotEmpty
+                          ? ProviderMediaTile(
+                              path: path,
+                              width: 176,
+                              height: 138,
+                            )
+                          : Container(
+                              width: 176,
+                              height: 138,
+                              decoration: BoxDecoration(
+                                color: AppColors.blue.withValues(alpha: .06),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: const Icon(
+                                Icons.play_circle_outline_rounded,
+                                color: AppColors.blue,
+                                size: 42,
+                              ),
+                            );
+                    },
+                  ),
+                ),
+        );
+
+      case 'reviews':
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _reviewsFuture,
+          builder: (context, reviewSnap) {
+            final reviews =
+                reviewSnap.data ?? const <Map<String, dynamic>>[];
+            final visible = reviews.take(3).toList();
+            return _MiniTabPanel(
+              child: reviews.isEmpty
+                  ? const _CompactEmptyState(
+                      icon: Icons.reviews_outlined,
+                      text: 'Nuk ka ende vlerësime.',
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < visible.length; i++) ...[
+                          _ReviewCard(review: visible[i]),
+                          if (i != visible.length - 1)
+                            const SizedBox(height: 8),
+                        ],
+                      ],
+                    ),
+            );
+          },
+        );
+
+      case 'services':
+      default:
+        return _MiniTabPanel(
+          child: categories.isEmpty
+              ? const _CompactEmptyState(
+                  icon: Icons.home_repair_service_outlined,
+                  text: 'Nuk ka shtuar ende shërbime.',
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cardWidth = (constraints.maxWidth - 10) / 2;
+                    return Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: categories.map((pc) {
+                        final category =
+                            (pc['service_categories'] as Map?)
+                                    ?.cast<String, dynamic>() ??
+                                {};
+                        final name = translatedName(category, language);
+                        final description =
+                            _translatedDescription(category, language);
+                        return SizedBox(
+                          width: cardWidth,
+                          child: _ServiceCard(
+                            name: name,
+                            description: description,
+                            icon: _serviceIcon(
+                              (category['slug'] ?? '').toString(),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+        );
+    }
+  }
 }
 
 class _ProfileHero extends StatelessWidget {
@@ -532,7 +495,10 @@ class _ProfileHero extends StatelessWidget {
     required this.profession,
     required this.rating,
     required this.ratingCount,
-    required this.screenWidth,
+    required this.favorite,
+    required this.favoriteEnabled,
+    required this.onBack,
+    required this.onFavorite,
   });
 
   final Map<String, dynamic> provider;
@@ -543,73 +509,96 @@ class _ProfileHero extends StatelessWidget {
   final String profession;
   final String rating;
   final dynamic ratingCount;
-  final double screenWidth;
+  final bool favorite;
+  final bool favoriteEnabled;
+  final VoidCallback onBack;
+  final VoidCallback onFavorite;
 
   @override
   Widget build(BuildContext context) {
-    const topGap = 68.0;
-    final bannerHeight = hasBanner ? 210.0 : 118.0;
-    final heroHeight = topGap + bannerHeight + 116.0;
+    final topGap = MediaQuery.of(context).padding.top + 12;
+    const bannerHeight = 218.0;
+    final heroHeight = topGap + bannerHeight + 120.0;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return SizedBox(
       height: heroHeight,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (hasBanner)
-            Positioned(
-              left: 18,
-              right: 18,
-              top: topGap,
-              child: SizedBox(
-                height: bannerHeight,
-                child: ProviderMediaTile(
-                  path: bannerPath!,
-                  width: screenWidth - 36,
-                  height: bannerHeight,
-                ),
-              ),
-            )
-          else
-            Positioned(
-              left: 18,
-              right: 18,
-              top: topGap,
-              child: Container(
-                height: bannerHeight,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.blue.withValues(alpha: .14),
-                      AppColors.blue.withValues(alpha: .04),
-                    ],
-                  ),
-                ),
-              ),
+          Positioned(
+            left: 18,
+            right: 18,
+            top: topGap,
+            child: SizedBox(
+              height: bannerHeight,
+              child: hasBanner
+                  ? ProviderMediaTile(
+                      path: bannerPath!,
+                      width: screenWidth - 36,
+                      height: bannerHeight,
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.blue.withValues(alpha: .16),
+                            AppColors.blue.withValues(alpha: .045),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
+          ),
           Positioned(
             left: 30,
-            top: topGap + bannerHeight - 50,
+            top: topGap + 14,
+            child: _BannerActionButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: onBack,
+            ),
+          ),
+          Positioned(
+            right: 30,
+            top: topGap + 14,
+            child: _BannerActionButton(
+              icon: favorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              color: favorite ? AppColors.danger : AppColors.ink,
+              onTap: favoriteEnabled ? onFavorite : null,
+            ),
+          ),
+          Positioned(
+            left: 30,
+            top: topGap + bannerHeight - 54,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A172033),
+                    blurRadius: 16,
+                    offset: Offset(0, 5),
+                  ),
+                ],
               ),
               child: ClipOval(
                 child: ProviderAvatar(
                   path: provider['logo_path']?.toString(),
-                  size: 104,
+                  size: 108,
                   borderRadius: 999,
                 ),
               ),
             ),
           ),
           Positioned(
-            left: 150,
+            left: 154,
             right: 24,
-            top: topGap + bannerHeight - 35,
+            top: topGap + bannerHeight - 38,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -640,7 +629,7 @@ class _ProfileHero extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   [profession, city]
                       .where((x) => x.trim().isNotEmpty)
@@ -678,6 +667,146 @@ class _ProfileHero extends StatelessWidget {
       ),
     );
   }
+}
+
+class _BannerActionButton extends StatelessWidget {
+  const _BannerActionButton({
+    required this.icon,
+    required this.onTap,
+    this.color = AppColors.ink,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white.withValues(alpha: .92),
+        elevation: 2,
+        shadowColor: const Color(0x24172033),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: .72),
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: SizedBox(
+            width: 46,
+            height: 46,
+            child: Icon(icon, color: color, size: 22),
+          ),
+        ),
+      );
+}
+
+class _ProfileTabMenu extends StatelessWidget {
+  const _ProfileTabMenu({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  static const items = <(String, String, IconData)>[
+    ('services', 'Shërbimet', Icons.build_rounded),
+    ('portfolio', 'Punimet', Icons.photo_library_rounded),
+    ('reviews', 'Vlerësimet', Icons.star_rounded),
+    ('about', 'Rreth meje', Icons.person_rounded),
+    ('education', 'Arsim & Kualifikime', Icons.school_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 46,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final active = item.$1 == selected;
+            return InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => onSelected(item.$1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                decoration: BoxDecoration(
+                  color: active ? AppColors.blue : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: active ? AppColors.blue : AppColors.divider,
+                  ),
+                  boxShadow: active
+                      ? const [
+                          BoxShadow(
+                            color: Color(0x1A0B4A95),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item.$3,
+                      size: 17,
+                      color: active ? Colors.white : AppColors.blue,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      item.$2,
+                      style: TextStyle(
+                        color: active ? Colors.white : AppColors.ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+}
+
+class _MiniTabPanel extends StatelessWidget {
+  const _MiniTabPanel({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: padding,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A172033),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: child,
+      );
 }
 
 class _TopCircleButton extends StatelessWidget {
