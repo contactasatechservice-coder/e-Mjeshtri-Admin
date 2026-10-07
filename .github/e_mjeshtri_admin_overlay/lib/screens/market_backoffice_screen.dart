@@ -996,6 +996,329 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
     );
   }
 
+  Future<void> _rejectManagedVendor(
+    Map<String, dynamic> vendor,
+  ) async {
+    final note = await _noteDialog(
+      'Refuzo biznesin • ' + (vendor['display_name'] ?? '').toString(),
+    );
+    if (note == null || note.trim().isEmpty) return;
+    await _adminAction(
+      'vendor',
+      vendor['id'].toString(),
+      'reject',
+      note: note,
+    );
+  }
+
+  Future<void> _suspendManagedVendor(
+    Map<String, dynamic> vendor,
+  ) async {
+    final note = await _noteDialog(
+      'Pezullo biznesin • ' + (vendor['display_name'] ?? '').toString(),
+    );
+    if (note == null || note.trim().isEmpty) return;
+    await _adminAction(
+      'vendor',
+      vendor['id'].toString(),
+      'suspend',
+      note: note,
+    );
+  }
+
+  Widget _vendorsManagementTab(
+    List<Map<String, dynamic>> rows,
+  ) {
+    if (rows.isEmpty) {
+      return const _EmptyBackoffice('Nuk ka biznese e-Market.');
+    }
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 36),
+      children: rows.map((v) {
+        final status = (v['status'] ?? '').toString();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE4EAF2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF3FC),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.storefront_rounded,
+                  color: Color(0xFF125C9E),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            (v['display_name'] ?? '').toString(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        if (v['is_verified'] == true) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.verified_rounded,
+                            color: Color(0xFF125C9E),
+                            size: 17,
+                          ),
+                        ],
+                        if (v['is_featured'] == true) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Color(0xFF125C9E),
+                            size: 16,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (v['city'] ?? '—').toString() +
+                          ' • ' +
+                          (v['product_count'] ?? 0).toString() +
+                          ' produkte • ' +
+                          (v['order_count'] ?? 0).toString() +
+                          ' porosi',
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        _ManagementTag(
+                          icon: Icons.info_outline_rounded,
+                          label: _marketManagementStatusLabel(status),
+                          color: _marketManagementStatusColor(status),
+                        ),
+                        _ManagementTag(
+                          icon: Icons.payments_outlined,
+                          label: (v['revenue'] ?? 0).toString() +
+                              ' ALL xhiro',
+                          color: const Color(0xFF168C5A),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  if (status == 'pending')
+                    FilledButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'vendor',
+                                v['id'].toString(),
+                                'approve',
+                              ),
+                      child: const Text('Aprovo'),
+                    ),
+                  if (status == 'pending')
+                    OutlinedButton(
+                      onPressed:
+                          _busy ? null : () => _rejectManagedVendor(v),
+                      child: const Text('Refuzo'),
+                    ),
+                  if (status == 'approved')
+                    OutlinedButton.icon(
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'vendor',
+                                v['id'].toString(),
+                                v['is_featured'] == true
+                                    ? 'unfeature'
+                                    : 'feature',
+                              ),
+                      icon: Icon(
+                        v['is_featured'] == true
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        size: 17,
+                      ),
+                      label: Text(
+                        v['is_featured'] == true
+                            ? 'Hiq nga kryesoret'
+                            : 'Shfaq te dyqanet',
+                      ),
+                    ),
+                  if (status == 'approved')
+                    IconButton(
+                      tooltip: 'Pezullo',
+                      onPressed: _busy
+                          ? null
+                          : () => _suspendManagedVendor(v),
+                      icon: const Icon(Icons.block_rounded),
+                    ),
+                  if (status == 'suspended' || status == 'rejected')
+                    FilledButton.tonal(
+                      onPressed: _busy
+                          ? null
+                          : () => _adminAction(
+                                'vendor',
+                                v['id'].toString(),
+                                'reactivate',
+                              ),
+                      child: const Text('Riaktivizo'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _ordersManagementTab(
+    List<Map<String, dynamic>> orders,
+    List<Map<String, dynamic>> returns,
+  ) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(
+                icon: Icon(Icons.receipt_long_outlined),
+                text: 'Porositë',
+              ),
+              Tab(
+                icon: Icon(Icons.assignment_return_outlined),
+                text: 'Kthimet',
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: TabBarView(
+              children: [
+                orders.isEmpty
+                    ? const _EmptyBackoffice('Nuk ka porosi e-Market.')
+                    : ListView(
+                        padding: const EdgeInsets.only(bottom: 36),
+                        children: orders.map((o) {
+                          final status =
+                              (o['status'] ?? '').toString();
+                          return Container(
+                            margin:
+                                const EdgeInsets.only(bottom: 9),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius:
+                                  BorderRadius.circular(17),
+                              border: Border.all(
+                                color: const Color(0xFFE4EAF2),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: Color(0xFF125C9E),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (o['order_number'] ?? '')
+                                            .toString(),
+                                        style: const TextStyle(
+                                          fontWeight:
+                                              FontWeight.w900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        (o['buyer_name'] ?? '')
+                                                .toString() +
+                                            ' • ' +
+                                            (o['delivery_city'] ?? '')
+                                                .toString() +
+                                            ' • ' +
+                                            (o['vendor_count'] ?? 0)
+                                                .toString() +
+                                            ' biznes(e)',
+                                        style: const TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                _ManagementTag(
+                                  icon:
+                                      Icons.info_outline_rounded,
+                                  label:
+                                      _marketManagementStatusLabel(
+                                    status,
+                                  ),
+                                  color:
+                                      _marketManagementStatusColor(
+                                    status,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  (o['grand_total'] ?? 0)
+                                          .toString() +
+                                      ' ' +
+                                      (o['currency'] ?? 'ALL')
+                                          .toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                _returnsTab(returns),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<String?> _noteDialog(String title) {
     final controller = TextEditingController();
     return showDialog<String>(
