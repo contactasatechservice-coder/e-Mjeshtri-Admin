@@ -44,16 +44,39 @@ class ProviderProfileScreen extends ConsumerStatefulWidget {
 class _ProviderProfileScreenState
     extends ConsumerState<ProviderProfileScreen> {
   bool? favorite;
+  late Future<Map<String, dynamic>> _profileFuture;
+  late Future<List<Map<String, dynamic>>> _credentialsFuture;
+  late Future<Map<String, dynamic>> _statsFuture;
+  late Future<List<Map<String, dynamic>>> _reviewsFuture;
 
   @override
   void initState() {
     super.initState();
+    _loadFutures();
     ref
         .read(marketplaceRepositoryProvider)
         .isFavorite(widget.providerId)
         .then((value) {
       if (mounted) setState(() => favorite = value);
     });
+  }
+
+  void _loadFutures() {
+    final repo = ref.read(marketplaceRepositoryProvider);
+    _profileFuture = repo.provider(widget.providerId);
+    _credentialsFuture = repo.verifiedCredentials(widget.providerId);
+    _statsFuture = repo.providerPublicProfileStats(widget.providerId);
+    _reviewsFuture = repo.providerReviews(widget.providerId);
+  }
+
+  Future<void> _refresh() async {
+    setState(_loadFutures);
+    await Future.wait<dynamic>([
+      _profileFuture,
+      _credentialsFuture,
+      _statsFuture,
+      _reviewsFuture,
+    ]);
   }
 
   @override
@@ -63,27 +86,41 @@ class _ProviderProfileScreenState
     final language = Localizations.localeOf(context).languageCode;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 68,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 18),
+          child: _TopCircleButton(
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => context.pop(),
+          ),
+        ),
         actions: [
-          IconButton(
-            onPressed: favorite == null
-                ? null
-                : () async {
-                    final next = !favorite!;
-                    setState(() => favorite = next);
-                    await repo.setFavorite(widget.providerId, next);
-                  },
-            icon: Icon(
-              favorite == true
+          Padding(
+            padding: const EdgeInsets.only(right: 18),
+            child: _TopCircleButton(
+              icon: favorite == true
                   ? Icons.favorite_rounded
                   : Icons.favorite_border_rounded,
-              color: favorite == true ? AppColors.danger : null,
+              color: favorite == true ? AppColors.danger : AppColors.ink,
+              onTap: favorite == null
+                  ? null
+                  : () async {
+                      final next = !favorite!;
+                      setState(() => favorite = next);
+                      await repo.setFavorite(widget.providerId, next);
+                    },
             ),
           ),
         ],
       ),
       body: FutureBuilder<Map<String, dynamic>>(
-        future: repo.provider(widget.providerId),
+        future: _profileFuture,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
@@ -105,180 +142,366 @@ class _ProviderProfileScreenState
               )
               .toList();
           final bannerPath = provider['banner_path']?.toString();
+          final hasBanner =
+              bannerPath != null && bannerPath.trim().isNotEmpty;
+          final displayName = (provider['display_name'] ?? 'Mjeshtër').toString();
+          final city = (provider['city'] ?? '').toString();
+          final bio = (provider['bio'] ?? '').toString().trim();
+          final rating = (provider['rating_avg'] ?? 0).toString();
+          final ratingCount = provider['rating_count'] ?? 0;
+          final yearsExperience = provider['years_experience'];
+          final acceptsAsap = provider['accepts_asap'] == true;
           final screenWidth = MediaQuery.of(context).size.width;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 32),
+          String primaryProfession = 'Mjeshtër';
+          if (categories.isNotEmpty) {
+            final firstCategory =
+                (categories.first['service_categories'] as Map?)
+                        ?.cast<String, dynamic>() ??
+                    {};
+            final translated = translatedName(firstCategory, language).trim();
+            if (translated.isNotEmpty) primaryProfession = translated;
+          }
+
+          return Stack(
             children: [
-              if (bannerPath != null && bannerPath.trim().isNotEmpty) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 176,
-                  child: ProviderMediaTile(
-                    path: bannerPath,
-                    width: screenWidth - 40,
-                    height: 176,
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
-              Center(
-                child: ProviderAvatar(
-                  path: provider['logo_path']?.toString(),
-                  size: 94,
-                  borderRadius: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      (provider['display_name'] ?? '').toString(),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
+              RefreshIndicator(
+                onRefresh: _refresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 118),
+                  children: [
+                    _ProfileHero(
+                      provider: provider,
+                      hasBanner: hasBanner,
+                      bannerPath: bannerPath,
+                      displayName: displayName,
+                      city: city,
+                      profession: primaryProfession,
+                      rating: rating,
+                      ratingCount: ratingCount,
+                      screenWidth: screenWidth,
                     ),
-                  ),
-                  if (hasActiveBlueTick(provider))
-                    const Padding(
-                      padding: EdgeInsets.only(left: 6),
-                      child: Icon(
-                        Icons.verified_rounded,
-                        color: AppColors.blue,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _credentialsFuture,
+                            builder: (context, credentialSnap) {
+                              final credentials = credentialSnap.data ??
+                                  const <Map<String, dynamic>>[];
+                              return Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (provider['is_verified'] == true)
+                                    const _VerifiedBadge(
+                                      icon: Icons.verified_user_rounded,
+                                      label: 'Identitet i verifikuar',
+                                      color: AppColors.blue,
+                                    ),
+                                  if (credentials.isNotEmpty)
+                                    const _VerifiedBadge(
+                                      icon: Icons.school_rounded,
+                                      label: 'Kualifikim i verifikuar',
+                                      color: AppColors.success,
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          FutureBuilder<Map<String, dynamic>>(
+                            future: _statsFuture,
+                            builder: (context, statSnap) {
+                              final stats = statSnap.data ??
+                                  const <String, dynamic>{};
+                              final completedJobs =
+                                  stats['completed_jobs'] ?? 0;
+                              return SizedBox(
+                                height: 86,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    _MetricCard(
+                                      icon: Icons.star_rounded,
+                                      iconColor: AppColors.orange,
+                                      value: rating,
+                                      label: '$ratingCount vlerësim',
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _MetricCard(
+                                      icon: Icons.work_rounded,
+                                      iconColor: AppColors.success,
+                                      value: '$completedJobs',
+                                      label: 'Punë të kryera',
+                                    ),
+                                    if (yearsExperience != null) ...[
+                                      const SizedBox(width: 10),
+                                      _MetricCard(
+                                        icon: Icons.workspace_premium_rounded,
+                                        iconColor: AppColors.blue,
+                                        value: '$yearsExperience',
+                                        label: 'Vite përvojë',
+                                      ),
+                                    ] else if (acceptsAsap) ...[
+                                      const SizedBox(width: 10),
+                                      const _MetricCard(
+                                        icon: Icons.bolt_rounded,
+                                        iconColor: AppColors.blue,
+                                        value: 'Aktiv',
+                                        label: 'Kërkesa të shpejta',
+                                      ),
+                                    ],
+                                    if (city.isNotEmpty) ...[
+                                      const SizedBox(width: 10),
+                                      _MetricCard(
+                                        icon: Icons.location_on_rounded,
+                                        iconColor: AppColors.danger,
+                                        value: city,
+                                        label: 'Zona e shërbimit',
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          if (bio.isNotEmpty) ...[
+                            const SizedBox(height: 18),
+                            _SectionCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const _SectionHeader(
+                                    icon: Icons.person_rounded,
+                                    title: 'Rreth meje',
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    bio,
+                                    style: const TextStyle(
+                                      color: AppColors.ink,
+                                      height: 1.45,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+                          FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _credentialsFuture,
+                            builder: (context, credentialSnap) {
+                              final credentials = credentialSnap.data ??
+                                  const <Map<String, dynamic>>[];
+                              if (credentials.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return _SectionCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const _SectionHeader(
+                                      icon: Icons.school_rounded,
+                                      title: 'Arsim & Kualifikime',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ...credentials.map(
+                                      (credential) => Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 10),
+                                        child: _CredentialCard(
+                                          credential: credential,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          _SectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _SectionHeader(
+                                  icon: Icons.build_rounded,
+                                  title: strings.t('services'),
+                                ),
+                                const SizedBox(height: 12),
+                                if (categories.isEmpty)
+                                  const _CompactEmptyState(
+                                    icon: Icons.home_repair_service_outlined,
+                                    text: 'Nuk ka shtuar ende shërbime.',
+                                  )
+                                else
+                                  LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final cardWidth =
+                                          (constraints.maxWidth - 10) / 2;
+                                      return Wrap(
+                                        spacing: 10,
+                                        runSpacing: 10,
+                                        children: categories.map((pc) {
+                                          final category =
+                                              (pc['service_categories'] as Map?)
+                                                      ?.cast<String, dynamic>() ??
+                                                  {};
+                                          final name =
+                                              translatedName(category, language);
+                                          final description =
+                                              _translatedDescription(
+                                            category,
+                                            language,
+                                          );
+                                          return SizedBox(
+                                            width: cardWidth,
+                                            child: _ServiceCard(
+                                              name: name,
+                                              description: description,
+                                              icon: _serviceIcon(
+                                                (category['slug'] ?? '')
+                                                    .toString(),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          _SectionCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _SectionHeader(
+                                  icon: Icons.photo_library_rounded,
+                                  title: strings.t('portfolio'),
+                                  trailing: media.isNotEmpty
+                                      ? 'Shiko të gjitha'
+                                      : null,
+                                ),
+                                const SizedBox(height: 12),
+                                if (media.isEmpty)
+                                  const _CompactEmptyState(
+                                    icon: Icons.photo_library_outlined,
+                                    text: 'Nuk ka publikuar ende punime.',
+                                  )
+                                else
+                                  SizedBox(
+                                    height: 126,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: media.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: 10),
+                                      itemBuilder: (_, i) {
+                                        final item = media[i];
+                                        final type =
+                                            (item['media_type'] ?? 'image')
+                                                .toString();
+                                        final path =
+                                            (item['storage_path'] ?? '')
+                                                .toString();
+                                        return type == 'image' &&
+                                                path.isNotEmpty
+                                            ? ProviderMediaTile(
+                                                path: path,
+                                                width: 164,
+                                                height: 126,
+                                              )
+                                            : Container(
+                                                width: 164,
+                                                height: 126,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.blue
+                                                      .withValues(alpha: .06),
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                ),
+                                                child: const Icon(
+                                                  Icons
+                                                      .play_circle_outline_rounded,
+                                                  color: AppColors.blue,
+                                                  size: 42,
+                                                ),
+                                              );
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _reviewsFuture,
+                            builder: (context, reviewSnap) {
+                              final reviews = reviewSnap.data ??
+                                  const <Map<String, dynamic>>[];
+                              return _SectionCard(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const _SectionHeader(
+                                      icon: Icons.star_rounded,
+                                      title: 'Vlerësimet',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (reviews.isEmpty)
+                                      const _CompactEmptyState(
+                                        icon: Icons.reviews_outlined,
+                                        text: 'Nuk ka ende vlerësime.',
+                                      )
+                                    else
+                                      ...reviews.take(3).map(
+                                            (review) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 10),
+                                              child: _ReviewCard(
+                                                review: review,
+                                              ),
+                                            ),
+                                          ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.star_rounded,
-                    color: AppColors.orange,
-                    size: 19,
-                  ),
-                  Text(
-                    ' ${provider['rating_avg'] ?? 0} '
-                    '(${provider['rating_count'] ?? 0})'
-                    '  •  ${provider['city'] ?? ''}',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              if ((provider['bio'] ?? '').toString().isNotEmpty) ...[
-                const SizedBox(height: 18),
-                Text(
-                  provider['bio'].toString(),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  ],
                 ),
-              ],
-              const SizedBox(height: 24),
-              Text(
-                strings.t('services'),
-                style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 10),
-              if (categories.isEmpty)
-                const EmptyState(
-                  icon: Icons.home_repair_service_outlined,
-                  title: '—',
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: categories.map((pc) {
-                    final category =
-                        (pc['service_categories'] as Map?)
-                                ?.cast<String, dynamic>() ??
-                            {};
-                    return Chip(
-                      label: Text(translatedName(category, language)),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _ProfileActionBar(
+                  onMessage: () async {
+                    final id = await repo.conversationForProvider(
+                      widget.providerId,
                     );
-                  }).toList(),
+                    if (context.mounted) {
+                      context.push('/chat/$id');
+                    }
+                  },
+                  onRequest: categories.isEmpty
+                      ? null
+                      : () => context.push(
+                            '/request/new?categoryId=${categories.first['category_id'] ?? ''}',
+                          ),
+                  messageLabel: strings.t('message'),
+                  requestLabel: strings.t('requestService'),
                 ),
-              const SizedBox(height: 24),
-              Text(
-                strings.t('portfolio'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 10),
-              if (media.isEmpty)
-                const EmptyState(
-                  icon: Icons.photo_library_outlined,
-                  title: '—',
-                )
-              else
-                SizedBox(
-                  height: 112,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: media.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (_, i) {
-                      final item = media[i];
-                      final type =
-                          (item['media_type'] ?? 'image').toString();
-                      final path =
-                          (item['storage_path'] ?? '').toString();
-                      return type == 'image' && path.isNotEmpty
-                          ? ProviderMediaTile(
-                              path: path,
-                              width: 150,
-                              height: 112,
-                            )
-                          : Container(
-                              width: 150,
-                              height: 112,
-                              decoration: BoxDecoration(
-                                color: AppColors.blue.withValues(alpha: .06),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.play_circle_outline_rounded,
-                                color: AppColors.blue,
-                                size: 40,
-                              ),
-                            );
-                    },
-                  ),
-                ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final id = await repo.conversationForProvider(
-                          widget.providerId,
-                        );
-                        if (context.mounted) {
-                          context.push('/chat/$id');
-                        }
-                      },
-                      icon: const Icon(Icons.forum_outlined),
-                      label: Text(strings.t('message')),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: categories.isEmpty
-                          ? null
-                          : () => context.push(
-                                '/request/new?categoryId=${categories.first['category_id'] ?? ''}',
-                              ),
-                      icon: const Icon(Icons.add_task_rounded),
-                      label: Text(strings.t('requestService')),
-                    ),
-                  ),
-                ],
               ),
             ],
           );
@@ -286,4 +509,797 @@ class _ProviderProfileScreenState
       ),
     );
   }
+}
+
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.provider,
+    required this.hasBanner,
+    required this.bannerPath,
+    required this.displayName,
+    required this.city,
+    required this.profession,
+    required this.rating,
+    required this.ratingCount,
+    required this.screenWidth,
+  });
+
+  final Map<String, dynamic> provider;
+  final bool hasBanner;
+  final String? bannerPath;
+  final String displayName;
+  final String city;
+  final String profession;
+  final String rating;
+  final dynamic ratingCount;
+  final double screenWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final bannerHeight = hasBanner ? 176.0 : 104.0;
+    final heroHeight = hasBanner ? 292.0 : 220.0;
+
+    return SizedBox(
+      height: heroHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (hasBanner)
+            Positioned(
+              left: 18,
+              right: 18,
+              top: 0,
+              child: SizedBox(
+                height: bannerHeight,
+                child: ProviderMediaTile(
+                  path: bannerPath!,
+                  width: screenWidth - 36,
+                  height: bannerHeight,
+                ),
+              ),
+            )
+          else
+            Positioned(
+              left: 18,
+              right: 18,
+              top: 0,
+              child: Container(
+                height: bannerHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.blue.withValues(alpha: .14),
+                      AppColors.blue.withValues(alpha: .04),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            left: 30,
+            top: bannerHeight - 48,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: ProviderAvatar(
+                  path: provider['logo_path']?.toString(),
+                  size: 104,
+                  borderRadius: 999,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 150,
+            right: 24,
+            top: bannerHeight - 34,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 27,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -.4,
+                        ),
+                      ),
+                    ),
+                    if (hasActiveBlueTick(provider))
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Icon(
+                          Icons.verified_rounded,
+                          color: AppColors.blue,
+                          size: 24,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [profession, city]
+                      .where((x) => x.trim().isNotEmpty)
+                      .join(' • '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      color: AppColors.orange,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '$rating ($ratingCount vlerësim)',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopCircleButton extends StatelessWidget {
+  const _TopCircleButton({
+    required this.icon,
+    required this.onTap,
+    this.color = AppColors.ink,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.white.withValues(alpha: .94),
+        shape: const CircleBorder(),
+        elevation: 1,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Icon(icon, color: color, size: 21),
+          ),
+        ),
+      );
+}
+
+class _VerifiedBadge extends StatelessWidget {
+  const _VerifiedBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .09),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17, color: color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.icon,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 132,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D172033),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 26),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 11.5,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A172033),
+              blurRadius: 22,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: child,
+      );
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+    this.trailing,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: AppColors.blue, size: 19),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+              ),
+            ),
+          ),
+          if (trailing != null)
+            Text(
+              trailing!,
+              style: const TextStyle(
+                color: AppColors.blue,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
+        ],
+      );
+}
+
+class _CredentialCard extends StatelessWidget {
+  const _CredentialCard({required this.credential});
+  final Map<String, dynamic> credential;
+
+  @override
+  Widget build(BuildContext context) {
+    final program = (credential['program_name'] ?? '').toString();
+    final school = (credential['school_name'] ?? '').toString();
+    final city = (credential['city'] ?? '').toString();
+    final type =
+        (credential['credential_type'] ?? 'Kualifikim profesional').toString();
+    final year = credential['graduation_year'];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: .055),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: .22),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.school_rounded,
+              color: AppColors.blue,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: AppColors.success,
+                      size: 17,
+                    ),
+                    const SizedBox(width: 5),
+                    const Expanded(
+                      child: Text(
+                        'Kualifikim profesional i verifikuar',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (program.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    program,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15.5,
+                    ),
+                  ),
+                ],
+                if (school.isNotEmpty || city.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    [school, city].where((x) => x.isNotEmpty).join(' • '),
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                Text(
+                  year == null ? type : '$type • $year',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .8),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified_rounded,
+                        color: AppColors.success,
+                        size: 14,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'VERIFIKUAR NGA e-Mjeshtri',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({
+    required this.name,
+    required this.description,
+    required this.icon,
+  });
+
+  final String name;
+  final String description;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 112),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBFCFE),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.blue.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.blue, size: 22),
+            ),
+            const SizedBox(height: 9),
+            Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+                fontSize: 13.5,
+              ),
+            ),
+            if (description.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 11.5,
+                  height: 1.15,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _CompactEmptyState extends StatelessWidget {
+  const _CompactEmptyState({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFD),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.muted, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.review});
+  final Map<String, dynamic> review;
+
+  @override
+  Widget build(BuildContext context) {
+    final rating = (review['rating'] as num?)?.toInt() ?? 0;
+    final comment = (review['comment'] ?? '').toString().trim();
+    final rawDate = (review['created_at'] ?? '').toString();
+    final date = DateTime.tryParse(rawDate)?.toLocal();
+    final dateLabel = date == null
+        ? ''
+        : '${date.day.toString().padLeft(2, '0')}/'
+            '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFE),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: .10),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'K',
+              style: TextStyle(
+                color: AppColors.blue,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: List.generate(
+                    5,
+                    (index) => Icon(
+                      index < rating
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: AppColors.orange,
+                      size: 17,
+                    ),
+                  ),
+                ),
+                if (comment.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    comment,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  [
+                    'Klient i verifikuar',
+                    if (dateLabel.isNotEmpty) dateLabel,
+                  ].join(' • '),
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileActionBar extends StatelessWidget {
+  const _ProfileActionBar({
+    required this.onMessage,
+    required this.onRequest,
+    required this.messageLabel,
+    required this.requestLabel,
+  });
+
+  final VoidCallback onMessage;
+  final VoidCallback? onRequest;
+  final String messageLabel;
+  final String requestLabel;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: EdgeInsets.fromLTRB(
+          18,
+          12,
+          18,
+          10 + MediaQuery.of(context).padding.bottom,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: AppColors.divider),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x14172033),
+              blurRadius: 20,
+              offset: Offset(0, -6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: onMessage,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: Text(messageLabel),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.blue,
+                    side: const BorderSide(color: AppColors.blue),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  onPressed: onRequest,
+                  icon: const Icon(Icons.add_task_rounded),
+                  label: Text(requestLabel),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+String _translatedDescription(
+  Map<String, dynamic> category,
+  String language,
+) {
+  final translations = category['service_category_translations'];
+  if (translations is! List) return '';
+  for (final raw in translations) {
+    if (raw is Map &&
+        (raw['language_code'] ?? '').toString() == language &&
+        (raw['description'] ?? '').toString().trim().isNotEmpty) {
+      return raw['description'].toString().trim();
+    }
+  }
+  for (final raw in translations) {
+    if (raw is Map &&
+        (raw['language_code'] ?? '').toString() == 'sq' &&
+        (raw['description'] ?? '').toString().trim().isNotEmpty) {
+      return raw['description'].toString().trim();
+    }
+  }
+  return '';
+}
+
+IconData _serviceIcon(String slug) {
+  final s = slug.toLowerCase();
+  if (s.contains('electric')) return Icons.electrical_services_rounded;
+  if (s.contains('plumb') || s.contains('hidraul')) return Icons.plumbing_rounded;
+  if (s.contains('paint') || s.contains('boj')) return Icons.format_paint_rounded;
+  if (s.contains('clean')) return Icons.cleaning_services_rounded;
+  if (s.contains('appliance')) return Icons.home_repair_service_rounded;
+  if (s.contains('solar')) return Icons.solar_power_rounded;
+  if (s.contains('camera') || s.contains('security')) {
+    return Icons.videocam_rounded;
+  }
+  if (s.contains('internet') || s.contains('smart')) return Icons.router_rounded;
+  if (s.contains('transport')) return Icons.local_shipping_rounded;
+  if (s.contains('roof') || s.contains('cati')) return Icons.roofing_rounded;
+  if (s.contains('wood') || s.contains('carp')) return Icons.carpenter_rounded;
+  return Icons.handyman_rounded;
 }
