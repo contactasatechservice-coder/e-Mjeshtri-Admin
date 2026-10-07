@@ -219,12 +219,7 @@ jobs:
                   raise SystemExit('Could not register subscription route in app.dart')
 
           old_categories_route="GoRoute(path:'/categories',builder:(_,__)=>const AllCategoriesScreen()),"
-          request_categories_route="""GoRoute(
-      path:'/categories',
-      builder:(_,state)=>AllCategoriesScreen(
-        requestMode: state.uri.queryParameters['request'] == '1',
-      ),
-    ),"""
+          request_categories_route="GoRoute(\n      path:'/categories',\n      builder:(_,state)=>AllCategoriesScreen(\n        requestMode: state.uri.queryParameters['request'] == '1',\n      ),\n    ),"
           if old_categories_route in ap:
               ap=ap.replace(old_categories_route, request_categories_route, 1)
           elif "requestMode: state.uri.queryParameters['request'] == '1'" not in ap:
