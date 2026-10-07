@@ -2125,6 +2125,189 @@ class _MarketSellerProfileState extends State<MarketSellerProfile> {
   }
 }
 
+class _SellerMarketBrand extends StatelessWidget {
+  const _SellerMarketBrand({
+    this.compact = false,
+    this.centered = false,
+    this.darkSurface = false,
+  });
+
+  final bool compact;
+  final bool centered;
+  final bool darkSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SellerMarketMark(size: compact ? 42 : 58),
+        const SizedBox(width: 11),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'e-Market',
+              style: TextStyle(
+                color: darkSurface ? Colors.white : const Color(0xFF0A4697),
+                fontSize: compact ? 20 : 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -.5,
+              ),
+            ),
+            if (!compact)
+              Text(
+                'Paneli i biznesit',
+                style: TextStyle(
+                  color: darkSurface
+                      ? Colors.white70
+                      : const Color(0xFF687386),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+    return centered ? Center(child: row) : row;
+  }
+}
+
+class _SellerMarketMark extends StatelessWidget {
+  const _SellerMarketMark({this.size = 48});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .28),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF20A9F6),
+              Color(0xFF0867DD),
+              Color(0xFF073DBE),
+            ],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x24125C9E),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: size * .16,
+              left: size * .18,
+              right: size * .18,
+              child: Row(
+                children: List.generate(
+                  5,
+                  (i) => Expanded(
+                    child: Container(
+                      margin: EdgeInsets.symmetric(horizontal: size * .012),
+                      height: size * .18,
+                      decoration: BoxDecoration(
+                        color: i.isEven
+                            ? Colors.white
+                            : const Color(0xFFAEDFFF),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(size * .055),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: size * .22,
+              right: size * .22,
+              bottom: size * .17,
+              child: Container(
+                height: size * .35,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: size * .055,
+                  ),
+                  borderRadius: BorderRadius.circular(size * .08),
+                ),
+                child: Icon(
+                  Icons.shopping_bag_rounded,
+                  color: Colors.white,
+                  size: size * .18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _AudienceChoice extends StatelessWidget {
+  const _AudienceChoice({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF125C9E).withValues(alpha: .10)
+                : const Color(0xFFF8FAFD),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF125C9E)
+                  : const Color(0xFFE3E8EF),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                selected ? Icons.check_circle_rounded : icon,
+                color: const Color(0xFF125C9E),
+                size: 22,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: const Color(0xFF182235),
+                  fontWeight:
+                      selected ? FontWeight.w900 : FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _SellerPage extends StatelessWidget {
   const _SellerPage({
     required this.title,
