@@ -41,7 +41,36 @@ class _MarketVendorProfileScreenState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
-      appBar: AppBar(title: const Text('Dyqani')),
+      appBar: AppBar(
+        title: const Text('Dyqani'),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Më shumë',
+            onSelected: (value) async {
+              if (value != 'report') return;
+              await showMarketReportDialog(
+                context,
+                repo,
+                entityType: 'vendor',
+                entityId: widget.vendorId,
+                title: 'Raporto dyqanin',
+              );
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'report',
+                child: Row(
+                  children: [
+                    Icon(Icons.flag_outlined),
+                    SizedBox(width: 8),
+                    Text('Raporto dyqanin'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _future,
         builder: (context, snap) {
