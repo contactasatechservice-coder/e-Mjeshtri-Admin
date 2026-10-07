@@ -296,6 +296,16 @@ class MarketplaceRepository {
       );
 
 
+  Stream<Map<String, dynamic>?> orderStatusStream(String orderId) {
+    return client
+        .from('service_orders')
+        .stream(primaryKey: ['id'])
+        .eq('id', orderId)
+        .map((rows) => rows.isEmpty
+            ? null
+            : Map<String, dynamic>.from(rows.first));
+  }
+
   Stream<Map<String, dynamic>?> liveLocationStream(String orderId) {
     return client
         .from('order_live_locations')
@@ -319,22 +329,40 @@ class MarketplaceRepository {
   }
 
   Future<List<Map<String, dynamic>>> conversations() async {
-    final rows = await client.from('conversations').select('id,status,updated_at,providers(id,display_name,is_verified,blue_tick_expires_at),messages(id,body,message_type,created_at,sender_user_id)').eq('client_id', uid).order('updated_at', ascending: false);
+    final rows = await client
+        .from('conversations')
+        .select(
+          'id,status,updated_at,provider_id,request_id,order_id,'
+          'providers(id,display_name,is_verified,blue_tick_expires_at),'
+          'messages(id,body,message_type,created_at,sender_user_id)',
+        )
+        .eq('client_id', uid)
+        .isFilter('client_deleted_at', null)
+        .order('updated_at', ascending: false);
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  Future<String> conversationForProvider(String providerId, {String? requestId, String? orderId}) async {
-    var q = client.from('conversations').select('id').eq('client_id', uid).eq('provider_id', providerId);
-    if (orderId != null) q = q.eq('order_id', orderId);
-    final found = await q.order('created_at', ascending: false).limit(1).maybeSingle();
-    if (found != null) return found['id'].toString();
-    final created = await client.from('conversations').insert({
-      'client_id': uid,
-      'provider_id': providerId,
-      'request_id': requestId,
-      'order_id': orderId,
-    }).select('id').single();
-    return created['id'].toString();
+  Future<String> conversationForProvider(
+    String providerId, {
+    String? requestId,
+    String? orderId,
+  }) async {
+    final raw = await client.rpc(
+      'client_conversation_for_provider',
+      params: {
+        'p_provider_id': providerId,
+        'p_request_id': requestId,
+        'p_order_id': orderId,
+      },
+    );
+    return raw.toString();
+  }
+
+  Future<void> hideConversation(String conversationId) async {
+    await client.rpc(
+      'hide_my_conversation',
+      params: {'p_conversation_id': conversationId},
+    );
   }
 
   Future<Map<String, dynamic>> conversation(String id) async => Map<String, dynamic>.from(
