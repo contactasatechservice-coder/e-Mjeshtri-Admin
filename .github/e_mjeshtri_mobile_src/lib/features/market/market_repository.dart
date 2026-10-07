@@ -15,6 +15,25 @@ class MarketRepository {
     return id;
   }
 
+  Future<List<Map<String, dynamic>>> banners(String audience) async {
+    final raw = await client.rpc(
+      'market_active_banners',
+      params: {'p_audience': audience},
+    );
+    return List<Map<String, dynamic>>.from((raw as List?) ?? const []);
+  }
+
+  Future<String?> signedBannerUrl(String? path) async {
+    if (path == null || path.trim().isEmpty) return null;
+    try {
+      return await client.storage
+          .from('market-banners')
+          .createSignedUrl(path, 1800);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> categories(String audience) async {
     final raw = await client.rpc(
       'market_categories_for_audience',
