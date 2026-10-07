@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../market/market_screen.dart';
@@ -28,7 +29,10 @@ class _ProviderShellState extends State<ProviderShell> {
   int index = 0;
   int workTab = 0;
   Timer? _locationTimer;
+  Timer? _subscriptionTimer;
+  StreamSubscription<List<Map<String, dynamic>>>? _subscriptionWatch;
   bool _locationTickBusy = false;
+  bool _subscriptionGuardBusy = false;
 
   @override
   void initState() {
@@ -37,13 +41,51 @@ class _ProviderShellState extends State<ProviderShell> {
       const Duration(seconds: 10),
       (_) => _syncLiveLocation(),
     );
+    _subscriptionTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _enforceSubscription(),
+    );
+    _subscriptionWatch = Supabase.instance.client
+        .from('provider_subscriptions')
+        .stream(primaryKey: ['id'])
+        .eq('provider_id', widget.providerId)
+        .listen((_) => _enforceSubscription());
     Future<void>.delayed(const Duration(seconds: 1), _syncLiveLocation);
+    Future<void>.delayed(const Duration(milliseconds: 350), _enforceSubscription);
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _subscriptionTimer?.cancel();
+    _subscriptionWatch?.cancel();
     super.dispose();
+  }
+
+  Future<void> _enforceSubscription() async {
+    if (_subscriptionGuardBusy || !mounted) return;
+    _subscriptionGuardBusy = true;
+    try {
+      final raw = await Supabase.instance.client.rpc(
+        'provider_subscription_overview',
+        params: {'p_provider_id': widget.providerId},
+      );
+      final overview = raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : <String, dynamic>{};
+      final currentRaw = overview['current_subscription'];
+      final current = currentRaw is Map
+          ? Map<String, dynamic>.from(currentRaw)
+          : null;
+      final active = current?['effective_active'] == true;
+      if (!active && mounted) {
+        context.go('/profile/subscription');
+      }
+    } catch (_) {
+      // Keep the panel usable on transient network failures; retry automatically.
+    } finally {
+      _subscriptionGuardBusy = false;
+    }
   }
 
   Future<void> _syncLiveLocation() async {
