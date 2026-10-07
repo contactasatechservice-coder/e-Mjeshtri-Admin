@@ -85,6 +85,26 @@ class AdminModulesRepository {
         : <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> reviewProfessionalCredential(
+    String documentId, {
+    required bool approve,
+    bool addToCatalog = false,
+    String? reason,
+  }) async {
+    final raw = await _client.rpc(
+      'admin_review_professional_credential',
+      params: {
+        'p_document_id': documentId,
+        'p_action': approve ? 'approve' : 'reject',
+        'p_add_to_catalog': addToCatalog,
+        'p_reason': reason,
+      },
+    );
+    return raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : <String, dynamic>{};
+  }
+
   Future<Map<String, dynamic>> supportThread(String ticketId) async {
     final raw = await _client.rpc(
       'admin_support_thread',
