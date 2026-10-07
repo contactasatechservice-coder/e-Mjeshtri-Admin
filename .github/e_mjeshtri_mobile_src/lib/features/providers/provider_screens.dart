@@ -9,6 +9,14 @@ import '../marketplace/marketplace_repository.dart';
 import '../requests/request_flow.dart';
 import 'provider_avatar.dart';
 
+bool hasActiveBlueTick(Map<String, dynamic> provider) {
+  if (provider['is_verified'] != true) return false;
+  final raw = provider['blue_tick_expires_at']?.toString();
+  if (raw == null || raw.trim().isEmpty) return true;
+  final expires = DateTime.tryParse(raw);
+  return expires == null || expires.isAfter(DateTime.now().toUtc());
+}
+
 class OfferDetailScreen extends ConsumerStatefulWidget {
   const OfferDetailScreen({super.key, required this.offerId});
   final String offerId;
