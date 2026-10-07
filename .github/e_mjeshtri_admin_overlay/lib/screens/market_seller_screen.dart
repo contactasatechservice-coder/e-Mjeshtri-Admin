@@ -779,7 +779,12 @@ class _SellerNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF124E7E),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(color: Color(0xFFE4EAF2)),
+        ),
+      ),
       child: Column(
         children: [
           Padding(
@@ -791,11 +796,11 @@ class _SellerNavigation extends StatelessWidget {
             ),
           ),
           const Text(
-            'e-Market Seller',
+            'Paneli i Biznesit',
             style: TextStyle(
-              color: Colors.white,
+              color: Color(0xFF182235),
               fontWeight: FontWeight.w900,
-              fontSize: 17,
+              fontSize: 15,
             ),
           ),
           const SizedBox(height: 14),
@@ -807,19 +812,24 @@ class _SellerNavigation extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
                 child: ListTile(
                   selected: i == selected,
-                  selectedTileColor: Colors.white.withValues(alpha: .13),
+                  selectedTileColor: const Color(0xFFEAF3FC),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                   leading: Icon(
                     _MarketSellerPanelState._icons[i],
-                    color: Colors.white,
+                    color: i == selected
+                        ? const Color(0xFF125C9E)
+                        : const Color(0xFF667085),
                   ),
                   title: Text(
                     _MarketSellerPanelState._labels[i],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                    style: TextStyle(
+                      color: i == selected
+                          ? const Color(0xFF125C9E)
+                          : const Color(0xFF344054),
+                      fontWeight:
+                          i == selected ? FontWeight.w900 : FontWeight.w700,
                     ),
                   ),
                   onTap: () => onSelected(i),
@@ -831,8 +841,8 @@ class _SellerNavigation extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white54),
+                foregroundColor: const Color(0xFF344054),
+                side: const BorderSide(color: Color(0xFFD7DEE8)),
               ),
               onPressed: () async {
                 await MarketSellerRepository.instance.signOut();
