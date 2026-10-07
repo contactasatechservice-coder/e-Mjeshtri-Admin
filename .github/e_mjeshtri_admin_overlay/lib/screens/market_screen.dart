@@ -276,15 +276,7 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
       children: [
         Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FC),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.storefront_rounded, color: Color(0xFF125C9E)),
-            ),
+            const _AdminMarketMark(size: 50),
             const SizedBox(width: 14),
             const Expanded(
               child: Column(
@@ -400,6 +392,114 @@ class _MarketAdminScreenState extends State<MarketAdminScreen> {
       ],
     );
   }
+}
+
+class _AdminMarketMark extends StatelessWidget {
+  const _AdminMarketMark({this.size = 48});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .28),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF20A9F6),
+              Color(0xFF0867DD),
+              Color(0xFF073DBE),
+            ],
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: size * .16,
+              left: size * .18,
+              right: size * .18,
+              child: Row(
+                children: List.generate(
+                  5,
+                  (i) => Expanded(
+                    child: Container(
+                      margin: EdgeInsets.symmetric(horizontal: size * .012),
+                      height: size * .18,
+                      decoration: BoxDecoration(
+                        color: i.isEven
+                            ? Colors.white
+                            : const Color(0xFFAEDFFF),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(size * .055),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: size * .22,
+              right: size * .22,
+              bottom: size * .17,
+              child: Container(
+                height: size * .35,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: size * .055,
+                  ),
+                  borderRadius: BorderRadius.circular(size * .08),
+                ),
+                child: Icon(
+                  Icons.shopping_bag_rounded,
+                  color: Colors.white,
+                  size: size * .18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _AdminMarketTag extends StatelessWidget {
+  const _AdminMarketTag({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _Kpi extends StatelessWidget {
@@ -557,33 +657,95 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = (row['vendor_name'] ?? '').toString() +
-        ' • ' +
-        (row['category_name'] ?? '').toString() +
-        ' • ' +
-        (row['retail_price'] ?? 0).toString() +
-        ' ' +
-        (row['currency'] ?? 'ALL').toString();
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      leading: const CircleAvatar(child: Icon(Icons.inventory_2_outlined)),
-      title: Text(
-        (row['name'] ?? '').toString(),
-        style: const TextStyle(fontWeight: FontWeight.w800),
+    final audience = (row['audience'] ?? 'both').toString();
+    final audienceLabel = audience == 'citizen'
+        ? 'Qytetar'
+        : audience == 'provider'
+            ? 'Mjeshtër'
+            : 'Të dy';
+    final audienceIcon = audience == 'citizen'
+        ? Icons.person_outline_rounded
+        : audience == 'provider'
+            ? Icons.handyman_outlined
+            : Icons.groups_2_outlined;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFE),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5EAF1)),
       ),
-      subtitle: Text(subtitle),
-      trailing: Wrap(
-        spacing: 6,
+      child: Row(
         children: [
-          IconButton(
-            tooltip: 'Aprovo',
-            onPressed: busy ? null : onApprove,
-            icon: const Icon(Icons.check_circle_outline_rounded),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF3FC),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: Color(0xFF125C9E),
+            ),
           ),
-          IconButton(
-            tooltip: 'Refuzo',
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  (row['name'] ?? '').toString(),
+                  style: const TextStyle(
+                    color: Color(0xFF182235),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  (row['vendor_name'] ?? '').toString() +
+                      ' • ' +
+                      (row['category_name'] ?? '').toString(),
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    _AdminMarketTag(
+                      icon: audienceIcon,
+                      label: audienceLabel,
+                      color: const Color(0xFF125C9E),
+                    ),
+                    _AdminMarketTag(
+                      icon: Icons.payments_outlined,
+                      label: (row['retail_price'] ?? 0).toString() +
+                          ' ' +
+                          (row['currency'] ?? 'ALL').toString(),
+                      color: const Color(0xFF168C5A),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          FilledButton.icon(
+            onPressed: busy ? null : onApprove,
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Aprovo'),
+          ),
+          const SizedBox(width: 7),
+          OutlinedButton.icon(
             onPressed: busy ? null : onReject,
-            icon: const Icon(Icons.cancel_outlined),
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Refuzo'),
           ),
         ],
       ),
