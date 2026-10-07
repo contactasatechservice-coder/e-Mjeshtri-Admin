@@ -313,6 +313,22 @@ class MarketRepository {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<void> reportMarketEntity({
+    required String entityType,
+    required String entityId,
+    required String reason,
+    String? details,
+  }) async {
+    await client.from('market_reports').insert({
+      'reporter_user_id': uid,
+      'entity_type': entityType,
+      'entity_id': entityId,
+      'reason': reason.trim(),
+      'details': details?.trim(),
+      'status': 'open',
+    });
+  }
+
   Future<String?> signedImageUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
