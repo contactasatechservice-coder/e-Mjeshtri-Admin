@@ -1132,18 +1132,48 @@ class _MarketSellerProductsState extends State<MarketSellerProducts> {
                                 color: const Color(0xFF125C9E),
                               ),
                               _SellerTag(
-                                label: status,
+                                label: status == 'needs_correction'
+                                    ? 'Kërkon korrigjim'
+                                    : status,
                                 icon: status == 'active'
                                     ? Icons.check_circle_outline_rounded
                                     : status == 'pending_review'
                                         ? Icons.hourglass_top_rounded
-                                        : Icons.info_outline_rounded,
+                                        : status == 'needs_correction'
+                                            ? Icons.edit_note_rounded
+                                            : Icons.info_outline_rounded,
                                 color: status == 'active'
                                     ? const Color(0xFF168C5A)
-                                    : const Color(0xFFB7791F),
+                                    : status == 'needs_correction'
+                                        ? const Color(0xFFC2410C)
+                                        : const Color(0xFFB7791F),
                               ),
                             ],
                           ),
+                          if (status == 'needs_correction' &&
+                              (p['rejection_reason'] ?? '')
+                                  .toString()
+                                  .trim()
+                                  .isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF4ED),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Korrigjimi i kërkuar: ' +
+                                    p['rejection_reason'].toString(),
+                                style: const TextStyle(
+                                  color: Color(0xFF9A3412),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1151,6 +1181,26 @@ class _MarketSellerProductsState extends State<MarketSellerProducts> {
                     Wrap(
                       spacing: 2,
                       children: [
+                        if (const {
+                          'draft',
+                          'needs_correction',
+                          'rejected',
+                          'inactive',
+                        }.contains(status))
+                          IconButton(
+                            tooltip: 'Dërgo përsëri për aprovim',
+                            onPressed: () async {
+                              await _repo.submitProductForReview(
+                                vendorId: widget.vendorId,
+                                productId: p['id'].toString(),
+                              );
+                              if (mounted) setState(_reload);
+                            },
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              color: Color(0xFF125C9E),
+                            ),
+                          ),
                         IconButton(
                           tooltip: 'Fotot e produktit',
                           onPressed: () async {
