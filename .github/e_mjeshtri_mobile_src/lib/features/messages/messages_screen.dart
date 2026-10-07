@@ -11,6 +11,14 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/empty_state.dart';
 import '../marketplace/marketplace_repository.dart';
 
+bool hasActiveBlueTick(Map<String, dynamic> provider) {
+  if (provider['is_verified'] != true) return false;
+  final raw = provider['blue_tick_expires_at']?.toString();
+  if (raw == null || raw.trim().isEmpty) return true;
+  final expires = DateTime.tryParse(raw);
+  return expires == null || expires.isAfter(DateTime.now().toUtc());
+}
+
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
   @override
