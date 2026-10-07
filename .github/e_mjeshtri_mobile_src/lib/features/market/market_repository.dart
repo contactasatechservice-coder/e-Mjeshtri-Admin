@@ -26,9 +26,7 @@ class MarketRepository {
   Future<String?> signedBannerUrl(String? path) async {
     if (path == null || path.trim().isEmpty) return null;
     try {
-      return await client.storage
-          .from('market-banners')
-          .createSignedUrl(path, 1800);
+      return client.storage.from('market-banners').getPublicUrl(path);
     } catch (_) {
       return null;
     }
