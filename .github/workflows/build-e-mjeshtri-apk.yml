@@ -329,7 +329,7 @@ jobs:
           test -f "$APP/assets/category_cards/transport_zhvendosje.webp"
           test -f "$APP/assets/category_cards/xham_alumini.webp"
           test -f "$APP/assets/category_cards/cati_hidroizolim.webp"
-          grep -Fq "assets/category_cards/panel_diellore.webp" "$APP/lib/features/home/home_screen.dart"
+          grep -Fq "images.pexels.com/photos/29226620" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "return Wrap(" "$APP/lib/features/home/home_screen.dart"
 
           echo "SOURCE CHECK COMPLETE — continuing to Flutter analyze/build."
