@@ -405,6 +405,13 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
             );
           }
         } else if (item.kind == 'subscription') {
+          actions.add(
+            const _Action(
+              'edit_subscription_local',
+              'Ndrysho / rinovo abonimin',
+              Icons.edit_calendar_rounded,
+            ),
+          );
           if (item.status == 'active') {
             actions.addAll(const [
               _Action(
@@ -516,6 +523,11 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
       return;
     }
 
+    if (action.key == 'edit_subscription_local') {
+      await _editSubscription(item);
+      return;
+    }
+
     Map<String, dynamic> payload = const {};
 
     if ({'cancel'}.contains(action.key) &&
@@ -617,6 +629,198 @@ class _AdminModuleScreenState extends State<AdminModuleScreen> {
         payload,
       ),
       success: 'Veprimi u krye me sukses.',
+    );
+  }
+
+  Future<void> _editSubscription(AdminModuleItem item) async {
+    var planCode = (item.data['plan_code'] ?? 'monthly').toString();
+    if (!{'monthly', 'yearly'}.contains(planCode)) planCode = 'monthly';
+
+    var status = item.status;
+    if (!{'active', 'past_due', 'cancelled', 'expired'}.contains(status)) {
+      status = 'active';
+    }
+
+    DateTime? renewsAt =
+        DateTime.tryParse((item.data['renews_at'] ?? '').toString())?.toLocal();
+    var blueTick = item.data['blue_tick_included'] == true;
+    final noteController = TextEditingController();
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          String dateLabel() {
+            if (renewsAt == null) return 'Zgjidh datën';
+            final d = renewsAt!;
+            return '${d.day.toString().padLeft(2, '0')}/'
+                '${d.month.toString().padLeft(2, '0')}/${d.year}';
+          }
+
+          return AlertDialog(
+            title: const Text('Menaxho abonimin'),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: planCode,
+                      decoration: const InputDecoration(
+                        labelText: 'Plani',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'monthly',
+                          child: Text('Mujor • 2,000 ALL'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'yearly',
+                          child: Text('Vjetor • 20,000 ALL'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() {
+                          planCode = value;
+                          if (value == 'yearly') blueTick = true;
+                          renewsAt = DateTime.now().add(
+                            Duration(days: value == 'yearly' ? 365 : 30),
+                          );
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: status,
+                      decoration: const InputDecoration(
+                        labelText: 'Statusi',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('Aktiv'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'past_due',
+                          child: Text('Pagesë e vonuar'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'cancelled',
+                          child: Text('Anuluar'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'expired',
+                          child: Text('Skaduar'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => status = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Data e rinovimit'),
+                      subtitle: Text(dateLabel()),
+                      trailing: const Icon(Icons.event_rounded),
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final picked = await showDatePicker(
+                          context: dialogContext,
+                          initialDate: renewsAt ?? now,
+                          firstDate: DateTime(now.year - 1),
+                          lastDate: DateTime(now.year + 10),
+                        );
+                        if (picked != null) {
+                          setDialogState(() {
+                            renewsAt = DateTime(
+                              picked.year,
+                              picked.month,
+                              picked.day,
+                              23,
+                              59,
+                              59,
+                            );
+                          });
+                        }
+                      },
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Tick blu aktiv'),
+                      subtitle: Text(
+                        planCode == 'yearly'
+                            ? 'Përfshihet automatikisht në planin vjetor.'
+                            : 'Admini mund ta aktivizojë manualisht.',
+                      ),
+                      value: planCode == 'yearly' ? true : blueTick,
+                      onChanged: planCode == 'yearly'
+                          ? null
+                          : (value) =>
+                              setDialogState(() => blueTick = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      minLines: 2,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Shënim i administratorit',
+                        hintText: 'P.sh. rinovim manual, ndryshim plani...',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Anulo'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  if (noteController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Shkruaj një shënim për ndryshimin.'),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(dialogContext, true);
+                },
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Ruaj ndryshimet'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved != true) {
+      noteController.dispose();
+      return;
+    }
+
+    final note = noteController.text.trim();
+    noteController.dispose();
+
+    await _runRemote(
+      () => AdminModulesRepository.instance.editSubscription(
+        item.id,
+        planCode: planCode,
+        status: status,
+        renewsAt: renewsAt,
+        blueTickActive: planCode == 'yearly' ? true : blueTick,
+        note: note,
+      ),
+      success: 'Abonimi u përditësua dhe u sinkronizua me panelin e Mjeshtrit.',
     );
   }
 
