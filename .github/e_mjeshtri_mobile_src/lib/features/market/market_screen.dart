@@ -148,37 +148,71 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
     });
   }
 
+  Future<void> _openOrders() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketOrdersScreen(audience: widget.audience),
+      ),
+    );
+  }
+
+  Future<void> _openCart() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketCartScreen(audience: widget.audience),
+      ),
+    );
+    if (!mounted) return;
+    final value = await ref.read(marketRepositoryProvider).cartCount();
+    if (mounted) setState(() => _cartCount = value);
+  }
+
+  Future<void> _openProduct(Map<String, dynamic> product) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketProductScreen(
+          productId: product['id'].toString(),
+          audience: widget.audience,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    final value = await ref.read(marketRepositoryProvider).cartCount();
+    if (mounted) setState(() => _cartCount = value);
+  }
+
+  Future<void> _openVendor(Map<String, dynamic> vendor) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketVendorProfileScreen(
+          vendorId: vendor['vendor_id'].toString(),
+          audience: widget.audience,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isProvider = widget.audience == 'provider';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
+      backgroundColor: const Color(0xFFF6F8FC),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
             _reloadAll();
-            await _products;
+            await Future.wait<dynamic>([_categories, _products]);
           },
           child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
                   child: Row(
                     children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: AppColors.blue,
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Icon(
-                          Icons.storefront_rounded,
-                          color: Colors.white,
-                        ),
-                      ),
+                      const _EMarketMark(size: 54),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -187,77 +221,64 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                             const Text(
                               'e-Market',
                               style: TextStyle(
-                                fontSize: 25,
+                                fontSize: 27,
                                 fontWeight: FontWeight.w900,
                                 color: AppColors.ink,
+                                letterSpacing: -.4,
                               ),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               isProvider
-                                  ? 'Vegla pune dhe materiale profesionale'
+                                  ? 'Vegla dhe materiale pune'
                                   : 'Pajisje dhe produkte për shtëpinë',
                               style: const TextStyle(
                                 color: AppColors.muted,
                                 fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      IconButton.filledTonal(
-                        tooltip: 'Porositë e e-Market',
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => MarketOrdersScreen(
-                                audience: widget.audience,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.receipt_long_outlined),
+                      _MarketHeaderButton(
+                        tooltip: 'Porositë',
+                        icon: Icons.receipt_long_outlined,
+                        onTap: _openOrders,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 8),
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          IconButton.filledTonal(
+                          _MarketHeaderButton(
                             tooltip: 'Shporta',
-                            onPressed: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => MarketCartScreen(
-                                    audience: widget.audience,
-                                  ),
-                                ),
-                              );
-                              if (mounted) {
-                                final value = await ref
-                                    .read(marketRepositoryProvider)
-                                    .cartCount();
-                                if (mounted) setState(() => _cartCount = value);
-                              }
-                            },
-                            icon: const Icon(Icons.shopping_bag_outlined),
+                            icon: Icons.shopping_bag_outlined,
+                            onTap: _openCart,
                           ),
                           if (_cartCount > 0)
                             Positioned(
-                              right: -2,
-                              top: -4,
+                              right: -4,
+                              top: -5,
                               child: Container(
+                                constraints: const BoxConstraints(minWidth: 19),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
+                                  horizontal: 5,
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.orange,
+                                  color: const Color(0xFFE5484D),
                                   borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2,
+                                  ),
                                 ),
+                                alignment: Alignment.center,
                                 child: Text(
-                                  _cartCount.toString(),
+                                  _cartCount > 99 ? '99+' : '$_cartCount',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
@@ -271,28 +292,76 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-                  child: TextField(
-                    controller: _search,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (_) => _reloadProducts(),
-                    decoration: InputDecoration(
-                      hintText: isProvider
-                          ? 'Kërko vegla, materiale ose marka...'
-                          : 'Kërko pajisje, produkte ose marka...',
-                      prefixIcon: const Icon(
-                        Icons.search_rounded,
-                        color: AppColors.blue,
-                      ),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              onPressed: () {
-                                _search.clear();
-                                _reloadProducts();
-                              },
-                              icon: const Icon(Icons.close_rounded),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x0C172033),
+                          blurRadius: 18,
+                          offset: Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _search,
+                      textInputAction: TextInputAction.search,
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) => _reloadProducts(),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        hintText: isProvider
+                            ? 'Kërko vegla, materiale ose marka...'
+                            : 'Kërko pajisje, produkte ose marka...',
+                        hintStyle: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 15,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search_rounded,
+                          color: AppColors.blue,
+                          size: 28,
+                        ),
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_search.text.isNotEmpty)
+                              IconButton(
+                                onPressed: () {
+                                  _search.clear();
+                                  _reloadProducts();
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            Container(
+                              width: 1,
+                              height: 28,
+                              color: AppColors.divider,
                             ),
+                            IconButton(
+                              tooltip: 'Filtro',
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Përdor kategoritë për të filtruar produktet.',
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.tune_rounded,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+                      ),
                     ),
                   ),
                 ),
@@ -304,30 +373,43 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                     final categories = snap.data ?? const [];
                     if (snap.connectionState != ConnectionState.done) {
                       return const SizedBox(
-                        height: 55,
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        height: 58,
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
                     }
                     return SizedBox(
-                      height: 54,
+                      height: 58,
                       child: ListView(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         scrollDirection: Axis.horizontal,
                         children: [
-                          _CategoryChip(
+                          _MarketCategoryPill(
                             label: 'Të gjitha',
+                            icon: Icons.grid_view_rounded,
                             selected: _categoryId == null,
                             onTap: () {
-                              _categoryId = null;
+                              setState(() => _categoryId = null);
                               _reloadProducts();
                             },
                           ),
                           ...categories.map(
-                            (c) => _CategoryChip(
-                              label: (c['name_sq'] ?? '').toString(),
-                              selected: _categoryId == c['id']?.toString(),
+                            (category) => _MarketCategoryPill(
+                              label: (category['name_sq'] ?? '').toString(),
+                              icon: _marketCategoryIcon(
+                                (category['icon_key'] ??
+                                        category['slug'] ??
+                                        '')
+                                    .toString(),
+                              ),
+                              selected:
+                                  _categoryId == category['id']?.toString(),
                               onTap: () {
-                                _categoryId = c['id']?.toString();
+                                setState(
+                                  () => _categoryId =
+                                      category['id']?.toString(),
+                                );
                                 _reloadProducts();
                               },
                             ),
@@ -338,109 +420,168 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
                   },
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                sliver: FutureBuilder<List<Map<String, dynamic>>>(
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+                  child: _MarketHeroBanner(isProvider: isProvider),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
                   future: _products,
                   builder: (context, snap) {
                     if (snap.connectionState != ConnectionState.done) {
-                      return const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.only(top: 80),
-                          child: Center(child: CircularProgressIndicator()),
-                        ),
+                      return const Padding(
+                        padding: EdgeInsets.only(top: 54, bottom: 120),
+                        child: Center(child: CircularProgressIndicator()),
                       );
                     }
                     if (snap.hasError) {
-                      return SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 60),
-                          child: Center(
-                            child: FilledButton.icon(
-                              onPressed: _reloadProducts,
-                              icon: const Icon(Icons.refresh_rounded),
-                              label: const Text('Provo përsëri'),
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 30, 20, 120),
+                        child: _MarketStateCard(
+                          icon: Icons.cloud_off_rounded,
+                          title: 'Produktet nuk u ngarkuan',
+                          text: 'Kontrollo lidhjen dhe provo përsëri.',
+                          actionLabel: 'Provo përsëri',
+                          onAction: _reloadProducts,
+                        ),
+                      );
+                    }
+
+                    final products = snap.data ?? const <Map<String, dynamic>>[];
+                    if (products.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 120),
+                        child: _MarketStateCard(
+                          icon: Icons.inventory_2_outlined,
+                          title: 'Produkte të reja po shtohen',
+                          text: isProvider
+                              ? 'Produktet profesionale do të shfaqen sapo bizneset e aprovuara t’i publikojnë.'
+                              : 'Produktet për shtëpinë do të shfaqen sapo bizneset e aprovuara t’i publikojnë.',
+                        ),
+                      );
+                    }
+
+                    final discounted = products.where((p) {
+                      final current = _marketPriceFor(p, widget.audience);
+                      final compare = (p['compare_at_price'] as num?)?.toDouble();
+                      return compare != null &&
+                          current != null &&
+                          compare > current;
+                    }).toList();
+
+                    final featured = discounted.isNotEmpty
+                        ? discounted
+                        : products
+                            .where((p) => p['is_featured'] == true)
+                            .toList();
+                    final displayProducts =
+                        featured.isNotEmpty ? featured : products;
+
+                    final vendors = <String, Map<String, dynamic>>{};
+                    for (final p in products) {
+                      if (p['vendor_verified'] != true) continue;
+                      final id = p['vendor_id']?.toString();
+                      if (id == null || id.isEmpty) continue;
+                      vendors.putIfAbsent(id, () => p);
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 125),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _MarketSectionHeading(
+                            icon: discounted.isNotEmpty
+                                ? Icons.local_fire_department_rounded
+                                : Icons.auto_awesome_rounded,
+                            iconColor: discounted.isNotEmpty
+                                ? AppColors.orange
+                                : AppColors.blue,
+                            title: discounted.isNotEmpty
+                                ? 'Ofertat e ditës'
+                                : 'Produkte për ty',
+                            trailing:
+                                '${displayProducts.length} produkte',
+                          ),
+                          const SizedBox(height: 7),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.verified_user_rounded,
+                                  color: AppColors.success,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Vetëm produkte nga biznese të aprovuara',
+                                  style: TextStyle(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      );
-                    }
-
-                    final products = snap.data ?? const [];
-                    if (products.isEmpty) {
-                      return SliverToBoxAdapter(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 30),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 54,
+                          const SizedBox(height: 12),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: displayProducts.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 11,
+                              mainAxisSpacing: 11,
+                              childAspectRatio: .67,
+                            ),
+                            itemBuilder: (context, index) => _ProductCard(
+                              product: displayProducts[index],
+                              audience: widget.audience,
+                              onOpen: () =>
+                                  _openProduct(displayProducts[index]),
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.storefront_outlined,
-                                color: AppColors.blue,
-                                size: 48,
+                          if (vendors.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            const _MarketSectionHeading(
+                              icon: Icons.storefront_rounded,
+                              iconColor: AppColors.blue,
+                              title: 'Dyqane të verifikuara',
+                              trailing: 'Biznese të aprovuara',
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 94,
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: vendors.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (context, index) {
+                                  final vendor =
+                                      vendors.values.elementAt(index);
+                                  return _VerifiedVendorCard(
+                                    vendor: vendor,
+                                    onTap: () => _openVendor(vendor),
+                                  );
+                                },
                               ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'e-Market po përgatitet',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                isProvider
-                                    ? 'Produktet profesionale do të shfaqen sapo shitësit e aprovuar t’i publikojnë.'
-                                    : 'Produktet për shtëpinë do të shfaqen sapo shitësit e aprovuar t’i publikojnë.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: AppColors.muted,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    return SliverGrid(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) => _ProductCard(
-                          product: products[index],
-                          audience: widget.audience,
-                          onOpen: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => MarketProductScreen(
-                                  productId: products[index]['id'].toString(),
-                                  audience: widget.audience,
-                                ),
-                              ),
-                            );
-                            if (mounted) {
-                              ref.read(marketRepositoryProvider).cartCount().then((value) {
-                                if (mounted) setState(() => _cartCount = value);
-                              });
-                            }
-                          },
-                        ),
-                        childCount: products.length,
-                      ),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: .70,
+                            ),
+                          ],
+                        ],
                       ),
                     );
                   },
@@ -452,6 +593,520 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
       ),
     );
   }
+}
+
+class _EMarketMark extends StatelessWidget {
+  const _EMarketMark({this.size = 52});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .29),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF19A7F7),
+              Color(0xFF0866DB),
+              Color(0xFF063CBF),
+            ],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x24125C9E),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: size * .20,
+              left: size * .18,
+              right: size * .18,
+              child: Container(
+                height: size * .18,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(size * .08),
+                ),
+              ),
+            ),
+            Positioned(
+              top: size * .15,
+              left: size * .20,
+              right: size * .20,
+              child: Row(
+                children: List.generate(
+                  5,
+                  (i) => Expanded(
+                    child: Container(
+                      margin: EdgeInsets.symmetric(horizontal: size * .012),
+                      height: size * .19,
+                      decoration: BoxDecoration(
+                        color: i.isEven
+                            ? Colors.white
+                            : const Color(0xFFA9DDFF),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(size * .06),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: size * .22,
+              right: size * .22,
+              bottom: size * .17,
+              child: Container(
+                height: size * .34,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: size * .055,
+                  ),
+                  borderRadius: BorderRadius.circular(size * .08),
+                ),
+                child: Icon(
+                  Icons.shopping_bag_rounded,
+                  color: Colors.white,
+                  size: size * .19,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _MarketHeaderButton extends StatelessWidget {
+  const _MarketHeaderButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: AppColors.blue.withValues(alpha: .08),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, color: AppColors.ink, size: 22),
+            ),
+          ),
+        ),
+      );
+}
+
+class _MarketHeroBanner extends StatelessWidget {
+  const _MarketHeroBanner({required this.isProvider});
+  final bool isProvider;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        height: 156,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Color(0xFF075AA9),
+              Color(0xFF0B65B7),
+              Color(0xFF1F86D5),
+            ],
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x24125C9E),
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Positioned(
+              right: -18,
+              bottom: -28,
+              child: Container(
+                width: 168,
+                height: 168,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .10),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 18,
+              bottom: 10,
+              child: Icon(
+                isProvider ? Icons.handyman_rounded : Icons.weekend_rounded,
+                color: Colors.white.withValues(alpha: .92),
+                size: 92,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 130, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'e-Market',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    isProvider
+                        ? 'Veglat e duhura për çdo projekt'
+                        : 'Produkte cilësore për një shtëpi më të mirë',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 21,
+                      height: 1.08,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isProvider
+                        ? 'Materiale dhe pajisje nga biznese të aprovuara.'
+                        : 'Pajisje dhe produkte nga shitës të aprovuar.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .86),
+                      fontSize: 11.5,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _MarketCategoryPill extends StatelessWidget {
+  const _MarketCategoryPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.blue.withValues(alpha: .12)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? AppColors.blue.withValues(alpha: .12)
+                    : AppColors.divider,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? Icons.check_rounded : icon,
+                  size: 18,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? AppColors.blue : AppColors.ink,
+                    fontSize: 12.5,
+                    fontWeight:
+                        selected ? FontWeight.w900 : FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _MarketSectionHeading extends StatelessWidget {
+  const _MarketSectionHeading({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.trailing,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String trailing;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(icon, color: iconColor, size: 24),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 19,
+              ),
+            ),
+          ),
+          Text(
+            trailing,
+            style: const TextStyle(
+              color: AppColors.blue,
+              fontWeight: FontWeight.w700,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      );
+}
+
+class _MarketStateCard extends StatelessWidget {
+  const _MarketStateCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.blue, size: 38),
+            const SizedBox(height: 11),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.muted,
+                height: 1.4,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 14),
+              FilledButton(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _VerifiedVendorCard extends ConsumerWidget {
+  const _VerifiedVendorCard({
+    required this.vendor,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> vendor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            width: 215,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: [
+                FutureBuilder<String?>(
+                  future: ref.read(marketRepositoryProvider).signedImageUrl(
+                        vendor['vendor_logo_path']?.toString(),
+                      ),
+                  builder: (context, snap) {
+                    final url = snap.data;
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.blue.withValues(alpha: .07),
+                        shape: BoxShape.circle,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: url == null
+                          ? const Icon(
+                              Icons.storefront_rounded,
+                              color: AppColors.blue,
+                            )
+                          : Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.storefront_rounded,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              (vendor['vendor_name'] ?? '').toString(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.ink,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.verified_rounded,
+                            color: AppColors.blue,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        (vendor['category_name'] ?? 'e-Market').toString(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+IconData _marketCategoryIcon(String key) {
+  final value = key.toLowerCase();
+  if (value.contains('tv') || value.contains('audio')) return Icons.tv_rounded;
+  if (value.contains('kuzh') || value.contains('kitchen')) {
+    return Icons.soup_kitchen_rounded;
+  }
+  if (value.contains('smart')) return Icons.home_rounded;
+  if (value.contains('elektr')) return Icons.electrical_services_rounded;
+  if (value.contains('hidraul') || value.contains('plumb')) {
+    return Icons.plumbing_rounded;
+  }
+  if (value.contains('vegla') || value.contains('tool')) {
+    return Icons.handyman_rounded;
+  }
+  if (value.contains('material')) return Icons.construction_rounded;
+  if (value.contains('ngroh') || value.contains('ftoh')) {
+    return Icons.ac_unit_rounded;
+  }
+  return Icons.inventory_2_outlined;
+}
+
+double? _marketPriceFor(Map<String, dynamic> product, String audience) {
+  final professional = audience == 'provider';
+  final raw = professional && product['professional_price'] != null
+      ? product['professional_price']
+      : product['retail_price'];
+  return (raw as num?)?.toDouble();
 }
 
 class MarketProductScreen extends ConsumerStatefulWidget {
