@@ -89,11 +89,11 @@ insert = r'''
       fileOptions: FileOptions(upsert: false, contentType: mime),
     );
     if (banner) {
-      await client.from('provider_media').delete().eq('provider_id', providerId).eq('media_type', 'banner');
+      await client.from('provider_media').delete().eq('provider_id', providerId).eq('caption', 'Banner');
       await client.from('provider_media').insert({
         'provider_id': providerId,
         'storage_path': path,
-        'media_type': 'banner',
+        'media_type': 'image',
         'caption': 'Banner',
         'sort_order': -10,
       });
@@ -227,7 +227,7 @@ class _ProviderHomeState extends State<ProviderHome> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 1.72,
+                  childAspectRatio: 1.45,
                   children: [
                     _StatCard(label: t('newRequests'), value: d.requests.length.toString(), icon: Icons.inbox_rounded, bg: const Color(0xFFEAF3FF), fg: const Color(0xFF176FD0), onTap: () => widget.onTab(1)),
                     _StatCard(label: t('activeJobs'), value: active.toString(), icon: Icons.work_rounded, bg: const Color(0xFFFFF2E6), fg: AppColors.orange, onTap: () => widget.onTab(2)),
