@@ -368,7 +368,7 @@ jobs:
           grep -Fq "placemarkFromCoordinates" "$APP/lib/features/settings/settings_screens.dart"
           grep -Fq "geocoding: ^4.0.0" "$APP/pubspec.yaml"
           grep -Fq "version: 1.9.0+51" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.8.4'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "currentVersion = '1.9.0'" "$APP/lib/core/config/app_config.dart"
           test -f "$APP/assets/branding/e_mjeshtri_launcher.png"
           test -f "$APP/assets/branding/e_mjeshtri_launcher_foreground.png"
           test -f "$APP/assets/category_cards/panel_diellore.webp"
