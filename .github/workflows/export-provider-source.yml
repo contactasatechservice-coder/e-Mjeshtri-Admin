@@ -1,0 +1,28 @@
+name: Export provider source
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-provider-source.yml'
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract provider source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/emsrc
+          mkdir -p /tmp/emsrc
+          base64 -d .github/e_mjeshtri_mobile_src.b64 > /tmp/e_mjeshtri_unified.tar.gz
+          tar -xzf /tmp/e_mjeshtri_unified.tar.gz -C /tmp/emsrc
+          mkdir -p exported
+          cp /tmp/emsrc/lib/features/provider_portal/messages.dart exported/messages.dart
+          cp /tmp/emsrc/lib/features/provider_portal/provider_repository.dart exported/provider_repository.dart
+          cp /tmp/emsrc/lib/features/provider_portal/profile.dart exported/profile.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provider-source
+          path: exported
