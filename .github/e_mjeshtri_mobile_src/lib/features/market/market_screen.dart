@@ -1448,81 +1448,245 @@ class _ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(marketRepositoryProvider);
-    final professional = audience == 'provider';
-    final price = professional && product['professional_price'] != null
-        ? product['professional_price']
-        : product['retail_price'];
+    final price = _marketPriceFor(product, audience) ?? 0;
+    final compare = (product['compare_at_price'] as num?)?.toDouble();
+    final hasDiscount = compare != null && compare > price && price > 0;
+    final discount = hasDiscount
+        ? (((compare - price) / compare) * 100).round()
+        : 0;
+    final rating = (product['rating_avg'] as num?)?.toDouble() ?? 0;
+    final ratingCount = (product['rating_count'] as num?)?.toInt() ?? 0;
+    final verified = product['vendor_verified'] == true;
 
-    return Card(
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(11),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.divider),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x09172033),
+                blurRadius: 16,
+                offset: Offset(0, 7),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: FutureBuilder<String?>(
-                  future: repo.signedImageUrl(product['primary_image_path']?.toString()),
-                  builder: (context, snap) {
-                    final url = snap.data;
-                    return Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F6FB),
-                        borderRadius: BorderRadius.circular(18),
+                flex: 11,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    FutureBuilder<String?>(
+                      future: repo.signedImageUrl(
+                        product['primary_image_path']?.toString(),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: url == null
-                          ? const Icon(
-                              Icons.inventory_2_outlined,
-                              color: AppColors.blue,
-                              size: 44,
-                            )
-                          : Image.network(
-                              url,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
-                                Icons.inventory_2_outlined,
-                                color: AppColors.blue,
-                                size: 44,
+                      builder: (context, snap) {
+                        final url = snap.data;
+                        return Container(
+                          color: const Color(0xFFF5F7FA),
+                          alignment: Alignment.center,
+                          child: url == null
+                              ? const Icon(
+                                  Icons.inventory_2_outlined,
+                                  color: AppColors.blue,
+                                  size: 44,
+                                )
+                              : Image.network(
+                                  url,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.inventory_2_outlined,
+                                    color: AppColors.blue,
+                                    size: 44,
+                                  ),
+                                ),
+                        );
+                      },
+                    ),
+                    if (hasDiscount)
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF3D45),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Text(
+                            '-$discount%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (product['is_new'] == true && !hasDiscount)
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.blue,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: const Text(
+                            'E RE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 10,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (product['name'] ?? '').toString(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13.5,
+                          height: 1.08,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.storefront_outlined,
+                            color: AppColors.muted,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              (product['vendor_name'] ?? '').toString(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 10.5,
                               ),
                             ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                (product['name'] ?? '').toString(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                (product['vendor_name'] ?? '').toString(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                (price ?? 0).toString() +
-                    ' ' +
-                    (product['currency'] ?? 'ALL').toString(),
-                style: const TextStyle(
-                  color: AppColors.blue,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                          ),
+                          if (verified) ...[
+                            const SizedBox(width: 3),
+                            const Icon(
+                              Icons.verified_rounded,
+                              color: AppColors.blue,
+                              size: 13,
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (ratingCount > 0) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: AppColors.orange,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              rating.toStringAsFixed(1),
+                              style: const TextStyle(
+                                color: AppColors.ink,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 10.5,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '($ratingCount)',
+                              style: const TextStyle(
+                                color: AppColors.muted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const Spacer(),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_marketMoney(price)} ${(product['currency'] ?? 'ALL')}',
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    color: AppColors.blue,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                if (hasDiscount)
+                                  Text(
+                                    '${_marketMoney(compare)} ${(product['currency'] ?? 'ALL')}',
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      color: AppColors.muted,
+                                      fontSize: 9.5,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: AppColors.blue,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.shopping_cart_outlined,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1531,6 +1695,21 @@ class _ProductCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _marketMoney(num? value) {
+  if (value == null) return '0';
+  final n = value.toDouble();
+  if (n == n.roundToDouble()) {
+    final raw = n.toInt().toString();
+    final out = StringBuffer();
+    for (var i = 0; i < raw.length; i++) {
+      if (i > 0 && (raw.length - i) % 3 == 0) out.write(',');
+      out.write(raw[i]);
+    }
+    return out.toString();
+  }
+  return n.toStringAsFixed(2);
 }
 
 class _ProductHero extends ConsumerWidget {
