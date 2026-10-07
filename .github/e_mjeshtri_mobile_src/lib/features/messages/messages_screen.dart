@@ -36,6 +36,34 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
 
   void reload() => setState(() => future = ref.read(marketplaceRepositoryProvider).conversations());
 
+  Future<void> _deleteConversation(Map<String, dynamic> conversation) async {
+    final strings = AppStrings.of(context);
+    final p = (conversation['providers'] as Map?)?.cast<String, dynamic>() ?? {};
+    final name = (p['display_name'] ?? strings.t('chat')).toString();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(strings.t('deleteChatTitle')),
+        content: Text('${strings.t('deleteChatBody')} §name?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(strings.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(strings.t('delete')),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref
+        .read(marketplaceRepositoryProvider)
+        .hideConversation(conversation['id'].toString());
+    if (mounted) reload();
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = AppStrings.of(context);
@@ -96,13 +124,53 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           ],
                         ),
                         subtitle: Text(last?['body']?.toString() ?? s.t('noMessages'), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: last == null
-                            ? null
-                            : Text(
-                                DateFormat('HH:mm').format(DateTime.parse(last['created_at'].toString()).toLocal()),
-                                style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (last != null)
+                              Text(
+                                DateFormat('HH:mm').format(
+                                  DateTime.parse(last['created_at'].toString()).toLocal(),
+                                ),
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 12,
+                                ),
                               ),
-                        onTap: () => context.push('/chat/${c['id']}'),
+                            PopupMenuButton<String>(
+                              tooltip: s.t('delete'),
+                              onSelected: (value) {
+                                if (value == 'delete') {
+                                  _deleteConversation(c);
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: AppColors.danger,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        s.t('delete'),
+                                        style: const TextStyle(
+                                          color: AppColors.danger,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        onTap: () async {
+                          await context.push('/chat/${c['id']}');
+                          if (mounted) reload();
+                        },
                       );
                     },
                   ),
@@ -283,16 +351,63 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   if (providerId == null) return;
                   if (value == 'report') {
                     context.push('/report/new?providerId=$providerId&conversationId=${widget.conversationId}');
+                  } else if (value == 'delete') {
+                    final ok = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: Text(s.t('deleteChatTitle')),
+                        content: Text(s.t('deleteChatBody')),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: Text(s.t('cancel')),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: Text(s.t('delete')),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (ok == true) {
+                      await repo.hideConversation(widget.conversationId);
+                      if (context.mounted) {
+                        final navigator = Navigator.of(context);
+                        if (navigator.canPop()) {
+                          navigator.pop();
+                        } else {
+                          context.go('/home');
+                        }
+                      }
+                    }
                   } else if (value == 'block') {
                     await repo.blockProvider(providerId);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s.t('blockedProvider'))));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(s.t('blockedProvider'))),
+                      );
                       context.pop();
                     }
                   }
                 },
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'report', child: Text(s.t('reportUser'))),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.danger,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          s.t('delete'),
+                          style: const TextStyle(color: AppColors.danger),
+                        ),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(value: 'block', child: Text(s.t('blockProvider'))),
                 ],
               ),
