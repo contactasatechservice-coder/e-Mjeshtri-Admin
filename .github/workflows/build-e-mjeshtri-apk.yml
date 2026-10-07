@@ -290,7 +290,7 @@ jobs:
           grep -Fq "'plumbing'" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "'appliance_repair'" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "'internet_tv_smart_home'" "$APP/lib/features/home/home_screen.dart"
-          grep -Fq "Pa vlerësime ende" "$APP/lib/features/home/home_screen.dart"
+          grep -Fq "noRatingsYet" "$APP/lib/features/home/home_screen.dart"
           grep -Fq "distance_km" "$APP/lib/features/home/home_repository.dart"
           grep -Fq "requestMode" "$APP/lib/features/requests/request_flow.dart"
           grep -Fq "requestMode: state.uri.queryParameters['request'] == '1'" "$APP/lib/app.dart"
