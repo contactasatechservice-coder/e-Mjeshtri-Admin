@@ -1777,9 +1777,15 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _future,
-      builder: (context, snap) {
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final availableHeight = viewportHeight - 132;
+    final panelHeight = availableHeight < 620 ? 620.0 : availableHeight;
+
+    return SizedBox(
+      height: panelHeight,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _future,
+        builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -2103,7 +2109,8 @@ class _MarketBackofficeScreenState extends State<MarketBackofficeScreen> {
             ],
           ),
         );
-      },
+        },
+      ),
     );
   }
 
