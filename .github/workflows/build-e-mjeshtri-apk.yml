@@ -368,7 +368,7 @@ jobs:
           grep -Fq "placemarkFromCoordinates" "$APP/lib/features/settings/settings_screens.dart"
           grep -Fq "geocoding: ^4.0.0" "$APP/pubspec.yaml"
           grep -Fq "version: 1.9.6+57" "$APP/pubspec.yaml"
-          grep -Fq "currentVersion = '1.9.5'" "$APP/lib/core/config/app_config.dart"
+          grep -Fq "currentVersion = '1.9.6'" "$APP/lib/core/config/app_config.dart"
           grep -Fq "Produkte cilësore për një shtëpi më të mirë" "$APP/lib/features/market/market_screen.dart"
           grep -Fq "Veglat e duhura për çdo projekt" "$APP/lib/features/market/market_screen.dart"
           grep -Fq "Dyqane të verifikuara" "$APP/lib/features/market/market_screen.dart"
