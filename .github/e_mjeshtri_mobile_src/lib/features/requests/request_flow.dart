@@ -65,14 +65,21 @@ Color _serviceCategoryColor(String? key) => switch (key) {
 };
 
 class AllCategoriesScreen extends ConsumerWidget {
-  const AllCategoriesScreen({super.key});
+  const AllCategoriesScreen({
+    super.key,
+    this.requestMode = false,
+  });
+
+  final bool requestMode;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = AppStrings.of(context);
     final language = Localizations.localeOf(context).languageCode;
     final categories = ref.watch(categoriesProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(s.t('allCategories'))),
+      appBar: AppBar(
+        title: Text(requestMode ? 'Zgjidh shërbimin' : s.t('allCategories')),
+      ),
       body: categories.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => Center(child: FilledButton(onPressed: () => ref.invalidate(categoriesProvider), child: Text(s.t('retry')))),
@@ -109,7 +116,9 @@ class AllCategoriesScreen extends ConsumerWidget {
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push('/categories/${item['id']}'),
+                onTap: () => requestMode
+                    ? context.push('/request/new?categoryId=${item['id']}')
+                    : context.push('/categories/${item['id']}'),
               ),
             );
           },
