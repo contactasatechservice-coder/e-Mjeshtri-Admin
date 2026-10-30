@@ -1,0 +1,2 @@
+import MarketplaceList from "@/components/marketplace-list";import {demoServices} from "@/lib/demo-data";
+export default function Services(){return <main className="section"><span className="eyebrow">Pamje demonstrimi — të dhëna fiktive</span><h1>Gjej profesionistë</h1><p>Shiko shembuj shërbimesh. Profilet reale do të shfaqen pas aktivizimit të databazës.</p><MarketplaceList items={demoServices} kind="services"/></main>}
