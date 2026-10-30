@@ -1,0 +1,28 @@
+name: Security branch checks
+on:
+  push:
+    branches:
+      - audit/security-rls-v1
+  pull_request:
+    branches:
+      - web-rebuild-nextjs
+jobs:
+  typecheck-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-for-build-only
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run lint
+      - name: Next.js production build
+        run: npm run build
