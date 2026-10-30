@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/server/require-role';
+import { changeApplicationStatus } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function RolePage() {
           </ul>
         )}
         <h2>Aplikimet e kandidatëve ({applications.length})</h2>
-        {applicationsResult.error ? <p role="alert">Aplikimet nuk u ngarkuan. Kontrollo lejet e aksesit.</p> : applications.length === 0 ? <p>Ende nuk ka aplikime për ofertat e tua.</p> : <ul className="company-applications">{applications.map(application => <li key={application.id}><strong>{jobs.find(job => job.id === application.job_id)?.title ?? 'Ofertë pune'}</strong><p>Statusi: {application.status}</p>{application.cover_letter && <p>{application.cover_letter}</p>}<small>Kandidati: {applicantById.get(application.applicant_id)?.full_name || 'Kandidat'}{applicantById.get(application.applicant_id)?.city ? ` · ${applicantById.get(application.applicant_id)?.city}` : ''}</small></li>)}</ul>}
+        {applicationsResult.error ? <p role="alert">Aplikimet nuk u ngarkuan. Kontrollo lejet e aksesit.</p> : applications.length === 0 ? <p>Ende nuk ka aplikime për ofertat e tua.</p> : <ul className="company-applications">{applications.map(application => <li key={application.id}><strong>{jobs.find(job => job.id === application.job_id)?.title ?? 'Ofertë pune'}</strong><p>Statusi: {application.status}</p>{application.cover_letter && <p>{application.cover_letter}</p>}<small>Kandidati: {applicantById.get(application.applicant_id)?.full_name || 'Kandidat'}{applicantById.get(application.applicant_id)?.city ? ` · ${applicantById.get(application.applicant_id)?.city}` : ''}</small>{['applied','reviewing','interview'].includes(application.status) && <form action={changeApplicationStatus} className="company-status-form"><input type="hidden" name="application_id" value={application.id}/><label htmlFor={`status-${application.id}`}>Ndrysho statusin</label><select id={`status-${application.id}`} name="status" required defaultValue=""><option value="" disabled>Zgjidh</option><option value="reviewing">Në shqyrtim</option><option value="interview">Intervistë</option><option value="accepted">Prano</option><option value="rejected">Refuzo</option></select><button type="submit">Ruaj</button></form>}</li>)}</ul>}
         <Link href="/panel">Kthehu te paneli</Link>
       </section>
     </main>
