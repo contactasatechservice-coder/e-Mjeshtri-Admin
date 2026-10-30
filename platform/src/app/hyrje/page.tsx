@@ -38,25 +38,34 @@ export default function Login(){
   }catch{setNotice("Lidhja me shërbimin e hyrjes nuk është e disponueshme.");}
   finally{setBusy(false);}
  }
- return <main style={{maxWidth:560,margin:"0 auto",padding:"42px 18px 70px"}}>
-  <h1 style={{marginBottom:8}}>Mirë se erdhe në e-Mjeshtri</h1>
-  <p style={{color:"#53657a",marginBottom:24}}>Zgjidh mënyrën e hyrjes në platformë.</p>
-  {role!=="admin"?<div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12,marginBottom:26}}>
-   {roles.map(item=><button key={item.id} type="button" aria-pressed={role===item.id} onClick={()=>{setRole(item.id);setNotice("");}} style={{border:role===item.id?"2px solid #0c4d91":"1px solid #cbd5e1",borderRadius:16,padding:"18px 12px",textAlign:"left",background:role===item.id?"#eef6ff":"#fff",color:"#123c66",cursor:"pointer",minHeight:120}}>
-    <strong style={{display:"block",fontSize:17,marginBottom:8}}>{item.title}</strong>
-    <span style={{display:"block",fontSize:13,lineHeight:1.45}}>{item.description}</span>
-   </button>)}
-  </div>:<button type="button" className="button secondary" style={{marginBottom:24}} onClick={()=>{setRole("citizen");setNotice("");}}>← Kthehu te hyrja e përdoruesve</button>}
-  <h2 style={{fontSize:23,marginBottom:18}}>{role==="admin"?"Hyr si Super Admin":role==="company"?"Hyr si Kompani":"Hyr si Qytetar / Mjeshtër"}</h2>
-  <form onSubmit={submit} style={{display:"grid",gap:16}}>
-   <label>Email<input autoComplete="email" required type="email" value={email} onChange={e=>setEmail(e.target.value)} style={{display:"block",padding:13,width:"100%",marginTop:6,borderRadius:9}}/></label>
-   <label>Fjalëkalimi<input autoComplete="current-password" required type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{display:"block",padding:13,width:"100%",marginTop:6,borderRadius:9}}/></label>
-   <button disabled={busy} type="submit" className="button primary" style={{width:"100%",minHeight:50}}>{busy?"Duke hyrë...":"Hyr"}</button>
+ const [showPassword,setShowPassword]=useState(false);
+ const tabs:{id:Role;label:string}[]=[{id:"citizen",label:"Qytetar / Mjeshtër"},{id:"company",label:"Kompani"},{id:"admin",label:"Administrata"}];
+ const inputStyle={display:"block" as const,width:"100%",padding:"15px 16px",border:"1px solid #d8dee8",borderRadius:13,background:"#fff",fontSize:16,color:"#172b45",outlineColor:"#0e5393"};
+ return <main style={{maxWidth:540,margin:"0 auto",padding:"28px 18px 56px"}}>
+  <div style={{textAlign:"center",marginBottom:28}}>
+   <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:58,height:58,borderRadius:18,background:"#0c4d91",color:"#fff",fontWeight:800,fontSize:29,marginBottom:12}}>e</div>
+   <h1 style={{fontSize:30,margin:"0 0 5px",color:"#0c4d91",lineHeight:1.2}}>Hyr në e-Mjeshtri</h1>
+   <p style={{color:"#64748b",fontSize:14,margin:0}}>Zgjidh llojin e llogarisë</p>
+  </div>
+  <div role="tablist" aria-label="Lloji i hyrjes" style={{display:"grid",gridTemplateColumns:"1.55fr 1fr 1.1fr",padding:5,gap:3,background:"#edf0f5",borderRadius:15,marginBottom:30}}>
+   {tabs.map(t=><button key={t.id} type="button" role="tab" aria-selected={role===t.id} onClick={()=>{setRole(t.id);setNotice("");}} style={{padding:"13px 5px",border:0,borderRadius:11,background:role===t.id?"#fff":"transparent",boxShadow:role===t.id?"0 2px 7px rgba(20,35,55,.10)":"none",fontSize:13,fontWeight:role===t.id?750:500,color:role===t.id?"#0c4d91":"#536174",cursor:"pointer"}}>{t.label}</button>)}
+  </div>
+  <form onSubmit={submit} style={{display:"grid",gap:18}}>
+   <label style={{fontSize:15,fontWeight:600,color:"#22364f"}}>Adresa e emailit
+    <input autoComplete="email" required type="email" placeholder="Shkruaj emailin" value={email} onChange={e=>setEmail(e.target.value)} style={{...inputStyle,marginTop:9}}/>
+   </label>
+   <label style={{fontSize:15,fontWeight:600,color:"#22364f"}}>Fjalëkalimi
+    <div style={{position:"relative",marginTop:9}}>
+     <input autoComplete="current-password" required type={showPassword?"text":"password"} placeholder="Shkruaj fjalëkalimin" value={password} onChange={e=>setPassword(e.target.value)} style={{...inputStyle,paddingRight:70}}/>
+     <button type="button" aria-label={showPassword?"Fshih fjalëkalimin":"Shfaq fjalëkalimin"} onClick={()=>setShowPassword(v=>!v)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"transparent",border:0,padding:"8px 6px",color:"#0c4d91",fontWeight:600,fontSize:12,cursor:"pointer"}}>{showPassword?"Fshih":"Shfaq"}</button>
+    </div>
+   </label>
+   <button disabled={busy} type="submit" className="button primary" style={{width:"100%",minHeight:52,borderRadius:12,fontWeight:750,fontSize:16,marginTop:5}}>{busy?"Duke hyrë...":"Hyr në llogari"}</button>
   </form>
-  <p role="status" aria-live="polite" style={{marginTop:14}}>{notice}</p>
-  {role!=="admin"&&<p style={{marginTop:14}}>Nuk ke llogari? <Link href="/regjistrohu">Krijo llogari</Link>{role==="company"&&<> · <Link href="/regjistro-kompani">Regjistro kompaninë</Link></>}</p>}
-  <div style={{borderTop:"1px solid #d5dce5",marginTop:32,paddingTop:22,textAlign:"center"}}>
-   {role!=="admin"?<button type="button" onClick={()=>{setRole("admin");setNotice("");}} style={{border:"1px solid #0c4d91",background:"transparent",color:"#0c4d91",borderRadius:10,padding:"12px 20px",fontWeight:700,cursor:"pointer"}}>Hyr si Super Admin</button>:<p style={{color:"#53657a",fontSize:13}}>Hyrja është e rezervuar vetëm për administratorët e autorizuar.</p>}
+  <p role="status" aria-live="polite" style={{marginTop:14,color:"#a02e2e",fontSize:14}}>{notice}</p>
+  {role!=="admin"&&<div style={{textAlign:"center",marginTop:16,fontSize:14,color:"#596779"}}>Nuk ke llogari? <Link href="/regjistrohu" style={{fontWeight:700,color:"#0c4d91"}}>Krijo llogari</Link>{role==="company"&&<p><Link href="/regjistro-kompani">Regjistro kompaninë</Link></p>}</div>}
+  <div style={{borderTop:"1px solid #e2e8f0",marginTop:32,paddingTop:22,textAlign:"center"}}>
+   {role!=="admin"?<button type="button" onClick={()=>{setRole("admin");setNotice("");}} style={{width:"100%",padding:"14px 16px",border:"1.5px solid #0c4d91",borderRadius:12,background:"#fff",color:"#0c4d91",fontSize:15,fontWeight:700,cursor:"pointer"}}>Hyr si Super Admin</button>:<button type="button" onClick={()=>{setRole("citizen");setNotice("");}} style={{width:"100%",padding:"14px 16px",border:"1px solid #cbd5e1",borderRadius:12,background:"#fff",color:"#0c4d91",fontWeight:700,cursor:"pointer"}}>Kthehu te hyrja e përdoruesve</button>}
   </div>
  </main>;
 }
