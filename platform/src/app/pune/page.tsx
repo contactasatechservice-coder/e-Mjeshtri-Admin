@@ -1,0 +1,2 @@
+import MarketplaceList from "@/components/marketplace-list";import {demoJobs} from "@/lib/demo-data";
+export default function Jobs(){return <main className="section"><span className="eyebrow">Pamje demonstrimi — të dhëna fiktive</span><h1>Punë të publikuara</h1><p>Eksploro kërkesat e klientëve. Publikimet reale do të aktivizohen pas lidhjes së databazës.</p><MarketplaceList items={demoJobs} kind="jobs"/></main>}
