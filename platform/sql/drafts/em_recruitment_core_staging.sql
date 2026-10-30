@@ -30,9 +30,16 @@ CREATE POLICY em_jobs_company_insert ON public.em_job_postings FOR INSERT TO aut
 -- Editing and publishing require a trusted server workflow; direct UPDATE is denied.
 -- A candidate may apply only to a published job, for themselves, once.
 CREATE POLICY em_application_candidate_insert ON public.em_job_applications FOR INSERT TO authenticated WITH CHECK(
- candidate_id=(select auth.uid()) AND status='submitted'
+ candidate_id=(select auth.uid()) AND status='submitted' AND cv_document_id IS NULL
  AND EXISTS(SELECT 1 FROM public.em_job_postings j WHERE j.id=em_job_applications.job_id AND j.status='published')
 );
+-- Applications with CV references remain blocked until private Storage RLS is configured.
+-- Restrict initial public API grants to least privilege.
+REVOKE ALL ON public.em_companies, public.em_company_memberships, public.em_job_postings, public.em_candidate_profiles, public.em_candidate_documents, public.em_job_applications FROM anon, authenticated;
+GRANT SELECT ON public.em_job_postings TO anon;
+GRANT SELECT ON public.em_companies, public.em_company_memberships, public.em_job_postings, public.em_candidate_profiles, public.em_candidate_documents, public.em_job_applications TO authenticated;
+GRANT INSERT ON public.em_job_postings, public.em_job_applications, public.em_candidate_profiles TO authenticated;
+GRANT UPDATE ON public.em_candidate_profiles TO authenticated;
 -- CV metadata and binary uploads remain blocked until private Storage RLS is configured.
 -- Default deny: company/member creation and changes, job UPDATE, document writes, application UPDATE/DELETE.
 -- Requires secure workflows, GRANT review, and private Storage bucket policies before deployment.
