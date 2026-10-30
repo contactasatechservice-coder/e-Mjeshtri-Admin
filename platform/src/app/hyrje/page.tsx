@@ -1,11 +1,12 @@
 "use client";
-import {useState,type FormEvent} from "react";
+import {useEffect,useState,type FormEvent} from "react";
 import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {getSupabase} from "@/lib/supabase";
 type Role="citizen"|"company"|"admin";
 export default function Login(){
  const router=useRouter();
+ useEffect(()=>{const role=new URLSearchParams(window.location.search).get("rol");if(role==="admin")setRole("admin");else if(role==="kompani")setRole("company");},[]);
  const [role,setRole]=useState<Role>("citizen");
  const [email,setEmail]=useState("");
  const [password,setPassword]=useState("");
