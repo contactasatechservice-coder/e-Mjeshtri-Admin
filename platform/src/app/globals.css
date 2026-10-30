@@ -16,3 +16,11 @@
 .welcome-role-link:focus:not(:focus-visible){outline:none}
 .welcome-role-link:focus-visible{outline:3px solid #ff8200;outline-offset:-3px}
 .welcome-page{min-height:0!important}
+
+/* Viewport-fitted welcome artboard. Keep the original image and clickable coordinates aligned. */
+html:has(.welcome-page),body:has(.welcome-page){min-height:100%;margin:0;background:#eef5fc}
+body:has(.welcome-page){overflow-x:hidden}
+main.welcome-page{padding:0!important;margin:0!important;width:100%!important;max-width:none!important;min-height:0!important;background:linear-gradient(90deg,#eaf4ff,#fff 35%,#fff 65%,#eaf4ff);display:flex;justify-content:center;align-items:flex-start}
+.welcome-artboard{position:relative;line-height:0;flex:0 0 auto;width:auto;height:100vh;height:100dvh;max-width:100vw;margin:0 auto}
+.welcome-image{display:block;width:auto;height:100%;max-width:100%;object-fit:fill}
+@media(max-width:700px){.welcome-artboard{width:100vw;height:100vh;height:100dvh}.welcome-image{width:100%;height:100%;object-fit:fill}}
