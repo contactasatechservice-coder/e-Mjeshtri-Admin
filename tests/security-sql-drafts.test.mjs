@@ -39,3 +39,13 @@ test('review scripts explicitly use transactions and remain outside runtime migr
     assert.match(sql, /\bcommit\s*;/);
   }
 });
+
+test('sensitive columns have explicit UPDATE and INSERT grant revocations', () => {
+  const sql = normalize(read('security/review-profile-sensitive-column-grants.sql'));
+  assert.match(sql, /revoke update \(id, full_name, phone, city, avatar_path, status, created_at\)/);
+  assert.match(sql, /revoke update \(user_id, company_name, nip, description, verified\)/);
+  assert.match(sql, /revoke update \(user_id, bio, experience_years, available, verified\)/);
+  assert.match(sql, /revoke insert \(id, full_name, phone, city, avatar_path, status, created_at\)/);
+  assert.match(sql, /revoke insert \(user_id, company_name, nip, description, verified\)/);
+  assert.match(sql, /revoke insert \(user_id, bio, experience_years, available, verified\)/);
+});
