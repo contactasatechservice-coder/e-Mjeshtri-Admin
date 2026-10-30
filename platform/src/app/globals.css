@@ -167,3 +167,22 @@ body:has(.admin-shell) footer{display:none}
  .admin-quick-grid a{gap:5px;padding:16px}
 }
 @media(max-width:420px){.admin-content{padding:18px 13px}.admin-stat{padding:14px;min-height:102px}.admin-stat span{font-size:12px}.admin-stat strong{font-size:26px}.admin-welcome h1{font-size:24px}}
+
+
+/* Stable left-aligned admin navigation */
+.admin-shell .admin-sidebar{align-items:stretch}
+.admin-shell .admin-sidebar .admin-nav{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;flex-wrap:nowrap;width:100%;gap:3px;font-weight:500}
+.admin-shell .admin-sidebar .admin-nav a{display:flex;align-items:center;justify-content:flex-start;text-align:left;width:100%;gap:12px;padding:10px 13px;min-height:42px;flex-wrap:nowrap}
+.admin-shell .admin-sidebar .admin-nav a svg{width:20px;height:20px;flex:0 0 20px}
+.admin-shell .admin-sidebar .admin-nav a .admin-nav-title{display:block;flex:1;min-width:0;text-align:left;font-size:14px;line-height:1.3}
+.admin-shell .admin-sidebar .admin-nav a:not(.active){color:#c9d9ed}
+.admin-shell .admin-sidebar .admin-nav a:hover{background:#284b78;color:#fff}
+.admin-placeholder{max-width:920px!important;margin:0!important;padding:10px 0 40px!important}
+.admin-placeholder-heading{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.admin-placeholder-heading>svg{width:32px;height:32px;color:#ec850c}
+.admin-placeholder h1{font-size:clamp(24px,3vw,32px);margin:4px 0}
+.admin-placeholder-card{background:white;border:1px solid #e1e8f0;border-radius:16px;padding:26px}
+.admin-placeholder-card h2{font-size:21px;margin:0 0 12px}
+.admin-placeholder-card p{font-size:15px;line-height:1.7}
+.admin-placeholder-card a{display:inline-block;color:#12569a;font-weight:700;margin-top:10px}
+@media(max-width:800px){.admin-shell .admin-sidebar .admin-nav a{padding:9px 12px;min-height:41px}.admin-shell .admin-sidebar .admin-nav a .admin-nav-title{font-size:14px}.admin-placeholder-card{padding:20px}}
