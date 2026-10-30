@@ -1,0 +1,10 @@
+"use client";
+import {useEffect,useMemo,useState} from "react";
+import Link from "next/link";
+import {getSupabase} from "@/lib/supabase";
+type Pro={user_id:string;display_name:string;profession:string;city:string;description:string};
+export default function Professionals(){const [pros,setPros]=useState<Pro[]>([]);const [q,setQ]=useState("");const [city,setCity]=useState("");const [notice,setNotice]=useState("Po ngarkohen profesionistët...");
+useEffect(()=>{let active=true;async function load(){try{const {data,error}=await getSupabase().from("em_professional_profiles").select("user_id,display_name,profession,city,description").eq("is_public",true).order("created_at",{ascending:false}).limit(100);if(error)throw error;if(active){setPros(data??[]);setNotice("");}}catch{if(active)setNotice("Nuk u ngarkuan profilet.");}}void load();return()=>{active=false};},[]);
+const filtered=useMemo(()=>pros.filter(p=>(p.display_name+" "+p.profession).toLocaleLowerCase("sq").includes(q.toLocaleLowerCase("sq"))&&p.city.toLocaleLowerCase("sq").includes(city.toLocaleLowerCase("sq"))),[pros,q,city]);
+return <main className="section"><span className="eyebrow">Profesionistë në Shqipëri</span><h1>Gjej profesionistë</h1><div className="filters"><label>Profesioni<input value={q} onChange={e=>setQ(e.target.value)} placeholder="Çdo profesion"/></label><label>Qyteti<input value={city} onChange={e=>setCity(e.target.value)}/></label></div>{notice&&<p role="status">{notice}</p>}{!notice&&filtered.length===0&&<p>Nuk ka profile publike që përputhen.</p>}<div className="grid">{filtered.map(p=><article className="tile" key={p.user_id}><h2>{p.display_name}</h2><p><strong>{p.profession}</strong> · {p.city}</p><p>{p.description}</p></article>)}</div><Link className="button primary" href="/profili-profesionist">Krijo profil profesional</Link></main>;
+}
