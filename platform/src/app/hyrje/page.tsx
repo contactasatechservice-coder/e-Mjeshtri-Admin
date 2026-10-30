@@ -31,10 +31,10 @@ export default function Login(){
     router.replace("/paneli-kompanise");return;
    }
    const next=new URLSearchParams(window.location.search).get("redirect");
-   const allowed=["/publiko-pune","/kerkesat-e-mia","/profili-mjeshtrit","/paneli-mjeshtrit","/mesazhet"];
+   const allowed=["/publiko-pune","/kerkesat-e-mia","/paneli-qytetarit","/profili-mjeshtrit","/paneli-mjeshtrit","/mesazhet"];
    if(next&&allowed.includes(next)){router.replace(next);return;}
    const accountType=data.user.user_metadata?.account_type;
-   router.replace(accountType==="master"?"/paneli-mjeshtrit":"/kerkesat-e-mia");
+   router.replace(accountType==="master"?"/paneli-mjeshtrit":"/paneli-qytetarit");
   }catch{setNotice("Lidhja me shërbimin e hyrjes nuk është e disponueshme.");}
   finally{setBusy(false);}
  }
