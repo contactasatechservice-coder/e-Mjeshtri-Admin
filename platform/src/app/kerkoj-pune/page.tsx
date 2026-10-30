@@ -27,7 +27,6 @@ export default function CandidateProfilePage(){
    if(name.trim().length<3||headline.trim().length<5||city.trim().length<2||summary.trim().length<30){
      setNotice("Plotëso emrin, profesionin, qytetin dhe përshkrimin (të paktën 30 karaktere).");return;
    }
-   if(!cv){setNotice("Zgjidh CV-në në format PDF, DOC ose DOCX.");return;}
    setSaving(true);
    try {
      const supabase=getSupabase();
@@ -48,7 +47,7 @@ export default function CandidateProfilePage(){
      <label>Profesioni ose pozicioni i kërkuar<input required minLength={5} maxLength={160} value={headline} onChange={e=>setHeadline(e.target.value)} placeholder="P.sh. Teknik IT"/></label>
      <label>Qyteti<input required minLength={2} maxLength={80} value={city} onChange={e=>setCity(e.target.value)} placeholder="P.sh. Tiranë"/></label>
      <label>Përvoja dhe aftësitë<textarea required minLength={30} maxLength={3000} rows={6} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Përshkruaj eksperiencën, aftësitë dhe llojin e punës që kërkon."/></label>
-     <label>CV (PDF, DOC ose DOCX, deri në 5 MB)<input required type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onFile}/></label>
+     <label>CV (opsionale, ende pa ngarkim; PDF, DOC ose DOCX, deri në 5 MB)<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onFile}/></label>
      {cv&&<p className="form-note">CV e zgjedhur: {cv.name} ({(cv.size/1024/1024).toFixed(2)} MB). Nuk është ngarkuar.</p>}
      <button type="submit" disabled={saving} className="button primary">{saving?"Po ruhet...":"Ruaj profilin"}</button>
      <p role="status" aria-live="polite">{notice}</p>
