@@ -21,7 +21,20 @@ CREATE POLICY em_candidates_self ON public.em_candidate_profiles FOR ALL TO auth
 CREATE POLICY em_docs_self ON public.em_candidate_documents FOR SELECT TO authenticated USING(user_id=(select auth.uid()));
 CREATE POLICY em_app_candidate_read ON public.em_job_applications FOR SELECT TO authenticated USING(candidate_id=(select auth.uid()));
 CREATE POLICY em_app_company_read ON public.em_job_applications FOR SELECT TO authenticated USING(EXISTS(SELECT 1 FROM public.em_job_postings j JOIN public.em_company_memberships m ON m.business_id=j.business_id WHERE j.id=em_job_applications.job_id AND m.user_id=(select auth.uid()) AND m.status='active' AND m.role IN ('owner','manager','recruiter')));
--- Default deny: company/member creation and changes, job/document/application writes.
+-- Candidate profile writes are restricted to the signed-in user.
+-- Company vacancy creation requires an active owner/manager/recruiter membership.
+CREATE POLICY em_jobs_company_insert ON public.em_job_postings FOR INSERT TO authenticated WITH CHECK(
+ EXISTS(SELECT 1 FROM public.em_company_memberships m WHERE m.business_id=em_job_postings.business_id AND m.user_id=(select auth.uid()) AND m.status='active' AND m.role IN ('owner','manager','recruiter'))
+ AND status='draft' AND published_at IS NULL
+);
+-- Editing and publishing require a trusted server workflow; direct UPDATE is denied.
+-- A candidate may apply only to a published job, for themselves, once.
+CREATE POLICY em_application_candidate_insert ON public.em_job_applications FOR INSERT TO authenticated WITH CHECK(
+ candidate_id=(select auth.uid()) AND status='submitted'
+ AND EXISTS(SELECT 1 FROM public.em_job_postings j WHERE j.id=em_job_applications.job_id AND j.status='published')
+);
+-- CV metadata and binary uploads remain blocked until private Storage RLS is configured.
+-- Default deny: company/member creation and changes, job UPDATE, document writes, application UPDATE/DELETE.
 -- Requires secure workflows, GRANT review, and private Storage bucket policies before deployment.
 SELECT count(*) AS em_rls_enabled FROM pg_class WHERE oid IN ('public.em_companies'::regclass,'public.em_company_memberships'::regclass,'public.em_job_postings'::regclass,'public.em_candidate_profiles'::regclass,'public.em_candidate_documents'::regclass,'public.em_job_applications'::regclass) AND relrowsecurity;
 ROLLBACK;
