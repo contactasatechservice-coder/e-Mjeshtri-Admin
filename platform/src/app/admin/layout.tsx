@@ -16,7 +16,7 @@ export default function AdminShell({children}:{children:React.ReactNode}){
  return <div className="admin-shell">
   <aside className={open?"admin-sidebar open":"admin-sidebar"} aria-label="Menuja Super Admin">
    <Link href="/admin" className="admin-brand" onClick={()=>setOpen(false)}>e-<strong>Mjeshtri</strong><small>SUPER ADMIN</small></Link>
-   <nav className="admin-nav">{navigation.map(item=><Link key={item.href} href={item.href} onClick={()=>setOpen(false)} className={pathname===item.href?"active":""}><span aria-hidden="true">{item.icon}</span><span>{item.title}</span>{!item.ready&&<small title="Në zhvillim">Së shpejti</small>}</Link>)}</nav>
+   <button type="button" className="admin-sidebar-close" onClick={()=>setOpen(false)} aria-label="Mbyll menunë">✕</button><nav className="admin-nav">{navigation.map(item=>item.ready?<Link key={item.href} href={item.href} onClick={()=>setOpen(false)} className={pathname===item.href?"active":""}><span aria-hidden="true">{item.icon}</span><span>{item.title}</span></Link>:<span key={item.href} className="admin-nav-disabled"><span aria-hidden="true">{item.icon}</span><span>{item.title}</span></span>)}</nav>
    <Link href="/" className="admin-back">← Faqja hyrëse</Link>
   </aside>
   {open&&<button className="admin-overlay" aria-label="Mbyll menunë" onClick={()=>setOpen(false)}/>}
