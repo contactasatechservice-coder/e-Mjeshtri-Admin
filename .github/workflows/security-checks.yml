@@ -22,6 +22,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Security source regression checks
+        run: node --test tests/*.test.mjs
       - name: TypeScript check
         run: npm run lint
       - name: Next.js production build
