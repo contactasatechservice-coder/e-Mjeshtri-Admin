@@ -69,3 +69,9 @@ main.welcome-fixed{display:flex;justify-content:center;align-items:flex-start;wi
 .welcome-fixed-hotspot:focus-visible{outline:3px solid #ff8200;outline-offset:-3px}
 .welcome-fixed-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 @media(min-width:1025px){main.welcome-fixed{background:linear-gradient(90deg,#eaf4ff,#fff 35%,#fff 65%,#eaf4ff)}}
+
+/* Remove trailing blank viewport below welcome image on all screen sizes. */
+main.welcome-fixed{min-height:0!important;height:auto!important;align-items:flex-start!important}
+.welcome-fixed-art{height:auto!important;aspect-ratio:2/3}
+.welcome-fixed-image{height:auto!important;aspect-ratio:2/3}
+body:has(.welcome-fixed){min-height:0!important}
