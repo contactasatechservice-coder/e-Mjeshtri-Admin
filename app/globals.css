@@ -107,3 +107,44 @@
   .landing-v2 .tile-photo{height:170px}
   .landing-v2 .tile-bottom p{font-size:13px}
 }
+
+/* Responsive navigation and a balanced, informative closing section. */
+.landing-v2 .landing-nav{position:relative;z-index:20}
+.landing-v2 .mobile-nav-menu{display:none}
+.landing-v2 .landing-about{padding:58px 24px 62px;text-align:center}
+.landing-v2 .about-inner{max-width:940px;margin:0 auto}
+.landing-v2 .about-kicker{display:block;font-size:12px;font-weight:800;letter-spacing:1.5px;color:#ffb04b;margin-bottom:13px}
+.landing-v2 .landing-about h2{max-width:760px;margin:0 auto 16px;line-height:1.16;text-wrap:balance}
+.landing-v2 .landing-about p{max-width:690px;margin:0 auto 27px;line-height:1.65;text-wrap:pretty}
+.landing-v2 .about-benefits{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 auto 28px;text-align:left}
+.landing-v2 .about-benefits>div{padding:17px 16px;border:1px solid #ffffff3d;border-radius:14px;background:#ffffff12;display:flex;flex-direction:column;gap:7px}
+.landing-v2 .about-benefits strong{font-size:16px;color:white}
+.landing-v2 .about-benefits span{font-size:13px;line-height:1.5;color:#e3efff}
+.landing-v2 .about-actions{display:flex;justify-content:center;align-items:center;gap:13px;flex-wrap:wrap}
+@media(max-width:900px){
+ .landing-v2 .mobile-nav-menu{display:block;position:relative}
+ .landing-v2 .mobile-nav-menu summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:42px;height:42px;border:1px solid #c9d8ea;border-radius:12px;color:#0b4a95;background:#fff;font-size:25px;line-height:1}
+ .landing-v2 .mobile-nav-menu summary::-webkit-details-marker{display:none}
+ .landing-v2 .mobile-nav-menu[open] summary{border-color:#ff8a00}
+ .landing-v2 .mobile-nav-menu nav{display:flex;flex-direction:column;gap:0;position:absolute;right:0;top:calc(100% + 10px);width:min(280px,calc(100vw - 30px));padding:8px;border-radius:15px;border:1px solid #dbe5f2;background:white;box-shadow:0 16px 38px #092f5b35;z-index:50;color:#123d70}
+ .landing-v2 .mobile-nav-menu nav a{display:block;padding:12px 14px;border-radius:9px;font-size:15px;font-weight:650}
+ .landing-v2 .mobile-nav-menu nav a:hover,.landing-v2 .mobile-nav-menu nav a:focus-visible{background:#eef5ff}
+}
+@media(max-width:700px){
+ .landing-v2 .landing-nav{gap:7px;padding:12px 12px}
+ .landing-v2 .landing-nav .logo{font-size:clamp(19px,5vw,24px)}
+ .landing-v2 .nav-actions{gap:7px}
+ .landing-v2 .nav-actions .ghost{padding:10px 11px}
+ .landing-v2 .nav-actions .action{padding:11px 12px;font-size:12px}
+ .landing-v2 .mobile-nav-menu summary{width:39px;height:39px}
+ .landing-v2 .landing-about{padding:42px 19px 45px}
+ .landing-v2 .landing-about h2{font-size:clamp(27px,7vw,35px);line-height:1.18}
+ .landing-v2 .landing-about p{font-size:15px;line-height:1.65;margin-bottom:22px}
+ .landing-v2 .about-benefits{grid-template-columns:1fr;gap:10px;margin-bottom:25px}
+ .landing-v2 .about-benefits>div{padding:14px 16px}
+ .landing-v2 .about-benefits strong{font-size:15px}
+ .landing-v2 .about-benefits span{font-size:13px}
+ .landing-v2 .about-actions{flex-direction:column;gap:12px}
+ .landing-v2 .about-actions a{width:min(100%,310px);text-align:center}
+}
+@media(max-width:370px){.landing-v2 .landing-nav .logo{font-size:18px}.landing-v2 .nav-actions .action{padding:9px 8px;font-size:11px}.landing-v2 .nav-actions .ghost{padding:9px 8px;font-size:12px}.landing-v2 .mobile-nav-menu summary{width:36px;height:36px}}
