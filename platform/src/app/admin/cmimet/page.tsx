@@ -6,7 +6,7 @@ type Plan={id:string;code:string;title:string;description:string;category:"job"|
 const empty={code:"",title:"",description:"",category:"job" as const,price_all:0,duration_days:30,quantity:1,is_active:false,sort_order:0};
 export default function AdminPrices(){
  const [allowed,setAllowed]=useState(false);const [loading,setLoading]=useState(true);const [plans,setPlans]=useState<Plan[]>([]);
- const [draft,setDraft]=useState<Record<string,Plan>>({});const [newPlan,setNewPlan]=useState(empty);
+ const [draft,setDraft]=useState<Record<string,Plan>>({});const [newPlan,setNewPlan]=useState<Omit<Plan,"id">>(empty);
  const [notice,setNotice]=useState("");const [busy,setBusy]=useState(false);
  async function load(){try{const db=getSupabase();const {data:{user},error:authError}=await db.auth.getUser();if(authError||!user||user.app_metadata?.em_admin!==true){setNotice("Kjo faqe kërkon llogari Super Admin.");return;}setAllowed(true);const {data,error}=await db.from("em_company_price_catalog").select("id,code,title,description,category,price_all,duration_days,quantity,is_active,sort_order").order("sort_order");if(error)throw error;setPlans(data??[]);setDraft(Object.fromEntries((data??[]).map(p=>[p.id,p])));}catch{setNotice("Nuk u ngarkuan paketat.");}finally{setLoading(false);}}
  useEffect(()=>{void load();},[]);
