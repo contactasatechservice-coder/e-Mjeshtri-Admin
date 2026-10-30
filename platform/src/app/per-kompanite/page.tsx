@@ -1,19 +1,10 @@
+"use client";
+import {useEffect,useState} from "react";
 import Link from "next/link";
-const jobPlans=[
- {name:"Shpallje standarde",price:"990 Lekë",details:"1 shpallje për 30 ditë"},
- {name:"Shpallje e sponsorizuar",price:"1,990 Lekë",details:"1 shpallje për 30 ditë, me pozicionim të veçantë"},
- {name:"Paketë kompanie",price:"3,990 Lekë",details:"Deri në 5 shpallje për 30 ditë"}
-];
-const advertising=[
- {name:"Banner standard",price:"Nga 1,490 Lekë",details:"7 ditë shfaqje, sipas hapësirës"},
- {name:"Fushatë e personalizuar",price:"Me ofertë",details:"Pozicionim, kohëzgjatje dhe krijimtari sipas marrëveshjes"}
-];
+import {getSupabase} from "@/lib/supabase";
+type Plan={id:string;title:string;description:string;category:"job"|"advertisement";price_all:number;duration_days:number;quantity:number};
 export default function ForCompanies(){
- return <main className="section"><span className="eyebrow">Për bizneset</span><h1>Shpallje pune dhe reklama</h1>
- <p>Regjistrimi i kompanisë është falas. Kandidatët, mjeshtrat dhe përdoruesit nuk paguajnë abonim për të përdorur platformën.</p>
- <p className="form-note">Çmimet më poshtë janë propozime për planifikim, jo oferta përfundimtare. Pagesat dhe fushatat nuk aktivizohen automatikisht.</p>
- <section className="section"><h2>Shpallje pune</h2><div className="grid">{jobPlans.map(p=><article className="tile" key={p.name}><h3>{p.name}</h3><p><strong>{p.price}</strong></p><p>{p.details}</p></article>)}</div></section>
- <section className="section"><h2>Reklamim në platformë</h2><div className="grid">{advertising.map(p=><article className="tile" key={p.name}><h3>{p.name}</h3><p><strong>{p.price}</strong></p><p>{p.details}</p></article>)}</div></section>
- <section className="section"><h2>Si do të funksionojë pagesa?</h2><p>Kompania krijon një draft shpalljeje ose kërkesë reklame, zgjedh paketën dhe merr udhëzimet e pagesës. Administratori verifikon pagesën përpara aktivizimit. Nuk kërkohen të dhëna të kartës bankare në këtë faqe.</p><div className="actions"><Link className="button primary" href="/regjistro-kompani">Regjistro kompaninë</Link><Link className="button secondary" href="/paneli-kompanise">Paneli i kompanisë</Link></div></section>
- </main>;
+ const [plans,setPlans]=useState<Plan[]>([]);const [notice,setNotice]=useState("");
+ useEffect(()=>{let active=true;async function load(){try{const {data,error}=await getSupabase().from("em_company_price_catalog").select("id,title,description,category,price_all,duration_days,quantity").eq("is_active",true).order("sort_order");if(error)throw error;if(active)setPlans(data??[]);}catch{if(active)setNotice("Nuk u ngarkuan çmimet. Provo më vonë.");}}void load();return()=>{active=false};},[]);
+ return <main className="section"><span className="eyebrow">Për bizneset</span><h1>Shpallje pune dhe reklama</h1><p>Regjistrimi i kompanive është falas. Kandidatët, mjeshtrat dhe përdoruesit nuk paguajnë abonime.</p><p>Çmimet dhe paketat përcaktohen nga Super Admin. Pagesat nuk kryhen ende në këtë faqe.</p>{notice&&<p role="status">{notice}</p>}{(["job","advertisement"] as const).map(category=><section className="section" key={category}><h2>{category==="job"?"Shpallje pune":"Reklama në platformë"}</h2><div className="grid">{plans.filter(p=>p.category===category).map(p=><article className="tile" key={p.id}><h3>{p.title}</h3><p><strong>{Number(p.price_all).toLocaleString("sq-AL")} Lekë</strong></p><p>{p.description}</p><p>{p.quantity} {category==="job"?"shpallje":"vendosje"} / {p.duration_days} ditë</p></article>)}</div>{!plans.some(p=>p.category===category)&&<p>Paketa për këtë kategori nuk janë aktivizuar ende.</p>}</section>)}<section className="section"><h2>Si funksionon?</h2><p>Kompania krijon një draft dhe zgjedh paketën kur aktivizohet sistemi i porosive. Publikimi bëhet vetëm pas verifikimit të pagesës.</p><div className="actions"><Link className="button primary" href="/regjistro-kompani">Regjistro kompaninë</Link><Link className="button secondary" href="/paneli-kompanise">Paneli i kompanisë</Link></div></section></main>;
 }
