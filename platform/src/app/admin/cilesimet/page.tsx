@@ -1,0 +1,9 @@
+"use client";
+import {useEffect,useState} from "react";
+import {getSupabase} from "@/lib/supabase";
+const fields=[["platform_name","Emri i platformës"],["support_email","Emaili i mbështetjes"],["maintenance_message","Mesazh mirëmbajtjeje"]];
+export default function Settings(){
+const [values,setValues]=useState<Record<string,string>>({}),[error,setError]=useState(""),[notice,setNotice]=useState(""),[ready,setReady]=useState(false),[busy,setBusy]=useState(false);
+useEffect(()=>{void(async()=>{try{const db=getSupabase();const {data:{user}}=await db.auth.getUser();if(user?.app_metadata?.em_admin!==true)throw new Error("Nuk ke autorizim.");const {data,error}=await db.from("em_platform_settings").select("key,value");if(error)throw error;setValues(Object.fromEntries((data??[]).map(x=>[x.key,x.value])));setReady(true)}catch(e){setError(String(e))}})()},[]);
+async function save(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");try{for(const [key] of fields){const {error}=await getSupabase().from("em_platform_settings").update({value:values[key]??"",updated_at:new Date().toISOString()}).eq("key",key);if(error)throw error;}setNotice("Cilësimet u ruajtën.")}catch(e){setError(String(e))}finally{setBusy(false)}}
+return <main className="admin-jobs"><span className="admin-eyebrow">SUPER ADMIN</span><h1>Cilësimet</h1><p>Konfigurimi bazë i ruajtur në databazë. Integrimi me faqet publike është ende i nevojshëm.</p>{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{ready&&<form className="admin-jobs-filters" onSubmit={e=>void save(e)}>{fields.map(([key,label])=><label key={key}>{label}<input value={values[key]??""} maxLength={500} onChange={e=>setValues(v=>({...v,[key]:e.target.value}))}/></label>)}<button type="submit" className="button primary" disabled={busy}>Ruaj cilësimet</button></form>}</main>}
