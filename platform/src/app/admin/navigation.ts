@@ -27,7 +27,7 @@ export const navigation = [
     "title": "Vendet e punës",
     "href": "/admin/vendet-e-punes",
     "icon": "briefcase-business",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Kategoritë",
