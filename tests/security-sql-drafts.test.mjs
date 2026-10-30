@@ -49,3 +49,15 @@ test('sensitive columns have explicit UPDATE and INSERT grant revocations', () =
   assert.match(sql, /revoke insert \(user_id, company_name, nip, description, verified\)/);
   assert.match(sql, /revoke insert \(user_id, bio, experience_years, available, verified\)/);
 });
+
+test('company verification RPC requires super admin and records audit atomically', () => {
+  const sql = normalize(read('security/review-admin-company-verification-rpc.sql'));
+  assert.match(sql, /security definer/);
+  assert.match(sql, /set search_path = ''/);
+  assert.match(sql, /role = 'super_admin'/);
+  assert.match(sql, /v_actor is null/);
+  assert.match(sql, /update public\.company_profiles/);
+  assert.match(sql, /insert into public\.admin_audit_logs/);
+  assert.match(sql, /revoke all on function public\.admin_set_company_verification\(uuid, boolean\) from public/);
+  assert.match(sql, /grant execute on function public\.admin_set_company_verification\(uuid, boolean\) to authenticated/);
+});
