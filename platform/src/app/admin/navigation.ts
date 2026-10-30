@@ -9,13 +9,13 @@ export const navigation = [
     "title": "Qytetarët",
     "href": "/admin/qytetaret",
     "icon": "users",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Mjeshtrat",
     "href": "/admin/mjeshtrat",
     "icon": "wrench",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Kompanitë",
