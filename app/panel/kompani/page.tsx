@@ -12,6 +12,9 @@ export default async function RolePage() {
   if (companyResult.error || jobsResult.error) {
     throw new Error('Nuk u ngarkuan te dhenat e kompanise');
   }
+  const jobIds = (jobsResult.data ?? []).map(job => job.id);
+  const applicationsResult = jobIds.length ? await client.from('job_applications').select('id,job_id,applicant_id,status,cover_letter,created_at').in('job_id', jobIds).order('created_at', { ascending: false }).limit(100) : { data: [], error: null };
+  const applications = applicationsResult.data ?? [];
   const company = companyResult.data;
   const jobs = jobsResult.data ?? [];
   return (
@@ -31,6 +34,8 @@ export default async function RolePage() {
             ))}
           </ul>
         )}
+        <h2>Aplikimet e kandidatëve ({applications.length})</h2>
+        {applicationsResult.error ? <p role="alert">Aplikimet nuk u ngarkuan. Kontrollo lejet e aksesit.</p> : applications.length === 0 ? <p>Ende nuk ka aplikime për ofertat e tua.</p> : <ul className="company-applications">{applications.map(application => <li key={application.id}><strong>{jobs.find(job => job.id === application.job_id)?.title ?? 'Ofertë pune'}</strong><p>Statusi: {application.status}</p>{application.cover_letter && <p>{application.cover_letter}</p>}<small>Kandidati: {application.applicant_id}</small></li>)}</ul>}
         <Link href="/panel">Kthehu te paneli</Link>
       </section>
     </main>
