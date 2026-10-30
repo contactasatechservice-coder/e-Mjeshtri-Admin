@@ -2,7 +2,6 @@
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import {getSupabase} from "@/lib/supabase";
-import {navigation} from "./navigation";
 type Summary={companies:number|null;pendingCompanies:number|null;pendingPayments:number|null;jobs:number|null};
 export default function AdminDashboard(){
  const [stats,setStats]=useState<Summary>({companies:null,pendingCompanies:null,pendingPayments:null,jobs:null});
@@ -17,6 +16,6 @@ export default function AdminDashboard(){
  return <main className="admin-dashboard"><div className="admin-welcome"><span className="admin-eyebrow">PËRMBLEDHJE</span><h1>Mirë se erdhe në Super Admin</h1><p>Menaxho platformën e-Mjeshtri nga një panel i vetëm.</p></div>
  <section aria-label="Statistikat" className="admin-stats">{cards.map(c=><article className="admin-stat" key={c.label}><span>{c.label}</span><strong>{c.value===null?"—":c.value.toLocaleString("sq-AL")}</strong></article>)}</section>
  {error&&<p role="status" className="admin-notice">{error}</p>}
- <h2>Modulet e administrimit</h2><section className="admin-module-grid">{navigation.slice(1).map(m=><article className="admin-module" key={m.href}><div className="admin-module-icon">{m.icon}</div><h3>{m.title}</h3><p>{m.ready?"Hap modulin ekzistues dhe menaxho të dhënat.":"Moduli është planifikuar për integrim në panelin ekzistues."}</p>{m.ready?<Link href={m.href}>Hap modulin →</Link>:<span className="admin-upcoming">Në zhvillim</span>}</article>)}</section>
+ <section className="admin-quick"><div className="admin-section-heading"><h2>Veprime të shpejta</h2><p>Menaxho kërkesat dhe pagesat nga një vend.</p></div><div className="admin-quick-grid"><Link href="/admin/kompanite"><span>Kompanitë</span><strong>Shqyrto regjistrimet <span aria-hidden="true">→</span></strong></Link><Link href="/admin/pagesat"><span>Financat</span><strong>Verifiko pagesat <span aria-hidden="true">→</span></strong></Link><Link href="/admin/cmimet"><span>Paketat</span><strong>Menaxho çmimet <span aria-hidden="true">→</span></strong></Link></div></section>
  </main>;
 }
