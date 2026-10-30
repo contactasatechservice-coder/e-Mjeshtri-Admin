@@ -15,6 +15,9 @@ export default function CompanyDashboard(){
  const [state,setState]=useState<State>("checking");
  const [memberships,setMemberships]=useState<Membership[]>([]);
  const [notice,setNotice]=useState("");
+ const [jobs,setJobs]=useState<{id:string;title:string;status:string}[]>([]);
+ const [applications,setApplications]=useState<{id:string;job_id:string;status:string;created_at:string}[]>([]);
+ const [dataNotice,setDataNotice]=useState("");
  useEffect(()=>{
   let active=true;
   async function check(){
@@ -34,6 +37,22 @@ export default function CompanyDashboard(){
     const authorized=(data??[]).filter((m:Membership)=>["owner","manager","recruiter"].includes(m.role));
     setMemberships(authorized);
     setState(authorized.length?"authorized":"unauthorized");
+    if(authorized.length){
+      const ids=authorized.map(m=>m.business_id);
+      const {data:jobRows,error:jobError}=await supabase.from("em_job_postings")
+        .select("id,title,status").in("business_id",ids).order("created_at",{ascending:false}).limit(100);
+      if(!active)return;
+      if(jobError){setDataNotice("Nuk u ngarkuan shpalljet.");return;}
+      setJobs(jobRows??[]);
+      const jobIds=(jobRows??[]).map(j=>j.id);
+      if(jobIds.length){
+        const {data:appRows,error:appError}=await supabase.from("em_job_applications")
+          .select("id,job_id,status,created_at").in("job_id",jobIds).order("created_at",{ascending:false}).limit(100);
+        if(!active)return;
+        if(appError)setDataNotice("Nuk u ngarkuan aplikimet.");
+        else setApplications(appRows??[]);
+      }
+    }
    }catch{
     if(active){setNotice("Lidhja me shërbimin e identifikimit nuk është e disponueshme.");setState("error");}
    }
@@ -49,8 +68,15 @@ export default function CompanyDashboard(){
   {state==="error"&&<p role="alert">{notice}</p>}
   {state==="authorized"&&<>
    <p>Ke akses në {memberships.length} {memberships.length===1?"kompani":"kompani"} me rol menaxhimi ose rekrutimi.</p>
-   <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Veprimet e databazës kërkojnë gjithashtu politika RLS dhe nuk janë aktivizuar ende.</p>
+   <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Të dhënat lexohen nga Supabase sipas politikave RLS. Menaxhimi i statuseve dhe CV-të mbeten në zhvillim.</p>
    <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link></div>
+   {dataNotice&&<p role="alert">{dataNotice}</p>}
+   <section className="section"><h2>Shpalljet ({jobs.length})</h2>
+    {jobs.length===0?<p>Nuk ka shpallje të regjistruara.</p>:<div className="grid">{jobs.map(j=><article className="tile" key={j.id}><h3>{j.title}</h3><p>Statusi: {j.status}</p><p>Aplikime: {applications.filter(a=>a.job_id===j.id).length}</p></article>)}</div>}
+   </section>
+   <section className="section"><h2>Aplikimet e fundit ({applications.length})</h2>
+    {applications.length===0?<p>Nuk ka aplikime për t’u shfaqur.</p>:<div className="grid">{applications.map(a=><article className="tile" key={a.id}><p>Pozicioni: {jobs.find(j=>j.id===a.job_id)?.title??"—"}</p><p>Statusi: {a.status}</p><p>Data: {new Date(a.created_at).toLocaleDateString("sq-AL")}</p></article>)}</div>}
+   </section>
    <section className="section" aria-label="Funksionet e panelit"><div className="grid">{features.map(f=><article key={f.title} className="tile"><h2 style={{fontSize:21}}>{f.title}</h2><p>{f.description}</p><p className="form-note">Në zhvillim — nuk shfaqen të dhëna personale.</p></article>)}</div></section>
   </>}
  </main>;
