@@ -2,7 +2,7 @@
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import {getSupabase} from "@/lib/supabase";
-import {navigation} from "./layout";
+import {navigation} from "./navigation";
 type Summary={companies:number|null;pendingCompanies:number|null;pendingPayments:number|null;jobs:number|null};
 export default function AdminDashboard(){
  const [stats,setStats]=useState<Summary>({companies:null,pendingCompanies:null,pendingPayments:null,jobs:null});
