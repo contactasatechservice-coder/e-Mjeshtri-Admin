@@ -9,6 +9,8 @@ export default function RegisterCompany(){
  const [nipt,setNipt]=useState("");
  const [city,setCity]=useState("");
  const [email,setEmail]=useState("");
+ const [representative,setRepresentative]=useState("");const [phone,setPhone]=useState("");const [address,setAddress]=useState("");const [industry,setIndustry]=useState("");const [website,setWebsite]=useState("");const [description,setDescription]=useState("");
+ useEffect(()=>{try{const draft=JSON.parse(sessionStorage.getItem("em_company_registration_draft")||"null");if(draft){setName(draft.company_name||"");setNipt(draft.registration_number||"");setCity(draft.city||"");setEmail(draft.contact_email||"");setRepresentative(draft.representative_name||"");setPhone(draft.phone||"");setAddress(draft.address||"");setIndustry(draft.industry||"");setWebsite(draft.website||"");setDescription(draft.description||"");}}catch{}},[]);
  const [requests,setRequests]=useState<Request[]>([]);
  const [notice,setNotice]=useState("");
  const [saving,setSaving]=useState(false);
@@ -33,11 +35,11 @@ export default function RegisterCompany(){
    if(authError||!user){setNotice("Duhet të hysh në llogari për të regjistruar kompaninë.");return;}
    const {error}=await db.from("em_company_registration_requests").insert({
     requester_id:user.id,company_name:name.trim(),registration_number:nipt.trim().toUpperCase(),
-    city:city.trim(),contact_email:email.trim(),status:"pending"
+    city:city.trim(),contact_email:email.trim(),representative_name:representative.trim(),phone:phone.trim(),address:address.trim(),industry:industry.trim(),website:website.trim(),description:description.trim(),status:"pending"
    });
    if(error){setNotice(error.code==="23505"?"Ke dërguar më parë kërkesë për këtë NIPT.":"Kërkesa nuk u ruajt: "+error.message);return;}
    setNotice("Kërkesa u regjistrua. Kompania nuk është aktivizuar ende; kërkon miratim.");
-   setName("");setNipt("");setCity("");setEmail("");
+   setName("");setNipt("");setCity("");setEmail("");setRepresentative("");setPhone("");setAddress("");setIndustry("");setWebsite("");setDescription("");try{sessionStorage.removeItem("em_company_registration_draft");}catch{}
    await refresh();
   }catch{setNotice("Dërgimi dështoi. Kontrollo lidhjen.");}
   finally{setSaving(false);}
@@ -51,6 +53,12 @@ export default function RegisterCompany(){
    <label>NIPT / NUIS<input required minLength={4} maxLength={40} value={nipt} onChange={e=>setNipt(e.target.value)}/></label>
    <label>Qyteti<input required minLength={2} maxLength={80} value={city} onChange={e=>setCity(e.target.value)}/></label>
    <label>Email kontakti<input required type="email" maxLength={254} value={email} onChange={e=>setEmail(e.target.value)}/></label>
+   <label>Emri i përfaqësuesit<input required value={representative} onChange={e=>setRepresentative(e.target.value)}/></label>
+   <label>Telefon kontakti<input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)}/></label>
+   <label>Adresa e biznesit<input required value={address} onChange={e=>setAddress(e.target.value)}/></label>
+   <label>Fusha e aktivitetit<input required value={industry} onChange={e=>setIndustry(e.target.value)}/></label>
+   <label>Website (opsionale)<input type="url" value={website} onChange={e=>setWebsite(e.target.value)}/></label>
+   <label>Përshkrim i kompanisë<textarea value={description} onChange={e=>setDescription(e.target.value)}/></label>
    <button className="button primary" disabled={saving} type="submit">{saving?"Po dërgohet...":"Dërgo kërkesën"}</button>
    <p role="status" aria-live="polite">{notice}</p>
   </form>
