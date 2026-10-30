@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -20,7 +20,7 @@ export default async function PanelLayout({ children }: { children: ReactNode })
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(values) {
+      setAll(values: { name: string; value: string; options?: CookieOptions }[]) {
         // Server Components cannot always write cookies; session refresh
         // should also be handled by the Next.js request proxy/middleware.
         try {
