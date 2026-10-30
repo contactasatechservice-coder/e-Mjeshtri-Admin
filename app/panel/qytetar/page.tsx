@@ -19,11 +19,12 @@ export default async function CitizenDashboard() {
     <main className="citizen-page">
       <header className="citizen-topbar">
         <Link href="/" className="citizen-brand">e-<span>Mjeshtri</span></Link>
-        <nav aria-label="Navigimi i qytetarit">
+        <nav aria-label="Navigimi i qytetarit" className="citizen-desktop-nav">
           <Link href="/" className="citizen-home-link">Ballina</Link>
           <Link href="/oferta-pune" className="citizen-home-link">Oferta pune</Link>
           <LogoutButton />
         </nav>
+        <details className="citizen-mobile-menu"><summary aria-label="Hap menunë">☰ Menu</summary><nav aria-label="Menuja e qytetarit"><Link href="/panel/qytetar">Paneli im</Link><Link href="/kerko">Shërbimet</Link><Link href="/oferta-pune">Oferta pune</Link><Link href="/">Ballina</Link></nav></details>
       </header>
       <div className="citizen-container">
         <section className="citizen-hero">
