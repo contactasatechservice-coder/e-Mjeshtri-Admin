@@ -10,6 +10,22 @@ export default function JobsPage(){
  const [state,setState]=useState<LoadState>("loading");
  const [query,setQuery]=useState("");
  const [city,setCity]=useState("");
+ const [applying,setApplying]=useState<string|null>(null);
+ const [applicationNotice,setApplicationNotice]=useState<Record<string,string>>({});
+ async function apply(jobId:string){
+  setApplying(jobId);
+  try{
+   const supabase=getSupabase();
+   const {data:{user},error:authError}=await supabase.auth.getUser();
+   if(authError||!user){setApplicationNotice(n=>({...n,[jobId]:"Hyr në llogari për të aplikuar."}));return;}
+   const {data:profile,error:profileError}=await supabase.from("em_candidate_profiles").select("user_id").eq("user_id",user.id).maybeSingle();
+   if(profileError||!profile){setApplicationNotice(n=>({...n,[jobId]:"Krijo fillimisht profilin Kërkoj punë."}));return;}
+   const {error}=await supabase.from("em_job_applications").insert({job_id:jobId,candidate_id:user.id,status:"submitted"});
+   if(error){setApplicationNotice(n=>({...n,[jobId]:error.code==="23505"?"Ke aplikuar më parë për këtë pozicion.":"Aplikimi nuk u ruajt: "+error.message}));return;}
+   setApplicationNotice(n=>({...n,[jobId]:"Aplikimi u regjistrua me sukses, pa CV. Kompania mund ta shohë aplikimin."}));
+  }catch{setApplicationNotice(n=>({...n,[jobId]:"Nuk u realizua aplikimi. Provo përsëri."}));}
+  finally{setApplying(null);}
+ }
  useEffect(()=>{
   let active=true;
   async function load(){
@@ -42,7 +58,7 @@ export default function JobsPage(){
    <h2 style={{fontSize:22}}>{j.title}</h2><p><strong>{j.city}</strong> · {j.employment_type}</p>
    {(j.salary_min!==null||j.salary_max!==null)&&<p>Paga: {j.salary_min??"—"} – {j.salary_max??"—"} {j.currency}</p>}
    <p>{j.description.length>230?j.description.slice(0,230)+"…":j.description}</p>
-   <p className="form-note">Aplikimi online do të aktivizohet pas verifikimit të CV-ve dhe autorizimeve.</p>
+   <p className="form-note">Aplikimi fillestar bëhet pa CV. Dokumentet private do të aktivizohen më vonë.</p><button type="button" className="button primary" disabled={applying===j.id} onClick={()=>void apply(j.id)}>{applying===j.id?"Po aplikohet...":"Apliko për këtë pozicion"}</button>{applicationNotice[j.id]&&<p role="status">{applicationNotice[j.id]}</p>}
   </article>)}</div>}
   <div className="actions"><Link className="button secondary" href="/kerkoj-pune">Krijo profilin Kërkoj punë</Link><Link className="button primary" href="/publiko-vend-pune">Përgatit shpallje</Link></div>
  </main>;
