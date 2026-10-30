@@ -30,7 +30,8 @@ export default function Login(){
     if(!memberships?.length){const {data:requests}=await db.from("em_company_registration_requests").select("status").eq("requester_id",data.user.id).order("created_at",{ascending:false}).limit(1);setNotice(requests?.[0]?.status==="pending"?"Kompania jote është në pritje të verifikimit nga Super Admin.":requests?.[0]?.status==="rejected"?"Kërkesa e kompanisë është refuzuar. Kontakto administratorin.":"Nuk ke kompani të miratuar. Dërgo kërkesën e regjistrimit të kompanisë.");return;}
     router.replace("/paneli-kompanise");return;
    }
-   router.replace("/");
+   const next=new URLSearchParams(window.location.search).get("redirect");
+   router.replace(next==="/publiko-pune"?next:"/");
   }catch{setNotice("Lidhja me shërbimin e hyrjes nuk është e disponueshme.");}
   finally{setBusy(false);}
  }
