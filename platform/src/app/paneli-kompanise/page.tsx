@@ -18,6 +18,22 @@ export default function CompanyDashboard(){
  const [jobs,setJobs]=useState<{id:string;title:string;status:string}[]>([]);
  const [applications,setApplications]=useState<{id:string;job_id:string;status:string;created_at:string}[]>([]);
  const [dataNotice,setDataNotice]=useState("");
+ const [changing,setChanging]=useState<string|null>(null);
+ async function changeStatus(id:string,status:"published"|"closed"){
+  setChanging(id);setDataNotice("");
+  try{
+   const db=getSupabase();
+   const {data:{user},error:authError}=await db.auth.getUser();
+   if(authError||!user){setDataNotice("Identifikohu përsëri.");return;}
+   const update=status==="published"?{status,published_at:new Date().toISOString()}:{status};
+   const {data,error}=await db.from("em_job_postings").update(update).eq("id",id).select("id,status");
+   if(error){setDataNotice("Ndryshimi dështoi: "+error.message);return;}
+   if(!data?.length){setDataNotice("Nuk ke autorizim për këtë shpallje.");return;}
+   setJobs(old=>old.map(j=>j.id===id?{...j,status}:j));
+   setDataNotice(status==="published"?"Shpallja u publikua.":"Shpallja u mbyll.");
+  }catch{setDataNotice("Nuk u realizua ndryshimi.");}
+  finally{setChanging(null);}
+ }
  useEffect(()=>{
   let active=true;
   async function check(){
@@ -68,11 +84,11 @@ export default function CompanyDashboard(){
   {state==="error"&&<p role="alert">{notice}</p>}
   {state==="authorized"&&<>
    <p>Ke akses në {memberships.length} {memberships.length===1?"kompani":"kompani"} me rol menaxhimi ose rekrutimi.</p>
-   <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Të dhënat lexohen nga Supabase sipas politikave RLS. Menaxhimi i statuseve dhe CV-të mbeten në zhvillim.</p>
+   <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Të dhënat lexohen nga Supabase sipas politikave RLS. Publikimi dhe mbyllja e shpalljeve janë të disponueshme për anëtarët e autorizuar. CV-të mbeten në zhvillim.</p>
    <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link></div>
    {dataNotice&&<p role="alert">{dataNotice}</p>}
    <section className="section"><h2>Shpalljet ({jobs.length})</h2>
-    {jobs.length===0?<p>Nuk ka shpallje të regjistruara.</p>:<div className="grid">{jobs.map(j=><article className="tile" key={j.id}><h3>{j.title}</h3><p>Statusi: {j.status}</p><p>Aplikime: {applications.filter(a=>a.job_id===j.id).length}</p></article>)}</div>}
+    {jobs.length===0?<p>Nuk ka shpallje të regjistruara.</p>:<div className="grid">{jobs.map(j=><article className="tile" key={j.id}><h3>{j.title}</h3><p>Statusi: {j.status}</p><p>Aplikime: {applications.filter(a=>a.job_id===j.id).length}</p><div className="actions">{j.status==="draft"&&<button type="button" className="button primary" disabled={changing!==null} onClick={()=>void changeStatus(j.id,"published")}>Publiko</button>}{j.status==="published"&&<button type="button" className="button secondary" disabled={changing!==null} onClick={()=>void changeStatus(j.id,"closed")}>Mbyll shpalljen</button>}</div></article>)}</div>}
    </section>
    <section className="section"><h2>Aplikimet e fundit ({applications.length})</h2>
     {applications.length===0?<p>Nuk ka aplikime për t’u shfaqur.</p>:<div className="grid">{applications.map(a=><article className="tile" key={a.id}><p>Pozicioni: {jobs.find(j=>j.id===a.job_id)?.title??"—"}</p><p>Statusi: {a.status}</p><p>Data: {new Date(a.created_at).toLocaleDateString("sq-AL")}</p></article>)}</div>}
