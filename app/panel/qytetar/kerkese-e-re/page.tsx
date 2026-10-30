@@ -1,0 +1,8 @@
+import Link from 'next/link';
+import { requireRole } from '@/lib/server/require-role';
+import { createCitizenRequest } from '../actions';
+export default async function NewRequestPage() {
+  const {client}=await requireRole(['citizen']);
+  const {data:categories,error}=await client.from('categories').select('id,name').eq('active',true).order('sort_order').limit(100);
+  return <main className="citizen-page"><div className="citizen-container"><Link href="/panel/qytetar">← Paneli im</Link><section className="citizen-feature" style={{maxWidth:720,margin:'24px auto'}}><h1>Krijo kërkesë për shërbim</h1><p>Shpjego punën që të duhet, që mjeshtrat të mund ta shohin kërkesën.</p>{error?<p role="alert">Kategoritë nuk u ngarkuan.</p>:<form action={createCitizenRequest} className="citizen-form"><label htmlFor="request-category">Kategoria</label><select id="request-category" name="category_id" required defaultValue=""><option value="" disabled>Zgjidh kategorinë</option>{categories?.map(category=><option key={category.id} value={category.id}>{category.name}</option>)}</select><label htmlFor="request-title">Titulli</label><input id="request-title" name="title" minLength={2} maxLength={120} required placeholder="P.sh. Riparim lavamani"/><label htmlFor="request-description">Përshkrimi</label><textarea id="request-description" name="description" minLength={2} maxLength={2000} rows={5} required placeholder="Përshkruaj problemin..."/><label htmlFor="request-city">Qyteti</label><input id="request-city" name="city" maxLength={100} placeholder="P.sh. Tiranë"/><button type="submit">Publiko kërkesën</button></form>}</section></div></main>;
+}
