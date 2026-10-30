@@ -69,7 +69,7 @@ export const navigation = [
     "title": "Statistikat",
     "href": "/admin/statistikat",
     "icon": "chart-no-axes-column",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Administratorët",
