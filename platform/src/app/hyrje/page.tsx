@@ -23,7 +23,7 @@ export default function Login(){
     if(verifyError||verified.user?.app_metadata?.em_admin!==true){
      await db.auth.signOut();setNotice("Kjo llogari nuk ka autorizim Super Admin.");return;
     }
-    router.replace("/admin/cmimet");return;
+    router.replace("/admin");return;
    }
    if(role==="company"){
     const {data:memberships,error:memberError}=await db.from("em_company_memberships").select("business_id").eq("user_id",data.user.id).eq("status","active").limit(1);
