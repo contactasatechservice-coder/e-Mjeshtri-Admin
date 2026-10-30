@@ -95,3 +95,37 @@ main.admin-pricing{width:100%;max-width:1160px;margin:0 auto;padding:28px 20px 6
 .admin-pricing .admin-new-plan .listing-form label{display:flex;flex-direction:column;gap:7px}
 @media(max-width:760px){main.admin-pricing{padding:24px 16px 45px}.admin-pricing .admin-plan-grid{grid-template-columns:1fr;gap:14px}.admin-pricing .admin-plan-card{padding:18px}.admin-pricing .admin-fields{gap:12px}.admin-pricing .admin-plan-card h2{font-size:20px}}
 @media(max-width:390px){.admin-pricing .admin-fields{grid-template-columns:1fr}.admin-pricing .admin-fields .wide{grid-column:auto}}
+
+
+/* Unified Super Admin workspace */
+body:has(.admin-shell)>.topbar{display:none}
+body:has(.admin-shell) footer{display:none}
+.admin-shell{display:flex;min-height:100dvh;background:#f4f7fb;color:#173253}
+.admin-sidebar{width:252px;flex:0 0 252px;background:#102e58;color:white;padding:20px 12px;display:flex;flex-direction:column;gap:16px}
+.admin-brand{display:flex;flex-wrap:wrap;align-items:center;padding:12px 14px;color:#ff922f;font-size:25px;font-weight:800;text-decoration:none}
+.admin-brand strong{color:white}.admin-brand small{display:block;flex-basis:100%;font-size:10px;letter-spacing:2px;color:#b8cee9;margin-top:5px}
+.admin-nav{display:flex;flex-direction:column;gap:3px}
+.admin-nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;color:#dbe7f7;text-decoration:none;border-radius:9px;font-size:13px;min-height:43px}
+.admin-nav a span:first-child{width:22px;text-align:center;font-size:18px}
+.admin-nav a span:nth-child(2){flex:1}
+.admin-nav a small{font-size:9px;color:#9db4d1}
+.admin-nav a:hover,.admin-nav a.active{background:#274b7c;color:white}
+.admin-back{padding:12px;color:#c6d7ed;text-decoration:none;font-size:13px}
+.admin-main{min-width:0;flex:1}
+.admin-topbar{height:68px;background:#fff;border-bottom:1px solid #e2eaf3;display:flex;align-items:center;gap:14px;padding:0 25px;font-weight:750}
+.admin-menu-button{display:none;background:none;border:0;font-size:25px;color:#173253}
+.admin-signout{margin-left:auto;border:1px solid #d7e0eb;background:#fff;border-radius:9px;padding:9px 16px;color:#173253;cursor:pointer}
+.admin-content{padding:24px;max-width:1400px;margin:0 auto}
+.admin-dashboard{width:100%}.admin-welcome{margin-bottom:25px}.admin-eyebrow{font-size:11px;letter-spacing:2px;font-weight:800;color:#e47b13}
+.admin-welcome h1{font-size:clamp(26px,3vw,38px);margin:8px 0}.admin-welcome p{color:#66788e}
+.admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:30px}
+.admin-stat,.admin-module{background:#fff;border:1px solid #e3eaf3;border-radius:15px;padding:20px;box-shadow:0 4px 15px #102e5808}
+.admin-stat span{display:block;font-size:13px;color:#63778f}.admin-stat strong{display:block;font-size:31px;margin-top:10px;color:#102e58}
+.admin-dashboard h2{font-size:23px;margin:0 0 15px}.admin-module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.admin-module h3{font-size:17px;margin:10px 0}.admin-module p{font-size:13px;line-height:1.5;color:#63778f;min-height:40px}
+.admin-module-icon{font-size:25px;color:#ef850f}.admin-module a{font-weight:750;color:#0c4d91;text-decoration:none}.admin-upcoming{font-size:12px;color:#77879c}
+.admin-notice{padding:12px;background:#fff6e8;border-radius:9px}
+.admin-loading{padding:45px;text-align:center}
+@media(max-width:1100px){.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:800px){.admin-sidebar{position:fixed;inset:0 auto 0 0;z-index:51;transform:translateX(-100%);transition:transform .2s;overflow-y:auto}.admin-sidebar.open{transform:translateX(0)}.admin-overlay{position:fixed;inset:0;z-index:50;background:#0b1e3a88;border:0}.admin-menu-button{display:block}.admin-topbar{padding:0 16px}.admin-content{padding:16px}}
+@media(max-width:540px){.admin-stats,.admin-module-grid{grid-template-columns:1fr 1fr;gap:9px}.admin-stat,.admin-module{padding:13px}.admin-stat strong{font-size:25px}.admin-module h3{font-size:14px}.admin-module p{font-size:12px}.admin-module-grid{grid-template-columns:1fr}}
