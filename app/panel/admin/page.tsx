@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/server/require-role';
+import { setCompanyVerification } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,11 +30,16 @@ export default async function AdminPage() {
                 {company.nip ? ` — NIPT: ${company.nip}` : ''}
                 {' — '}
                 <span>{company.verified ? 'E verifikuar' : 'Në pritje të verifikimit'}</span>
+                <form action={setCompanyVerification}>
+                  <input type="hidden" name="companyId" value={company.user_id} />
+                  <input type="hidden" name="verified" value={company.verified ? 'false' : 'true'} />
+                  <button type="submit">{company.verified ? 'Çverifiko' : 'Verifiko'}</button>
+                </form>
               </li>
             ))}
           </ul>
         ) : <p>Nuk ka kompani të dukshme për këtë llogari.</p>}
-        <p className="small">Verifikimi dhe çverifikimi do të kryhen vetëm nga një veprim i autorizuar në server, me regjistrim auditimi. Ndryshimi i statusit nga shfletuesi nuk lejohet.</p>
+        <p className="small">Veprimet kalojnë në server dhe kërkojnë funksionin e autorizuar në Supabase. Derisa funksioni SQL të aktivizohet, kërkesat nuk do të kryhen.</p>
         <Link href="/panel">Kthehu te paneli</Link>
       </section>
     </main>
