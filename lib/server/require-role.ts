@@ -1,5 +1,5 @@
 import 'server-only';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
@@ -18,7 +18,7 @@ export async function requireRole(allowedRoles: readonly AppRole[]) {
   const client = createServerClient(url, key, {
     cookies: {
       getAll: () => cookieStore.getAll(),
-      setAll: (items) => {
+      setAll: (items: { name: string; value: string; options?: CookieOptions }[]) => {
         try {
           items.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
