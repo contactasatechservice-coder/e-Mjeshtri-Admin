@@ -51,7 +51,7 @@ export const navigation = [
     "title": "Reklamat",
     "href": "/admin/reklamat",
     "icon": "megaphone",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Ankesat",
