@@ -75,7 +75,7 @@ export const navigation = [
     "title": "Administratorët",
     "href": "/admin/administratoret",
     "icon": "shield-check",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Cilësimet",
