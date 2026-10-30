@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requireRole } from '@/lib/server/require-role';
 import { LogoutButton } from '../logout-button';
+import { CitizenCategoryIcon } from './category-icon';
 
 const categories = [
   { name: 'Hidraulik', icon: '🔧' },
@@ -45,7 +46,7 @@ export default async function CitizenDashboard() {
           <div className="citizen-category-grid">
             {categories.map(category => (
               <Link key={category.name} href={`/kerko?q=${encodeURIComponent(category.name)}`} className="citizen-category">
-                <span aria-hidden="true">{category.icon}</span><strong>{category.name}</strong>
+                <span aria-hidden="true" className="citizen-modern-icon"><CitizenCategoryIcon name={category.name} /></span><strong>{category.name}</strong>
               </Link>
             ))}
           </div>
