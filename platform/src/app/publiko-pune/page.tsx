@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Page(){return <main style={{paddingTop:80,maxWidth:620}}><h1>Publiko një punë</h1><p>Publikimi kërkon hyrje në llogari. Formulari dhe ruajtja e postimeve do të aktivizohen pas integrimit të autentikimit.</p><Link className="button primary" href="/hyrje">Vazhdo te hyrja</Link></main>}
