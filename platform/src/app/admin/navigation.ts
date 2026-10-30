@@ -33,7 +33,7 @@ export const navigation = [
     "title": "Kategoritë",
     "href": "/admin/kategorite",
     "icon": "layers",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Financat",
@@ -57,7 +57,7 @@ export const navigation = [
     "title": "Ankesat",
     "href": "/admin/ankesat",
     "icon": "message-square",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Njoftimet",
