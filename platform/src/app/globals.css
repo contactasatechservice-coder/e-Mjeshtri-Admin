@@ -24,3 +24,35 @@ main.welcome-page{padding:0!important;margin:0!important;width:100%!important;ma
 .welcome-artboard{position:relative;line-height:0;flex:0 0 auto;width:auto;height:100vh;height:100dvh;max-width:100vw;margin:0 auto}
 .welcome-image{display:block;width:auto;height:100%;max-width:100%;object-fit:fill}
 @media(max-width:700px){.welcome-artboard{width:100vw;height:100vh;height:100dvh}.welcome-image{width:100%;height:100%;object-fit:fill}}
+
+
+/* Native, responsive e-Mjeshtri welcome screen */
+body:has(.welcome-rebuilt){background:#f5f9ff}
+main.welcome-rebuilt{max-width:none;width:100%;min-height:100dvh;margin:0;padding:0 22px 48px;background:linear-gradient(180deg,rgba(255,255,255,.04),#fff 47%,#f4f8ff);color:#082c66}
+.welcome-heading{position:relative;text-align:center;padding:35px 12px 14px;background:linear-gradient(180deg,rgba(237,246,255,.25),rgba(255,255,255,.92)),url('/images/faqja-kryesore.png') center 4%/100% auto no-repeat}
+.welcome-brand{display:flex;flex-direction:column;align-items:center;font-size:clamp(35px,5vw,60px);font-weight:900;letter-spacing:-2px;line-height:1.08;color:#092e69}
+.welcome-brand em{font-style:normal;color:#ff8200}
+.welcome-brand-symbol{position:relative;font-size:clamp(62px,8vw,100px);line-height:.95;color:#072d69}
+.welcome-brand-symbol span{position:absolute;font-size:.34em;right:-.1em;bottom:.2em}
+.welcome-heading h1{margin:38px 0 7px;font-size:clamp(30px,4.8vw,59px);letter-spacing:-1.5px;line-height:1.13;color:#092c67}
+.welcome-heading p,.welcome-selection>p{margin:0;color:#667085;font-size:clamp(16px,2.3vw,28px);line-height:1.3}
+.welcome-selection{max-width:1060px;margin:0 auto;text-align:center}
+.welcome-rule{width:170px;max-width:30%;height:4px;background:#ff8200;border-radius:10px;margin:12px auto 15px}
+.welcome-selection h2{font-size:clamp(28px,4.2vw,51px);letter-spacing:-1px;margin:0;color:#092c67}
+.welcome-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 24px;margin-top:18px}
+.welcome-card{display:block;overflow:hidden;background:#fff;border:1px solid #e2eaf6;border-radius:22px;box-shadow:0 10px 25px #0a377113;text-align:left;transition:transform .18s,box-shadow .18s}
+.welcome-card:hover{transform:translateY(-3px);box-shadow:0 14px 30px #0a377120}
+.welcome-card:focus-visible{outline:3px solid #ff8200;outline-offset:3px}
+.welcome-card-photo{height:clamp(130px,18vw,245px);background-image:url('/images/faqja-kryesore.png');background-repeat:no-repeat;background-size:220% auto}
+.welcome-photo-citizen{background-position:0 64%}
+.welcome-photo-craftsman{background-position:100% 64%}
+.welcome-photo-company{background-position:0 94%}
+.welcome-photo-admin{background-position:100% 94%}
+.welcome-card-info{display:flex;align-items:center;gap:14px;min-height:108px;padding:12px 18px}
+.welcome-card-icon{flex:0 0 65px;height:65px;display:grid;place-items:center;border-radius:50%;background:#e6f0fd;color:#082e6b;font-size:37px;font-weight:800}
+.welcome-card-copy{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.welcome-card-copy strong{font-size:clamp(22px,2.6vw,31px);line-height:1.12;color:#082d68}
+.welcome-card-copy>span{font-size:clamp(14px,1.65vw,19px);line-height:1.35;color:#657084}
+.welcome-card-arrow{flex:0 0 46px;height:46px;display:grid;place-items:center;border-radius:50%;background:#e4efff;color:#082e6b;font-size:39px;line-height:1}
+@media(max-width:700px){main.welcome-rebuilt{padding:0 13px 26px}.welcome-heading{padding:20px 4px 10px}.welcome-brand{font-size:34px}.welcome-brand-symbol{font-size:62px}.welcome-heading h1{font-size:clamp(26px,7vw,38px);margin:24px 0 8px}.welcome-heading p,.welcome-selection>p{font-size:15px}.desktop-break{display:none}.welcome-selection h2{font-size:29px}.welcome-rule{margin:10px auto 13px}.welcome-cards{grid-template-columns:1fr;gap:13px;margin-top:15px;max-width:480px;margin-left:auto;margin-right:auto}.welcome-card{border-radius:16px}.welcome-card-photo{height:clamp(145px,46vw,215px)}.welcome-card-info{min-height:90px;padding:10px 12px;gap:10px}.welcome-card-icon{flex-basis:52px;height:52px;font-size:29px}.welcome-card-copy strong{font-size:23px}.welcome-card-copy>span{font-size:14px}.welcome-card-arrow{flex-basis:38px;height:38px;font-size:31px}}
+@media(min-width:1100px) and (min-height:800px){.welcome-heading{padding-top:40px}.welcome-cards{gap:22px}}
