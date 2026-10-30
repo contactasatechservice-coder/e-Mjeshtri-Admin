@@ -9,7 +9,7 @@ const field={width:"100%",boxSizing:"border-box" as const,minHeight:48,border:"1
 const label={display:"grid",gap:7,fontSize:14,fontWeight:650 as const,color:"#173b61"};
 export default function Register(){
  const router=useRouter();const [kind,setKind]=useState<Kind>("individual");const [name,setName]=useState("");const [surname,setSurname]=useState("");const [phone,setPhone]=useState("");const [city,setCity]=useState("");const [occupation,setOccupation]=useState("citizen");const [profession,setProfession]=useState("");const [companyName,setCompanyName]=useState("");const [nipt,setNipt]=useState("");const [address,setAddress]=useState("");const [industry,setIndustry]=useState("");const [website,setWebsite]=useState("");const [description,setDescription]=useState("");const [email,setEmail]=useState("");const [password,setPassword]=useState("");const [confirm,setConfirm]=useState("");const [showPassword,setShowPassword]=useState(false);const [agree,setAgree]=useState(false);const [notice,setNotice]=useState("");const [busy,setBusy]=useState(false);
- useEffect(()=>{if(new URLSearchParams(window.location.search).get("lloji")==="kompani")setKind("company");},[]);
+ useEffect(()=>{const kind=new URLSearchParams(window.location.search).get("lloji");if(kind==="kompani")setKind("company");if(kind==="mjeshter"){setKind("individual");setOccupation("master");}if(kind==="qytetar"){setKind("individual");setOccupation("citizen");}},[]);
  async function submit(e:FormEvent<HTMLFormElement>){
  e.preventDefault();if(password!==confirm){setNotice("Fjalëkalimet nuk përputhen.");return;}if(!agree){setNotice("Duhet të pranosh kushtet e përdorimit.");return;}setBusy(true);setNotice("");
  try{const db=getSupabase();const {data,error}=await db.auth.signUp({email:email.trim(),password,options:{data:{full_name:(name+" "+surname).trim(),phone:phone.trim(),city,account_type:kind==="company"?"company_applicant":occupation,profession:occupation==="master"?profession.trim():""}}});
@@ -19,7 +19,7 @@ export default function Register(){
   if(data.session&&data.user){const {error:requestError}=await db.from("em_company_registration_requests").insert({...draft,requester_id:data.user.id,status:"pending"});if(requestError){setNotice("Llogaria u krijua, por kërkesa e kompanisë nuk u dërgua: "+requestError.message+". Hyr dhe plotëso kërkesën.");return;}router.replace("/regjistro-kompani");return;}
   try{sessionStorage.setItem("em_company_registration_draft",JSON.stringify(draft));}catch{}
   setNotice("Llogaria u krijua. Konfirmo emailin nëse kërkohet, pastaj hyr dhe dërgo kërkesën e kompanisë për miratim.");
- }else if(data.session&&data.user){router.replace("/");return;}else{setNotice("Llogaria u krijua. Konfirmo emailin nëse kërkohet dhe hyr në platformë. Nuk nevojitet miratim nga Super Admin.");}
+ }else if(data.session&&data.user){router.replace(occupation==="master"?"/paneli-mjeshtrit":"/paneli-qytetarit");return;}else{setNotice("Llogaria u krijua. Konfirmo emailin nëse kërkohet dhe hyr në platformë. Nuk nevojitet miratim nga Super Admin.");}
  }catch{setNotice("Regjistrimi nuk u përfundua. Provo përsëri.");}finally{setBusy(false);}
  }
  return <main style={{maxWidth:620,margin:"0 auto",padding:"24px 16px 64px"}}>
