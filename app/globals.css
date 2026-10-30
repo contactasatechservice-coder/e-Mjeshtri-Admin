@@ -89,3 +89,21 @@
   .landing-v2 .category-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
   .landing-v2 .hero-search button{min-width:68px;padding:0 7px}
 }
+
+/* Larger role cards on phones: preserve existing photography and colors. */
+@media(max-width:700px){
+  .landing-v2 .landing-roles{padding-left:14px;padding-right:14px}
+  .landing-v2 .role-tiles{grid-template-columns:minmax(0,1fr);gap:14px;padding:12px}
+  .landing-v2 .role-tile{min-width:0;border-radius:19px}
+  .landing-v2 .tile-photo{height:195px;background-position:center 38%}
+  .landing-v2 .tile-bottom{min-height:128px;padding:32px 18px 46px}
+  .landing-v2 .tile-bottom h2{font-size:23px;line-height:1.2;margin-bottom:8px}
+  .landing-v2 .tile-bottom p{font-size:14px;line-height:1.5;max-width:34ch;margin-right:48px}
+  .landing-v2 .tile-icon{top:-26px;left:17px;width:50px;height:50px}
+  .landing-v2 .tile-arrow{right:16px;bottom:15px;width:38px;height:38px;font-size:20px}
+}
+@media(max-width:370px){
+  .landing-v2 .role-tiles{grid-template-columns:minmax(0,1fr);gap:12px;padding:9px}
+  .landing-v2 .tile-photo{height:170px}
+  .landing-v2 .tile-bottom p{font-size:13px}
+}
