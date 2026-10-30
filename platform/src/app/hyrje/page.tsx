@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Login(){return <main style={{paddingTop:80,maxWidth:520}}><h1>Hyr në e-Mjeshtri</h1><p>Hyrja dhe regjistrimi do të aktivizohen pas konfigurimit të sigurt të Supabase Auth.</p><Link className="button secondary" href="/">Kthehu në kryefaqe</Link></main>}
