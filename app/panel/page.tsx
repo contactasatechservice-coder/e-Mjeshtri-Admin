@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { LogoutButton } from './logout-button';
@@ -21,7 +21,7 @@ export default async function Panel() {
   const client = createServerClient(url, key, {
     cookies: {
       getAll: () => store.getAll(),
-      setAll: (items) => {
+      setAll: (items: { name: string; value: string; options?: CookieOptions }[]) => {
         try {
           items.forEach(({ name, value, options }) => store.set(name, value, options));
         } catch {
