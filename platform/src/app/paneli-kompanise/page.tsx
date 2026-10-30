@@ -85,7 +85,8 @@ export default function CompanyDashboard(){
   {state==="authorized"&&<>
    <p>Ke akses në {memberships.length} {memberships.length===1?"kompani":"kompani"} me rol menaxhimi ose rekrutimi.</p>
    <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Të dhënat lexohen nga Supabase sipas politikave RLS. Publikimi dhe mbyllja e shpalljeve janë të disponueshme për anëtarët e autorizuar. CV-të mbeten në zhvillim.</p>
-   <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link></div>
+   <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link><Link className="button secondary" href="/per-kompanite">Çmimet dhe reklamat</Link></div>
+   <p className="form-note">Publikimi kërkon konfirmim të pagesës nga administratori. Draftet mbeten falas.</p>
    {dataNotice&&<p role="alert">{dataNotice}</p>}
    <section className="section"><h2>Shpalljet ({jobs.length})</h2>
     {jobs.length===0?<p>Nuk ka shpallje të regjistruara.</p>:<div className="grid">{jobs.map(j=><article className="tile" key={j.id}><h3>{j.title}</h3><p>Statusi: {j.status}</p><p>Aplikime: {applications.filter(a=>a.job_id===j.id).length}</p><div className="actions">{j.status==="draft"&&<button type="button" className="button primary" disabled={changing!==null} onClick={()=>void changeStatus(j.id,"published")}>Publiko</button>}{j.status==="published"&&<button type="button" className="button secondary" disabled={changing!==null} onClick={()=>void changeStatus(j.id,"closed")}>Mbyll shpalljen</button>}</div></article>)}</div>}
