@@ -63,7 +63,7 @@ export const navigation = [
     "title": "Njoftimet",
     "href": "/admin/njoftimet",
     "icon": "bell",
-    "ready": false
+    "ready": true
   },
   {
     "title": "Statistikat",
