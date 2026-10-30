@@ -13,7 +13,13 @@ const categories = [
 ];
 
 export default async function CitizenDashboard() {
-  const { user } = await requireRole(['citizen']);
+  const { user, client } = await requireRole(['citizen']);
+  const [requestsResult, applicationsResult] = await Promise.all([
+    client.from('service_requests').select('id,title,status,created_at').eq('citizen_id', user.id).order('created_at', { ascending: false }).limit(5),
+    client.from('job_applications').select('id,status,created_at').eq('applicant_id', user.id).order('created_at', { ascending: false }).limit(5),
+  ]);
+  const requests = requestsResult.data ?? [];
+  const applications = applicationsResult.data ?? [];
   const firstName = typeof user.user_metadata?.full_name === 'string'
     ? user.user_metadata.full_name.trim().split(/\s+/)[0] : '';
   return (
@@ -58,7 +64,18 @@ export default async function CitizenDashboard() {
             <article className="citizen-feature"><span className="citizen-feature-icon orange">💼</span><h3>Oferta pune</h3><p>Eksploro vendet e punës të publikuara nga kompani të ndryshme.</p><Link href="/oferta-pune">Shiko ofertat →</Link></article>
           </div>
         </section>
-        <section className="citizen-upcoming"><div><span className="citizen-overline">SË SHPEJTI</span><h2>Aktiviteti yt personal</h2><p>Mesazhet, aplikimet dhe historiku i kërkesave do të shtohen në fazat e ardhshme.</p></div><span aria-hidden="true">📋</span></section>
+        <section className="citizen-section" aria-labelledby="citizen-activity-title">
+          <div className="citizen-section-head"><div><span className="citizen-overline">AKTIVITETI YT</span><h2 id="citizen-activity-title">Kërkesat dhe aplikimet</h2></div></div>
+          <div className="citizen-feature-grid">
+            <article className="citizen-feature"><span className="citizen-feature-icon">📋</span><h3>Kërkesat e mia</h3>
+              {requestsResult.error ? <p>Nuk u arritën të ngarkohen kërkesat.</p> : requests.length === 0 ? <p>Nuk ke ende kërkesa për shërbime.</p> : <ul className="citizen-activity-list">{requests.map(request => <li key={request.id}><strong>{request.title}</strong><span>{request.status}</span></li>)}</ul>}
+            </article>
+            <article className="citizen-feature"><span className="citizen-feature-icon orange">💼</span><h3>Aplikimet e mia</h3>
+              {applicationsResult.error ? <p>Nuk u arritën të ngarkohen aplikimet.</p> : applications.length === 0 ? <p>Nuk ke ende aplikime për punë.</p> : <ul className="citizen-activity-list">{applications.map(application => <li key={application.id}><strong>Aplikim pune</strong><span>{application.status}</span></li>)}</ul>}
+              <Link href="/oferta-pune">Shiko ofertat →</Link>
+            </article>
+          </div>
+        </section>
       </div>
     </main>
   );
