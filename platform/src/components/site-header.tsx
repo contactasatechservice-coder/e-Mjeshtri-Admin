@@ -1,0 +1,1 @@
+import Link from "next/link";export default function SiteHeader(){return <header className="nav"><Link href="/" className="logo">🔧 e-Mjeshtri</Link><nav aria-label="Navigimi kryesor"><Link href="/pune">Punë</Link><Link href="/sherbime">Shërbime</Link><Link href="/hyrje">Hyr</Link><Link href="/regjistrohu">Regjistrohu</Link></nav></header>}
