@@ -53,3 +53,12 @@
 .landing-v2 .category-tile .visual-icon{filter:none}
 @media(max-width:700px){.landing-v2 .tile-photo{height:148px}.landing-v2 .tile-bottom{min-height:143px;padding:28px 11px 43px}.landing-v2 .tile-bottom h2{font-size:18px;margin-bottom:6px}.landing-v2 .tile-bottom p{font-size:11.5px;line-height:1.38;margin:0}.landing-v2 .tile-icon{top:-23px;left:10px;width:44px;height:44px}.landing-v2 .tile-arrow{width:29px;height:29px;bottom:9px;right:9px}}
 @media(prefers-reduced-motion:reduce){.landing-v2 .role-tile,.landing-v2 .tile-photo,.landing-v2 .category-tile{transition:none!important}}
+
+/* Approved photographic cards: the complete original card artwork is the clickable surface. */
+.landing-v2 .role-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.landing-v2 .role-tile{display:block!important;aspect-ratio:730/475;min-height:0!important;padding:0!important;border:0!important;border-radius:30px!important;overflow:hidden;background:#fff;box-shadow:0 9px 30px #123a6420}
+.landing-v2 .role-tile .tile-photo{display:block;width:100%;height:100%!important;min-height:0!important;background-size:100% 100%!important;background-position:center!important;transform:none!important}
+.landing-v2 .role-tile .tile-photo::after{display:none!important}
+.landing-v2 .role-tile:hover .tile-photo{transform:none!important}
+@media(max-width:700px){.landing-v2 .role-tiles{gap:9px}.landing-v2 .role-tile{border-radius:15px!important}}
+@media(max-width:390px){.landing-v2 .role-tiles{gap:6px}.landing-v2 .role-tile{border-radius:11px!important}}
