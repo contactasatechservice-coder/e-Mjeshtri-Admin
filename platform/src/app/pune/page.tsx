@@ -1,2 +1,11 @@
-import MarketplaceList from "@/components/marketplace-list";import {demoJobs} from "@/lib/demo-data";
-export default function Jobs(){return <main className="section"><span className="eyebrow">Pamje demonstrimi — të dhëna fiktive</span><h1>Punë të publikuara</h1><p>Eksploro kërkesat e klientëve. Publikimet reale do të aktivizohen pas lidhjes së databazës.</p><MarketplaceList items={demoJobs} kind="jobs"/></main>}
+"use client";
+import {useEffect,useState} from "react";
+import Link from "next/link";
+import {getSupabase} from "@/lib/supabase";
+type Request={id:string;title:string;category:string;city:string;description:string;budget_all:number|null;created_at:string};
+export default function Jobs(){
+ const [items,setItems]=useState<Request[]>([]);const [loading,setLoading]=useState(true);const [notice,setNotice]=useState("");const [query,setQuery]=useState("");
+ useEffect(()=>{let active=true;async function load(){try{const {data,error}=await getSupabase().from("em_service_requests").select("id,title,category,city,description,budget_all,created_at").eq("status","open").order("created_at",{ascending:false}).limit(100);if(error)throw error;if(active)setItems(data??[]);}catch{if(active)setNotice("Kërkesat nuk u ngarkuan.");}finally{if(active)setLoading(false);}}void load();return()=>{active=false};},[]);
+ const filtered=items.filter(x=>(x.title+" "+x.category+" "+x.city).toLocaleLowerCase("sq").includes(query.toLocaleLowerCase("sq")));
+ return <main className="section"><span className="eyebrow">Kërkesa reale për shërbime</span><h1>Punë të publikuara</h1><p>Shfleto kërkesat që qytetarët kanë publikuar për mjeshtra dhe profesionistë.</p><label>Kërko sipas titullit, kategorisë ose qytetit<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="P.sh. Elektricist, Tiranë" style={{display:"block",width:"100%",maxWidth:520,padding:12,marginTop:8}}/></label>{loading?<p>Po ngarkohen kërkesat...</p>:notice?<p role="status">{notice}</p>:filtered.length===0?<p>Nuk ka kërkesa të hapura që përputhen me kërkimin.</p>:<div className="grid" style={{marginTop:24}}>{filtered.map(x=><article className="tile" key={x.id}><h2>{x.title}</h2><p>{x.category} · {x.city}</p><p>{x.description}</p><p>{x.budget_all!==null?"Buxheti: "+Number(x.budget_all).toLocaleString("sq-AL")+" Lekë":"Buxheti: Me marrëveshje"}</p><small>{new Date(x.created_at).toLocaleDateString("sq-AL")}</small></article>)}</div>}<p style={{marginTop:24}}><Link href="/publiko-pune">Publiko kërkesën tënde</Link></p></main>;
+}
