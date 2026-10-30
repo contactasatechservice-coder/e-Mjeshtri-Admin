@@ -28,10 +28,10 @@ export default async function CitizenDashboard() {
         <Link href="/" className="citizen-brand">e-<span>Mjeshtri</span></Link>
         <nav aria-label="Navigimi i qytetarit" className="citizen-desktop-nav">
           <Link href="/" className="citizen-home-link">Ballina</Link>
-          <Link href="/oferta-pune" className="citizen-home-link">Oferta pune</Link>
+          <Link href="/oferta-pune" className="citizen-home-link">Oferta pune</Link><Link href="/panel/qytetar/profili" className="citizen-home-link">Profili im</Link>
           <LogoutButton />
         </nav>
-        <details className="citizen-mobile-menu"><summary aria-label="Hap menunë">☰ Menu</summary><nav aria-label="Menuja e qytetarit"><Link href="/panel/qytetar">Paneli im</Link><Link href="/kerko">Shërbimet</Link><Link href="/oferta-pune">Oferta pune</Link><Link href="/">Ballina</Link></nav></details>
+        <details className="citizen-mobile-menu"><summary aria-label="Hap menunë">☰ Menu</summary><nav aria-label="Menuja e qytetarit"><Link href="/panel/qytetar">Paneli im</Link><Link href="/panel/qytetar/kerkese-e-re">Krijo kërkesë</Link><Link href="/panel/qytetar/profili">Profili im</Link><Link href="/kerko">Shërbimet</Link><Link href="/oferta-pune">Oferta pune</Link><Link href="/">Ballina</Link></nav></details>
       </header>
       <div className="citizen-container">
         <section className="citizen-hero">
@@ -60,12 +60,12 @@ export default async function CitizenDashboard() {
         <section className="citizen-section">
           <div className="citizen-section-head"><div><span className="citizen-overline">ZBULO MUNDËSI</span><h2>Çfarë dëshiron të bësh?</h2></div></div>
           <div className="citizen-feature-grid">
-            <article className="citizen-feature"><span className="citizen-feature-icon">🔎</span><h3>Kërko shërbime</h3><p>Shfleto shërbimet e publikuara dhe gjej profesionistin e duhur për punën tënde.</p><Link href="/kerko">Gjej mjeshtër →</Link></article>
+            <article className="citizen-feature"><span className="citizen-feature-icon">🔎</span><h3>Kërko shërbime</h3><p>Shfleto shërbimet e publikuara dhe gjej profesionistin e duhur për punën tënde.</p><Link href="/kerko">Gjej mjeshtër →</Link><p><Link href="/panel/qytetar/kerkese-e-re">Publiko kërkesë →</Link></p></article>
             <article className="citizen-feature"><span className="citizen-feature-icon orange">💼</span><h3>Oferta pune</h3><p>Eksploro vendet e punës të publikuara nga kompani të ndryshme.</p><Link href="/oferta-pune">Shiko ofertat →</Link></article>
           </div>
         </section>
         <section className="citizen-section" aria-labelledby="citizen-activity-title">
-          <div className="citizen-section-head"><div><span className="citizen-overline">AKTIVITETI YT</span><h2 id="citizen-activity-title">Kërkesat dhe aplikimet</h2></div></div>
+          <div className="citizen-section-head"><div><span className="citizen-overline">AKTIVITETI YT</span><h2 id="citizen-activity-title">Kërkesat dhe aplikimet</h2></div><Link href="/panel/qytetar/kerkese-e-re">+ Krijo kërkesë</Link></div>
           <div className="citizen-feature-grid">
             <article className="citizen-feature"><span className="citizen-feature-icon">📋</span><h3>Kërkesat e mia</h3>
               {requestsResult.error ? <p>Nuk u arritën të ngarkohen kërkesat.</p> : requests.length === 0 ? <p>Nuk ke ende kërkesa për shërbime.</p> : <ul className="citizen-activity-list">{requests.map(request => <li key={request.id}><strong>{request.title}</strong><span>{request.status}</span></li>)}</ul>}
