@@ -2,19 +2,62 @@ import Link from 'next/link';
 import { requireRole } from '@/lib/server/require-role';
 import { LogoutButton } from '../logout-button';
 
-export default async function RolePage() {
-  await requireRole(['citizen']);
+const categories = [
+  { name: 'Hidraulik', icon: '🔧' },
+  { name: 'Elektricist', icon: '⚡' },
+  { name: 'Lyerje', icon: '🖌️' },
+  { name: 'Ndërtim', icon: '🏗️' },
+  { name: 'Klimatizim', icon: '❄️' },
+  { name: 'Pastrim', icon: '🧹' },
+];
+
+export default async function CitizenDashboard() {
+  const { user } = await requireRole(['citizen']);
+  const firstName = typeof user.user_metadata?.full_name === 'string'
+    ? user.user_metadata.full_name.trim().split(/\s+/)[0] : '';
   return (
-    <main className="shell">
-      <header className="top"><Link href="/" className="logo">e-Mjeshtri</Link><LogoutButton /></header>
-      <section className="auth">
-        <h1>Paneli Qytetar</h1>
-        <p className="small">Gjej profesionistë për shërbimet që të duhen dhe shiko mundësitë e punësimit.</p>
-        <form action="/kerko"><label className="field">Kërko shërbime<input name="q" placeholder="p.sh. hidraulik" /></label><button type="submit" className="action">Kërko</button></form>
-        <nav aria-label="Veprimet e qytetarit"><p><Link className="action" href="/kerko">Shiko shërbimet</Link></p><p><Link className="ghost" href="/oferta-pune">Oferta pune</Link></p></nav>
-        <p className="small">Mesazhet dhe aplikimet personale janë ende në zhvillim.</p>
-        <Link href="/">Kthehu te ballina</Link>
-      </section>
+    <main className="citizen-page">
+      <header className="citizen-topbar">
+        <Link href="/" className="citizen-brand">e-<span>Mjeshtri</span></Link>
+        <nav aria-label="Navigimi i qytetarit">
+          <Link href="/" className="citizen-home-link">Ballina</Link>
+          <Link href="/oferta-pune" className="citizen-home-link">Oferta pune</Link>
+          <LogoutButton />
+        </nav>
+      </header>
+      <div className="citizen-container">
+        <section className="citizen-hero">
+          <div className="citizen-hero-copy">
+            <span className="citizen-eyebrow">PANELI QYTETAR</span>
+            <h1>{firstName ? `Mirë se erdhe, ${firstName}!` : 'Mirë se erdhe!'}</h1>
+            <p>Gjithçka që të duhet për të gjetur profesionistë të besueshëm dhe mundësi pune, në një vend.</p>
+            <form action="/kerko" className="citizen-search">
+              <label htmlFor="citizen-search-input" className="sr-only">Kërko shërbime</label>
+              <input id="citizen-search-input" name="q" placeholder="Çfarë shërbimi po kërkon?" />
+              <button type="submit">Kërko →</button>
+            </form>
+          </div>
+          <div className="citizen-hero-art" aria-hidden="true"><span>🏠</span><span>🛠️</span></div>
+        </section>
+        <section className="citizen-section">
+          <div className="citizen-section-head"><div><span className="citizen-overline">SHËRBIMET</span><h2>Gjej një profesionist</h2></div><Link href="/kerko">Shiko të gjitha →</Link></div>
+          <div className="citizen-category-grid">
+            {categories.map(category => (
+              <Link key={category.name} href={`/kerko?q=${encodeURIComponent(category.name)}`} className="citizen-category">
+                <span aria-hidden="true">{category.icon}</span><strong>{category.name}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+        <section className="citizen-section">
+          <div className="citizen-section-head"><div><span className="citizen-overline">ZBULO MUNDËSI</span><h2>Çfarë dëshiron të bësh?</h2></div></div>
+          <div className="citizen-feature-grid">
+            <article className="citizen-feature"><span className="citizen-feature-icon">🔎</span><h3>Kërko shërbime</h3><p>Shfleto shërbimet e publikuara dhe gjej profesionistin e duhur për punën tënde.</p><Link href="/kerko">Gjej mjeshtër →</Link></article>
+            <article className="citizen-feature"><span className="citizen-feature-icon orange">💼</span><h3>Oferta pune</h3><p>Eksploro vendet e punës të publikuara nga kompani të ndryshme.</p><Link href="/oferta-pune">Shiko ofertat →</Link></article>
+          </div>
+        </section>
+        <section className="citizen-upcoming"><div><span className="citizen-overline">SË SHPEJTI</span><h2>Aktiviteti yt personal</h2><p>Mesazhet, aplikimet dhe historiku i kërkesave do të shtohen në fazat e ardhshme.</p></div><span aria-hidden="true">📋</span></section>
+      </div>
     </main>
   );
 }
