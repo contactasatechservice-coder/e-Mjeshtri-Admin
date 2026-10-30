@@ -81,6 +81,6 @@ export const navigation = [
     "title": "Cilësimet",
     "href": "/admin/cilesimet",
     "icon": "settings",
-    "ready": false
+    "ready": true
   }
 ] as const;
