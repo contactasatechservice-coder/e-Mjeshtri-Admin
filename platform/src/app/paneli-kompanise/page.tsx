@@ -85,7 +85,7 @@ export default function CompanyDashboard(){
   {state==="authorized"&&<>
    <p>Ke akses në {memberships.length} {memberships.length===1?"kompani":"kompani"} me rol menaxhimi ose rekrutimi.</p>
    <p className="form-note">Autorizimi i shfaqjes kontrollohet nga anëtarësimet. Të dhënat lexohen nga Supabase sipas politikave RLS. Publikimi dhe mbyllja e shpalljeve janë të disponueshme për anëtarët e autorizuar. CV-të mbeten në zhvillim.</p>
-   <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link><Link className="button secondary" href="/per-kompanite">Çmimet dhe reklamat</Link></div>
+   <div className="actions"><Link className="button primary" href="/publiko-vend-pune">Përgatit një shpallje</Link><Link className="button secondary" href="/per-kompanite">Çmimet dhe reklamat</Link><Link className="button secondary" href="/pagesat-kompanive">Pagesat bankare</Link></div>
    <p className="form-note">Publikimi kërkon konfirmim të pagesës nga administratori. Draftet mbeten falas.</p>
    {dataNotice&&<p role="alert">{dataNotice}</p>}
    <section className="section"><h2>Shpalljet ({jobs.length})</h2>
