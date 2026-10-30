@@ -1,0 +1,1 @@
+import Link from "next/link";export default function Page(){return <main style={{paddingTop:80,maxWidth:620}}><h1>Ofro shërbimet e tua</h1><p>Profili profesional dhe publikimi i shërbimeve do të aktivizohen pas konfigurimit të llogarive.</p><Link className="button primary" href="/hyrje">Vazhdo te hyrja</Link></main>}
